@@ -42,8 +42,8 @@ def sync_saved_posts(
                 logger.info("sync-saved: reached known shortcode %s — stopping", shortcode)
                 break
 
-            if post.is_video:
-                logger.debug("sync-saved: skipping video %s", shortcode)
+            if post.is_video and getattr(post, "product_type", None) != "clips":
+                logger.debug("sync-saved: skipping non-reel video %s", shortcode)
                 record_saved_seen(shortcode, db_path)
                 known_shortcodes.add(shortcode)
                 continue
