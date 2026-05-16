@@ -244,3 +244,79 @@ def test_index_account_metadata_null_without_json_sidecar(tmp_path):
 
     assert row[0] is None
     assert row[1] is None
+
+
+def _insert_media(db: Path, account_id: int, filepath: str, extension: str,
+                  shortcode: str = None, post_timestamp: str = None,
+                  carousel_index: int = None) -> None:
+    conn = sqlite3.connect(str(db))
+    conn.execute(
+        "INSERT INTO media (account_id, filename, filepath, extension, shortcode,"
+        " post_timestamp, carousel_index) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (account_id, filepath.split("/")[-1], filepath, extension,
+         shortcode, post_timestamp, carousel_index),
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_get_recent_photos_includes_mp4(tmp_path):
+    from api.db import get_recent_photos
+    db = tmp_path / "test.db"
+    init_db(db)
+    acc = _insert_account(db, "alice", "111")
+    _insert_media(db, acc, "111/reel.mp4", "mp4",
+                  shortcode="VID001", post_timestamp="2026-01-01T10:00:00Z")
+    photos = get_recent_photos(db)
+    assert len(photos) == 1
+    assert photos[0]["media"] == [("111/reel.mp4", "mp4")]
+
+
+def test_get_recent_photos_excludes_gif(tmp_path):
+    from api.db import get_recent_photos
+    db = tmp_path / "test.db"
+    init_db(db)
+    acc = _insert_account(db, "alice", "111")
+    _insert_media(db, acc, "111/anim.gif", "gif",
+                  shortcode="GIF001", post_timestamp="2026-01-01T10:00:00Z")
+    assert get_recent_photos(db) == []
+
+
+def test_get_recent_photos_groups_mixed_carousel(tmp_path):
+    from api.db import get_recent_photos
+    db = tmp_path / "test.db"
+    init_db(db)
+    acc = _insert_account(db, "alice", "111")
+    ts = "2026-01-01T10:00:00Z"
+    _insert_media(db, acc, "111/c_1.jpg", "jpg", shortcode="CAR001",
+                  post_timestamp=ts, carousel_index=1)
+    _insert_media(db, acc, "111/c_2.mp4", "mp4", shortcode="CAR001",
+                  post_timestamp=ts, carousel_index=2)
+    photos = get_recent_photos(db)
+    assert len(photos) == 1
+    media = photos[0]["media"]
+    assert ("111/c_1.jpg", "jpg") in media
+    assert ("111/c_2.mp4", "mp4") in media
+
+
+def test_get_random_neutral_photo_includes_mp4(tmp_path):
+    from api.db import get_random_neutral_photo
+    db = tmp_path / "test.db"
+    init_db(db)
+    acc = _insert_account(db, "alice", "111")
+    _insert_media(db, acc, "111/reel.mp4", "mp4",
+                  shortcode="VID001", post_timestamp="2026-01-01T10:00:00Z")
+    photo = get_random_neutral_photo(db)
+    assert photo is not None
+    assert photo["media"] == [("111/reel.mp4", "mp4")]
+
+
+def test_get_random_neutral_photo_returns_none_when_all_rated(tmp_path):
+    from api.db import get_random_neutral_photo, upsert_rating
+    db = tmp_path / "test.db"
+    init_db(db)
+    acc = _insert_account(db, "alice", "111")
+    _insert_media(db, acc, "111/reel.mp4", "mp4",
+                  shortcode="VID001", post_timestamp="2026-01-01T10:00:00Z")
+    upsert_rating("VID001", "archive", db)
+    assert get_random_neutral_photo(db) is None

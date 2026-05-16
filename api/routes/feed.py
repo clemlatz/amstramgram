@@ -14,6 +14,10 @@ def _encode(filepath: str) -> str:
     return base64.urlsafe_b64encode(filepath.encode()).decode().rstrip("=")
 
 
+def _media_type(ext: str) -> str:
+    return "video" if ext == "mp4" else "image"
+
+
 @router.get("/feed")
 async def get_feed():
     photos = await asyncio.to_thread(get_recent_photos, DB_PATH)
@@ -26,7 +30,10 @@ async def get_feed():
                 "shortcode": p["shortcode"],
                 "archived_at": p["archived_at"],
                 "favorited_at": p["favorited_at"],
-                "images": [f"/api/image/{_encode(fp)}" for fp in p["filepaths"]],
+                "media": [
+                    {"url": f"/api/media/{_encode(fp)}", "type": _media_type(ext)}
+                    for fp, ext in p["media"]
+                ],
             }
             for p in photos
         ]

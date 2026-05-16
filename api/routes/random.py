@@ -14,6 +14,10 @@ def _encode(filepath: str) -> str:
     return base64.urlsafe_b64encode(filepath.encode()).decode().rstrip("=")
 
 
+def _media_type(ext: str) -> str:
+    return "video" if ext == "mp4" else "image"
+
+
 @router.get("/random")
 async def get_random():
     photo = await asyncio.to_thread(get_random_neutral_photo, DB_PATH)
@@ -24,6 +28,9 @@ async def get_random():
             "account": photo["account"],
             "post_timestamp": photo["post_timestamp"],
             "shortcode": photo["shortcode"],
-            "images": [f"/api/image/{_encode(fp)}" for fp in photo["filepaths"]],
+            "media": [
+                {"url": f"/api/media/{_encode(fp)}", "type": _media_type(ext)}
+                for fp, ext in photo["media"]
+            ],
         }
     })

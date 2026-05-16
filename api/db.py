@@ -364,17 +364,18 @@ def get_random_neutral_photo(db_path: Path) -> dict | None:
             SELECT DISTINCT m.shortcode FROM media m
             LEFT JOIN ratings r ON r.shortcode = m.shortcode
             WHERE m.shortcode IS NOT NULL AND r.shortcode IS NULL
-              AND m.extension IN ('jpg', 'jpeg', 'webp', 'png')
+              AND m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
             ORDER BY RANDOM() LIMIT 1
         """).fetchone()
         if not row:
             return None
         rows = conn.execute("""
-            SELECT m.filepath, m.post_timestamp, m.caption, m.shortcode, a.username AS account
+            SELECT m.filepath, m.extension, m.post_timestamp, m.caption, m.shortcode,
+                   a.username AS account
             FROM media m
             JOIN accounts a ON a.id = m.account_id
             LEFT JOIN ratings r ON r.shortcode = m.shortcode
-            WHERE m.shortcode = ? AND m.extension IN ('jpg', 'jpeg', 'webp', 'png')
+            WHERE m.shortcode = ? AND m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
               AND r.shortcode IS NULL
             ORDER BY m.carousel_index ASC
         """, (row["shortcode"],)).fetchall()
@@ -389,7 +390,7 @@ def get_random_neutral_photo(db_path: Path) -> dict | None:
         "post_timestamp": first["post_timestamp"],
         "caption": first["caption"],
         "shortcode": first["shortcode"],
-        "filepaths": [r["filepath"] for r in rows],
+        "media": [(r["filepath"], r["extension"] or "jpg") for r in rows],
     }
 
 
@@ -397,12 +398,12 @@ def get_recent_photos(db_path: Path) -> list[dict]:
     conn = _conn(db_path, read_only=True)
     try:
         rows = conn.execute("""
-            SELECT m.filepath, m.post_timestamp, m.caption, m.shortcode,
+            SELECT m.filepath, m.extension, m.post_timestamp, m.caption, m.shortcode,
                    r.archived_at, r.favorited_at, a.username AS account
             FROM media m
             JOIN accounts a ON a.id = m.account_id
             LEFT JOIN ratings r ON r.shortcode = m.shortcode
-            WHERE m.extension IN ('jpg', 'jpeg', 'webp', 'png')
+            WHERE m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
             ORDER BY m.post_timestamp DESC, m.carousel_index ASC
         """).fetchall()
     finally:
@@ -419,9 +420,9 @@ def get_recent_photos(db_path: Path) -> list[dict]:
                 "shortcode": row["shortcode"],
                 "archived_at": row["archived_at"],
                 "favorited_at": row["favorited_at"],
-                "filepaths": [],
+                "media": [],
             }
-        posts[key]["filepaths"].append(row["filepath"])
+        posts[key]["media"].append((row["filepath"], row["extension"] or "jpg"))
 
     return list(posts.values())[:100]
 
