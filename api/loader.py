@@ -1,5 +1,6 @@
 import json
 import logging
+import threading
 
 import instaloader
 
@@ -9,6 +10,8 @@ from .db import _conn, get_setting, set_setting
 logger = logging.getLogger(__name__)
 
 _loader: instaloader.Instaloader | None = None
+# Protects dirname_pattern mutations + download_post calls on the shared loader instance.
+download_lock = threading.Lock()
 
 
 def get_loader() -> instaloader.Instaloader | None:

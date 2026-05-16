@@ -54,7 +54,8 @@ def init_db(db_path: Path) -> None:
                 caption         TEXT,
                 like_count      INTEGER,
                 comment_count   INTEGER,
-                location        TEXT
+                location        TEXT,
+                is_saved_post   INTEGER NOT NULL DEFAULT 0
             );
             CREATE INDEX IF NOT EXISTS idx_media_account_shortcode
                 ON media (account_id, shortcode);
@@ -67,6 +68,10 @@ def init_db(db_path: Path) -> None:
                 key   TEXT PRIMARY KEY,
                 value TEXT
             );
+            CREATE TABLE IF NOT EXISTS saved_seen (
+                shortcode TEXT PRIMARY KEY,
+                seen_at   TEXT NOT NULL DEFAULT (datetime('now'))
+            );
         """)
         cols = {row[1] for row in conn.execute("PRAGMA table_info(accounts)")}
         if "instagram_user_id" in cols:
@@ -74,6 +79,10 @@ def init_db(db_path: Path) -> None:
             conn.commit()
         if "profile_pic_path" not in cols:
             conn.execute("ALTER TABLE accounts ADD COLUMN profile_pic_path TEXT")
+            conn.commit()
+        media_cols = {row[1] for row in conn.execute("PRAGMA table_info(media)")}
+        if "is_saved_post" not in media_cols:
+            conn.execute("ALTER TABLE media ADD COLUMN is_saved_post INTEGER NOT NULL DEFAULT 0")
             conn.commit()
     finally:
         conn.close()
@@ -95,6 +104,73 @@ def shortcode_exists(shortcode: str, db_path: Path) -> bool:
     try:
         row = conn.execute("SELECT 1 FROM media WHERE shortcode = ?", (shortcode,)).fetchone()
         return row is not None
+    finally:
+        conn.close()
+
+
+def get_all_shortcodes_set(db_path: Path) -> set[str]:
+    """Return all known shortcodes: downloaded media + saved-but-skipped entries."""
+    conn = _conn(db_path, read_only=True)
+    try:
+        media = {r[0] for r in conn.execute("SELECT shortcode FROM media WHERE shortcode IS NOT NULL")}
+        seen = {r[0] for r in conn.execute("SELECT shortcode FROM saved_seen")}
+        return media | seen
+    finally:
+        conn.close()
+
+
+def record_saved_seen(shortcode: str, db_path: Path) -> None:
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO saved_seen (shortcode) VALUES (?)",
+            (shortcode,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def upsert_account(username: str, platform_user_id: str, db_path: Path) -> tuple[int, bool]:
+    """Insert account if not exists, ensure active=1. Returns (account_id, is_new)."""
+    conn = _conn(db_path)
+    try:
+        existing = conn.execute(
+            "SELECT id, active FROM accounts WHERE platform_user_id = ?",
+            (platform_user_id,),
+        ).fetchone()
+        if existing:
+            if not existing["active"]:
+                conn.execute("UPDATE accounts SET active = 1 WHERE id = ?", (existing["id"],))
+                conn.commit()
+            return existing["id"], False
+        try:
+            cur = conn.execute(
+                "INSERT INTO accounts (username, platform_user_id, active) VALUES (?, ?, 1)",
+                (username, platform_user_id),
+            )
+            conn.commit()
+            return cur.lastrowid, True
+        except sqlite3.IntegrityError:
+            # Username already exists with a different platform_user_id (e.g. from a prior import)
+            row = conn.execute("SELECT id FROM accounts WHERE username = ?", (username,)).fetchone()
+            if row:
+                return row["id"], False
+            raise
+    finally:
+        conn.close()
+
+
+def mark_as_saved_posts(shortcodes: list[str], db_path: Path) -> None:
+    if not shortcodes:
+        return
+    conn = _conn(db_path)
+    try:
+        conn.executemany(
+            "UPDATE media SET is_saved_post = 1 WHERE shortcode = ?",
+            [(s,) for s in shortcodes],
+        )
+        conn.commit()
     finally:
         conn.close()
 

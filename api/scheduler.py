@@ -21,7 +21,7 @@ from .db import (
     migrate_done_files,
     set_setting,
 )
-from .loader import get_loader, persist_session_cookies
+from .loader import download_lock, get_loader, persist_session_cookies
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +133,10 @@ def _download_account_fast(
         for post in profile.get_posts():
             if _stop_event.is_set():
                 return
-            if not L.download_post(post, target=username):
+            with download_lock:
+                L.dirname_pattern = str(dest)
+                downloaded = L.download_post(post, target=username)
+            if not downloaded:
                 break
             time.sleep(_lognormal_delay(2, 5))
     except (instaloader.LoginRequiredException, instaloader.AbortDownloadException):
@@ -235,7 +238,10 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
             for post in profile.get_posts():
                 if downloaded >= max_downloads:
                     break
-                if L.download_post(post, target=username):
+                with download_lock:
+                    L.dirname_pattern = str(dest)
+                    did_download = L.download_post(post, target=username)
+                if did_download:
                     downloaded += 1
         except (instaloader.LoginRequiredException, instaloader.AbortDownloadException):
             raise

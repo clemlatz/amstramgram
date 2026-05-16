@@ -19,6 +19,32 @@ from ..loader import get_loader
 logger = logging.getLogger(__name__)
 
 
+async def download_profile_pics_by_id(platform_user_ids: list[str], L) -> None:
+    for platform_user_id in platform_user_ids:
+        try:
+            user_info = await asyncio.to_thread(
+                L.context.get_iphone_json,
+                f"api/v1/users/{platform_user_id}/info/", {},
+            )
+            user = user_info["user"]
+            profile_pic_url = user.get("profile_pic_url", "")
+            username = user.get("username", platform_user_id)
+            if not profile_pic_url:
+                continue
+            resp = await asyncio.to_thread(
+                L.context._session.get, profile_pic_url, timeout=15
+            )
+            resp.raise_for_status()
+            dest = STORAGE_BASE / platform_user_id
+            dest.mkdir(parents=True, exist_ok=True)
+            await asyncio.to_thread((dest / "profile.jpg").write_bytes, resp.content)
+            save_account_profile_pic(platform_user_id, f"{platform_user_id}/profile.jpg", DB_PATH)
+            logger.info("profile_pic: saved for @%s", username)
+        except Exception as exc:
+            logger.error("profile_pic: failed for %s — %s", platform_user_id, exc)
+        await asyncio.sleep(random.uniform(1, 2))
+
+
 async def _download_profile_pics_bg(candidates: list[dict], L) -> None:
     for account in candidates:
         username = account["username"]
