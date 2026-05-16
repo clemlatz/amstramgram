@@ -15,6 +15,7 @@
   $effect(() => {
     if (!swiperEl) return;
 
+    // destroyed guards against the async import resolving after the effect cleanup runs
     let destroyed = false;
     let instance = null;
 
@@ -148,50 +149,48 @@
         </div>
       </header>
 
-      {#if isCarousel}
-        {#key photo.shortcode}
-        <div class="swiper" bind:this={swiperEl}>
-          <div class="swiper-wrapper">
-            {#each photo.media as item}
-              <div class="swiper-slide">
-                {#if item.type === 'video'}
-                  <div class="video-wrapper">
-                    <video src={item.url} loop bind:muted={muted} playsinline autoplay onclick={togglePlayPause}></video>
-                    <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
-                      {@render muteIcon()}
-                    </button>
-                  </div>
-                {:else}
-                  <img src={item.url} alt="" loading="lazy" />
-                {/if}
-              </div>
-            {/each}
+      {#key photo.shortcode}
+        {#if isCarousel}
+          <div class="swiper" bind:this={swiperEl}>
+            <div class="swiper-wrapper">
+              {#each photo.media as item}
+                <div class="swiper-slide">
+                  {#if item.type === 'video'}
+                    <div class="video-wrapper">
+                      <video src={item.url} loop bind:muted={muted} playsinline autoplay onclick={togglePlayPause}></video>
+                      <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
+                        {@render muteIcon()}
+                      </button>
+                    </div>
+                  {:else}
+                    <img src={item.url} alt="" loading="lazy" />
+                  {/if}
+                </div>
+              {/each}
+            </div>
+            <div class="swiper-pagination"></div>
+            <button class="nav-btn nav-prev" aria-label="Previous">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+            <button class="nav-btn nav-next" aria-label="Next">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
           </div>
-          <div class="swiper-pagination"></div>
-          <button class="nav-btn nav-prev" aria-label="Previous">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-          </button>
-          <button class="nav-btn nav-next" aria-label="Next">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
-          </button>
-        </div>
-        {/key}
-      {:else if photo.media[0].type === 'video'}
-        {#key photo.shortcode}
+        {:else if photo.media[0].type === 'video'}
           <div class="video-wrapper">
             <video class="post-video" src={photo.media[0].url} loop bind:muted={muted} playsinline autoplay onclick={togglePlayPause}></video>
             <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
               {@render muteIcon()}
             </button>
           </div>
-        {/key}
-      {:else}
-        <img class="post-image" src={photo.media[0].url} alt="" />
-      {/if}
+        {:else}
+          <img class="post-image" src={photo.media[0].url} alt="" />
+        {/if}
+      {/key}
     </article>
 
     <div class="actions">
