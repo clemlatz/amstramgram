@@ -36,7 +36,7 @@ amstramgram/
 | `GET /api/feed` | Last 100 photos |
 | `GET /api/random` | Random unrated photo |
 | `POST /api/rate` | Rate a photo (`archive` / `favorite` / `clear`) |
-| `GET /api/image/{encoded}` | Serve an image file (base64url-encoded path) |
+| `GET /api/media/{encoded}` | Serve an image or video file (base64url-encoded path) |
 | `GET /api/stats` | Statistics (accounts, total count, disk usage) |
 | `GET /api/accounts` | List followed accounts |
 | `POST /api/accounts/sync-following` | Sync following list from the platform |
