@@ -5,7 +5,6 @@ from pathlib import Path
 import instaloader
 
 from .db import (
-    get_all_shortcodes_set,
     index_account,
     mark_as_saved_posts,
     record_saved_seen,
@@ -20,13 +19,13 @@ logger = logging.getLogger(__name__)
 def sync_saved_posts(
     L: instaloader.Instaloader, db_path: Path, storage_base: Path
 ) -> tuple[int, list[str]]:
-    """Download new saved posts, stopping at the first already-known shortcode.
+    """Download all saved reels (catchup mode — no early-exit on known shortcodes).
 
     Returns (downloaded_count, new_account_platform_user_ids).
     Raises RateLimitException, LoginRequiredException, or AbortDownloadException on hard failures.
     """
     _set_session_headers(L)
-    known_shortcodes = get_all_shortcodes_set(db_path)
+    L.download_videos = True
 
     saved_shortcodes: list[str] = []
     accounts_touched: dict[int, tuple[str, Path]] = {}
@@ -37,16 +36,6 @@ def sync_saved_posts(
     try:
         for post in own_profile.get_saved_posts():
             shortcode = post.shortcode
-
-            if shortcode in known_shortcodes:
-                logger.info("sync-saved: reached known shortcode %s — stopping", shortcode)
-                break
-
-            if post.is_video and getattr(post, "product_type", None) != "clips":
-                logger.debug("sync-saved: skipping non-reel video %s", shortcode)
-                record_saved_seen(shortcode, db_path)
-                known_shortcodes.add(shortcode)
-                continue
 
             username = post.owner_username
             platform_user_id = str(post.owner_id)
@@ -93,6 +82,7 @@ def sync_saved_posts(
         except Exception as exc:
             logger.error("sync-saved: indexing failed for @%s — %s", username, exc)
 
+    L.download_videos = False
     mark_as_saved_posts(saved_shortcodes, db_path)
     logger.info("sync-saved: done — %d post(s) downloaded", len(saved_shortcodes))
     return len(saved_shortcodes), new_platform_user_ids
