@@ -4,7 +4,7 @@
 </script>
 
 <div class="feed">
-  {#each data.photos as post (post.images[0])}
+  {#each data.photos as post (post.media[0].url)}
     <PostCard {post} />
   {/each}
 </div>

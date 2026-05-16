@@ -5,10 +5,11 @@
 
   let { post } = $props();
 
-  const isCarousel = $derived(post.images.length > 1);
+  const isCarousel = $derived(post.media.length > 1);
 
   let archived = $state(!!post.archived_at);
   let favorited = $state(!!post.favorited_at);
+  let muted = $state(true);
 
   async function rate(action) {
     if (!post.shortcode) return;
@@ -44,6 +45,7 @@
       favorited = prevFavorited;
     }
   }
+
   let swiperEl = $state(null);
 
   const AVATAR_COLORS = ['#e91e63', '#9c27b0', '#2196f3', '#00bcd4', '#ff5722', '#ff9800'];
@@ -69,6 +71,16 @@
     if (hours < 24) return rtf.format(-hours, 'hour');
     if (days < 7) return rtf.format(-days, 'day');
     return new Date(ts).toLocaleDateString('en', { day: 'numeric', month: 'short' });
+  }
+
+  function togglePlayPause(e) {
+    const video = e.currentTarget;
+    video.paused ? video.play() : video.pause();
+  }
+
+  function toggleMute(e) {
+    e.stopPropagation();
+    muted = !muted;
   }
 
   onMount(async () => {
@@ -127,9 +139,29 @@
   {#if isCarousel}
     <div class="swiper" bind:this={swiperEl}>
       <div class="swiper-wrapper">
-        {#each post.images as src}
+        {#each post.media as item}
           <div class="swiper-slide">
-            <img {src} alt="" loading="lazy" />
+            {#if item.type === 'video'}
+              <div class="video-wrapper">
+                <video src={item.url} loop bind:muted={muted} playsinline onclick={togglePlayPause}></video>
+                <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
+                  {#if muted}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                      <line x1="23" y1="9" x2="17" y2="15"/>
+                      <line x1="17" y1="9" x2="23" y2="15"/>
+                    </svg>
+                  {:else}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                    </svg>
+                  {/if}
+                </button>
+              </div>
+            {:else}
+              <img src={item.url} alt="" loading="lazy" />
+            {/if}
           </div>
         {/each}
       </div>
@@ -145,9 +177,28 @@
         </svg>
       </button>
     </div>
+  {:else if post.media[0].type === 'video'}
+    <div class="video-wrapper">
+      <video class="post-video" src={post.media[0].url} loop bind:muted={muted} playsinline onclick={togglePlayPause}></video>
+      <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
+        {#if muted}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <line x1="23" y1="9" x2="17" y2="15"/>
+            <line x1="17" y1="9" x2="23" y2="15"/>
+          </svg>
+        {:else}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+          </svg>
+        {/if}
+      </button>
+    </div>
   {:else}
-    <img class="post-image" src={post.images[0]} alt="" loading="lazy" />
+    <img class="post-image" src={post.media[0].url} alt="" loading="lazy" />
   {/if}
+
   <p class="post-caption">{post.caption}</p>
 </article>
 
@@ -243,6 +294,38 @@
     line-height: 1.5;
   }
 
+  /* Video */
+  .video-wrapper {
+    position: relative;
+  }
+  .post-video {
+    width: 100%;
+    display: block;
+    cursor: pointer;
+  }
+  .mute-btn {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    -webkit-tap-highlight-color: transparent;
+    z-index: 10;
+  }
+  .mute-btn svg {
+    width: 16px;
+    height: 16px;
+    stroke: #fff;
+  }
+
   /* Carousel */
   .swiper {
     position: relative;
@@ -252,7 +335,11 @@
     width: 100%;
     display: block;
   }
-
+  .swiper :global(.swiper-slide video) {
+    width: 100%;
+    display: block;
+    cursor: pointer;
+  }
   .swiper :global(.swiper-pagination) {
     position: absolute;
     bottom: 12px;
@@ -278,7 +365,6 @@
   .swiper :global(.swiper-pagination-bullet-active) {
     opacity: 1;
   }
-
   .nav-btn {
     display: none;
     position: absolute;
@@ -303,13 +389,11 @@
   }
   .nav-prev { left: 8px; }
   .nav-next { right: 8px; }
-
   @media (hover: hover) and (pointer: fine) {
     .swiper:hover .nav-btn:not(.swiper-button-disabled) {
       display: flex;
     }
   }
-
   .action-bar {
     display: flex;
     border-top: 1px solid var(--color-border);
