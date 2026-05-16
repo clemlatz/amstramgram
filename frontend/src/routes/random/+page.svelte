@@ -7,9 +7,10 @@
   let photo = $state(data.photo);
   let loading = $state(false);
   let visible = $state(true);
+  let muted = $state(true);
   let swiperEl = $state(null);
 
-  const isCarousel = $derived(photo?.images?.length > 1);
+  const isCarousel = $derived(photo?.media?.length > 1);
 
   $effect(() => {
     if (!swiperEl) return;
@@ -67,6 +68,16 @@
     return new Date(ts).toLocaleDateString('en', { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
+  function togglePlayPause(e) {
+    const video = e.currentTarget;
+    video.paused ? video.play().catch(() => {}) : video.pause();
+  }
+
+  function toggleMute(e) {
+    e.stopPropagation();
+    muted = !muted;
+  }
+
   async function rate(action) {
     if (!photo || loading) return;
     loading = true;
@@ -87,6 +98,7 @@
       const res = await fetch('/api/random');
       const { photo: next } = await res.json();
       photo = next;
+      muted = true;
     } catch {
       photo = null;
     }
@@ -95,6 +107,21 @@
     loading = false;
   }
 </script>
+
+{#snippet muteIcon()}
+  {#if muted}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+      <line x1="23" y1="9" x2="17" y2="15"/>
+      <line x1="17" y1="9" x2="23" y2="15"/>
+    </svg>
+  {:else}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+    </svg>
+  {/if}
+{/snippet}
 
 {#if photo}
   <div class="page">
@@ -125,9 +152,18 @@
         {#key photo.shortcode}
         <div class="swiper" bind:this={swiperEl}>
           <div class="swiper-wrapper">
-            {#each photo.images as src}
+            {#each photo.media as item}
               <div class="swiper-slide">
-                <img {src} alt="" loading="lazy" />
+                {#if item.type === 'video'}
+                  <div class="video-wrapper">
+                    <video src={item.url} loop bind:muted={muted} playsinline autoplay onclick={togglePlayPause}></video>
+                    <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
+                      {@render muteIcon()}
+                    </button>
+                  </div>
+                {:else}
+                  <img src={item.url} alt="" loading="lazy" />
+                {/if}
               </div>
             {/each}
           </div>
@@ -144,8 +180,17 @@
           </button>
         </div>
         {/key}
+      {:else if photo.media[0].type === 'video'}
+        {#key photo.shortcode}
+          <div class="video-wrapper">
+            <video class="post-video" src={photo.media[0].url} loop bind:muted={muted} playsinline autoplay onclick={togglePlayPause}></video>
+            <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
+              {@render muteIcon()}
+            </button>
+          </div>
+        {/key}
       {:else}
-        <img class="post-image" src={photo.images[0]} alt="" />
+        <img class="post-image" src={photo.media[0].url} alt="" />
       {/if}
     </article>
 
@@ -228,6 +273,7 @@
     font-weight: 600;
     color: #fff;
   }
+
   .avatar-img {
     position: absolute;
     inset: 0;
@@ -260,6 +306,42 @@
     display: block;
   }
 
+  /* Video */
+  .video-wrapper {
+    position: relative;
+  }
+
+  .post-video {
+    width: 100%;
+    display: block;
+    cursor: pointer;
+  }
+
+  .mute-btn {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    -webkit-tap-highlight-color: transparent;
+    z-index: 10;
+  }
+
+  .mute-btn svg {
+    width: 16px;
+    height: 16px;
+    stroke: #fff;
+  }
+
+  /* Carousel */
   .swiper {
     position: relative;
     overflow: hidden;
@@ -268,6 +350,12 @@
   .swiper :global(.swiper-slide img) {
     width: 100%;
     display: block;
+  }
+
+  .swiper :global(.swiper-slide video) {
+    width: 100%;
+    display: block;
+    cursor: pointer;
   }
 
   .swiper :global(.swiper-pagination) {
