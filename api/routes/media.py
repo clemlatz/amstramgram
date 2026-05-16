@@ -13,11 +13,12 @@ _CONTENT_TYPES = {
     "jpeg": "image/jpeg",
     "webp": "image/webp",
     "png": "image/png",
+    "mp4": "video/mp4",
 }
 
 
-@router.get("/image/{encoded}")
-def get_image(encoded: str):
+@router.get("/media/{encoded}")
+def get_media(encoded: str):
     try:
         padded = encoded + "=" * (-len(encoded) % 4)
         filepath = Path(base64.urlsafe_b64decode(padded).decode())

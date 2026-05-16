@@ -8,7 +8,7 @@ from starlette.exceptions import HTTPException
 
 from .config import DB_PATH, ENABLE_ACCESS_LOG
 from .db import init_db, set_setting
-from .routes import accounts, feed, image, random, rate, settings, stats
+from .routes import accounts, feed, media, random, rate, settings, stats
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-app.include_router(image.router, prefix="/api")
+app.include_router(media.router, prefix="/api")
 app.include_router(random.router, prefix="/api")
 app.include_router(rate.router, prefix="/api")
 app.include_router(feed.router, prefix="/api")
