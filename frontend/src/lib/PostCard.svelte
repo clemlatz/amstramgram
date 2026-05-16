@@ -143,7 +143,7 @@
           <div class="swiper-slide">
             {#if item.type === 'video'}
               <div class="video-wrapper">
-                <video src={item.url} loop bind:muted={muted} playsinline onclick={togglePlayPause}></video>
+                <video src={item.url} loop bind:muted={muted} playsinline autoplay={false} onclick={togglePlayPause}></video>
                 <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
                   {#if muted}
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -179,7 +179,7 @@
     </div>
   {:else if post.media[0].type === 'video'}
     <div class="video-wrapper">
-      <video class="post-video" src={post.media[0].url} loop bind:muted={muted} playsinline onclick={togglePlayPause}></video>
+      <video class="post-video" src={post.media[0].url} loop bind:muted={muted} playsinline autoplay={false} onclick={togglePlayPause}></video>
       <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
         {#if muted}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
