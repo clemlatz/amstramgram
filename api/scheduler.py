@@ -72,6 +72,14 @@ def _is_not_found(exc: Exception) -> bool:
     return "404" in str(exc)
 
 
+def _post_has_video(post) -> bool:
+    if post.is_video:
+        return True
+    if post.typename == "GraphSidecar":
+        return any(node.is_video for node in post.get_sidecar_nodes())
+    return False
+
+
 def _lognormal_delay(low: int, high: int) -> int:
     """Return a random integer delay in [low, high] with a log-normal distribution."""
     mid = (low + high) / 2
@@ -133,6 +141,8 @@ def _download_account_fast(
         for post in profile.get_posts():
             if _stop_event.is_set():
                 return
+            if _post_has_video(post):
+                continue
             with download_lock:
                 L.dirname_pattern = str(dest)
                 downloaded = L.download_post(post, target=username)
@@ -238,6 +248,8 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
             for post in profile.get_posts():
                 if downloaded >= max_downloads:
                     break
+                if _post_has_video(post):
+                    continue
                 with download_lock:
                     L.dirname_pattern = str(dest)
                     did_download = L.download_post(post, target=username)

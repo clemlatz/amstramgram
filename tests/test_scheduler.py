@@ -143,7 +143,11 @@ def test_download_account_fast_stops_on_existing_post(tmp_path):
     L.context.get_iphone_json.return_value = {"user": {}}
     profile = MagicMock()
     post_new = MagicMock()
+    post_new.is_video = False
+    post_new.typename = "GraphImage"
     post_existing = MagicMock()
+    post_existing.is_video = False
+    post_existing.typename = "GraphImage"
     profile.get_posts.return_value = [post_new, post_existing]
     # first → True (new post), second → False (already present)
     L.download_post.side_effect = [True, False]
@@ -290,3 +294,42 @@ def test_get_scheduler_status_returns_next_run_at():
         assert status["next_run_at"] == "2026-05-16T10:30:00"
     finally:
         sched._scheduler_task = original_task
+
+
+def test_post_has_video_pure_video_post():
+    from api.scheduler import _post_has_video
+    post = MagicMock()
+    post.is_video = True
+    assert _post_has_video(post) is True
+
+
+def test_post_has_video_image_post():
+    from api.scheduler import _post_has_video
+    post = MagicMock()
+    post.is_video = False
+    post.typename = "GraphImage"
+    assert _post_has_video(post) is False
+
+
+def test_post_has_video_clean_carousel():
+    from api.scheduler import _post_has_video
+    node = MagicMock()
+    node.is_video = False
+    post = MagicMock()
+    post.is_video = False
+    post.typename = "GraphSidecar"
+    post.get_sidecar_nodes.return_value = [node, node]
+    assert _post_has_video(post) is False
+
+
+def test_post_has_video_carousel_with_video_slide():
+    from api.scheduler import _post_has_video
+    img_node = MagicMock()
+    img_node.is_video = False
+    vid_node = MagicMock()
+    vid_node.is_video = True
+    post = MagicMock()
+    post.is_video = False
+    post.typename = "GraphSidecar"
+    post.get_sidecar_nodes.return_value = [img_node, vid_node]
+    assert _post_has_video(post) is True
