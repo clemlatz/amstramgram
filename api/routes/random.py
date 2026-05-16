@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from ..config import DB_PATH
 from ..db import get_random_neutral_photo
+from .feed import _media_type
 
 router = APIRouter()
 
@@ -13,9 +14,6 @@ router = APIRouter()
 def _encode(filepath: str) -> str:
     return base64.urlsafe_b64encode(filepath.encode()).decode().rstrip("=")
 
-
-def _media_type(ext: str) -> str:
-    return "video" if ext == "mp4" else "image"
 
 
 @router.get("/random")
