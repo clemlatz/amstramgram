@@ -1,0 +1,5 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+instaloader>=4.14
+pillow>=10
+python-dotenv>=1.0
