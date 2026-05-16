@@ -24,6 +24,10 @@
   let nextRunAt = $state(data.next_run_at ?? null);
   let schedulerLoading = $state(false);
 
+  let syncSavedLoading = $state(false);
+  let syncSavedResult = $state(null);
+  let syncSavedError = $state(null);
+
   const UA_PLACEHOLDER = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram/274.0.0.0';
 
   async function handleSubmit(e) {
@@ -79,6 +83,25 @@
   async function resetUa() {
     userAgent = UA_PLACEHOLDER;
     await saveUserAgent(UA_PLACEHOLDER);
+  }
+
+  async function syncSavedPosts() {
+    syncSavedLoading = true;
+    syncSavedResult = null;
+    syncSavedError = null;
+    try {
+      const res = await fetch('/api/settings/sync-saved', { method: 'POST' });
+      if (res.ok) {
+        const json = await res.json();
+        syncSavedResult = json.downloaded;
+      } else {
+        syncSavedError = 'Sync failed. Please try again.';
+      }
+    } catch {
+      syncSavedError = 'Network error. Please try again.';
+    } finally {
+      syncSavedLoading = false;
+    }
   }
 
   async function toggleScheduler() {
@@ -190,6 +213,22 @@
         <span class="track"></span>
       </label>
     </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="sync-saved-section">
+    <span class="field-label">Saved posts</span>
+    <span class="label">Download posts you saved on Instagram</span>
+    {#if syncSavedError}
+      <p class="error">{syncSavedError}</p>
+    {/if}
+    {#if syncSavedResult !== null}
+      <p class="saved">{syncSavedResult === 0 ? 'Already up to date.' : `${syncSavedResult} post${syncSavedResult === 1 ? '' : 's'} downloaded.`}</p>
+    {/if}
+    <button class="btn" type="button" disabled={syncSavedLoading} onclick={syncSavedPosts}>
+      {syncSavedLoading ? 'Syncing…' : 'Sync saved posts'}
+    </button>
   </div>
 
 </div>
@@ -340,9 +379,11 @@
     margin: 0;
   }
 
-  .scheduler-section {
+  .scheduler-section,
+  .sync-saved-section {
     display: flex;
     flex-direction: column;
+    gap: 8px;
   }
 
   .scheduler-row {
