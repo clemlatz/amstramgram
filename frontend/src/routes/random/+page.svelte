@@ -5,6 +5,7 @@
   import { formatDate } from '$lib/media.js';
 
   const MODE_KEY = 'random-mode';
+  const cacheKey = (m) => `random_post_${m}`;
 
   let { data } = $props();
 
@@ -62,10 +63,28 @@
 
   async function switchMode(newMode) {
     if (newMode === mode) return;
+
+    if (post && typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(cacheKey(mode), JSON.stringify(post));
+    }
+
     mode = newMode;
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(MODE_KEY, mode);
     }
+
+    if (typeof sessionStorage !== 'undefined') {
+      const cached = sessionStorage.getItem(cacheKey(mode));
+      if (cached) {
+        try {
+          post = JSON.parse(cached);
+          return;
+        } catch {
+          sessionStorage.removeItem(cacheKey(mode));
+        }
+      }
+    }
+
     post = null;
     loading = true;
     await loadNext();
@@ -76,6 +95,7 @@
     loading = true;
     visible = false;
     fetchError = false;
+    if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(cacheKey(mode));
 
     const shortcode = post.shortcode;
 
@@ -100,6 +120,7 @@
     loading = true;
     visible = false;
     fetchError = false;
+    if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(cacheKey(mode));
     await loadNext();
   }
 
@@ -111,9 +132,14 @@
       const { post: next } = await res.json();
       post = next;
       muted = true;
+      if (typeof sessionStorage !== 'undefined') {
+        if (next) sessionStorage.setItem(cacheKey(mode), JSON.stringify(next));
+        else sessionStorage.removeItem(cacheKey(mode));
+      }
     } catch {
       post = null;
       fetchError = true;
+      if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(cacheKey(mode));
     }
     visible = true;
     loading = false;
