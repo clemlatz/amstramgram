@@ -1,7 +1,7 @@
 PYTHON := .venv/bin/python
 PIP    := .venv/bin/pip
 
-.PHONY: install test start
+.PHONY: install test start dev
 
 install:
 	python3 -m venv .venv
@@ -12,3 +12,6 @@ test:
 
 start:
 	$(PYTHON) -m api
+
+dev:
+	$(PYTHON) -m api & npm --prefix frontend run dev & wait
