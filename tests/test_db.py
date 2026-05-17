@@ -320,3 +320,45 @@ def test_get_random_neutral_post_returns_none_when_all_rated(tmp_path):
                   shortcode="VID001", post_timestamp="2026-01-01T10:00:00Z")
     upsert_rating("VID001", "archive", db)
     assert get_random_neutral_post(db) is None
+
+
+def test_get_random_favorite_post_returns_none_when_no_favorites(tmp_path):
+    from api.db import get_random_favorite_post
+    db = tmp_path / "test.db"
+    init_db(db)
+    acc = _insert_account(db, "alice", "111")
+    _insert_media(db, acc, "111/img.jpg", "jpg",
+                  shortcode="POST001", post_timestamp="2026-01-01T10:00:00Z")
+    assert get_random_favorite_post(db) is None
+
+
+def test_get_random_favorite_post_returns_favorited_post(tmp_path):
+    from api.db import get_random_favorite_post, upsert_rating
+    db = tmp_path / "test.db"
+    init_db(db)
+    acc = _insert_account(db, "alice", "111")
+    _insert_media(db, acc, "111/img.jpg", "jpg",
+                  shortcode="POST001", post_timestamp="2026-01-01T10:00:00Z")
+    upsert_rating("POST001", "favorite", db)
+    post = get_random_favorite_post(db)
+    assert post is not None
+    assert post["shortcode"] == "POST001"
+    assert post["media"] == [("111/img.jpg", "jpg")]
+
+
+def test_get_random_favorite_post_excludes_unrated_and_archived(tmp_path):
+    from api.db import get_random_favorite_post, upsert_rating
+    db = tmp_path / "test.db"
+    init_db(db)
+    acc = _insert_account(db, "alice", "111")
+    _insert_media(db, acc, "111/unrated.jpg", "jpg",
+                  shortcode="UNRATED", post_timestamp="2026-01-01T10:00:00Z")
+    _insert_media(db, acc, "111/archived.jpg", "jpg",
+                  shortcode="ARCHIVED", post_timestamp="2026-01-02T10:00:00Z")
+    _insert_media(db, acc, "111/fav.jpg", "jpg",
+                  shortcode="FAVED", post_timestamp="2026-01-03T10:00:00Z")
+    upsert_rating("ARCHIVED", "archive", db)
+    upsert_rating("FAVED", "favorite", db)
+    post = get_random_favorite_post(db)
+    assert post is not None
+    assert post["shortcode"] == "FAVED"

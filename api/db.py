@@ -391,6 +391,59 @@ def get_random_neutral_post(db_path: Path) -> dict | None:
         "media": [(r["filepath"], r["extension"] or "jpg") for r in rows],
     }
 
+def get_random_favorite_post(db_path: Path) -> dict | None:
+    conn = _conn(db_path, read_only=True)
+    try:
+        # Pick a random account first so all accounts get equal weight
+        # regardless of how many posts they have.
+        account_row = conn.execute("""
+            SELECT a.id
+            FROM media m
+            JOIN ratings r ON r.shortcode = m.shortcode
+            JOIN accounts a ON a.id = m.account_id
+            WHERE r.favorited_at IS NOT NULL
+              AND m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
+            GROUP BY a.id
+            ORDER BY RANDOM()
+            LIMIT 1
+        """).fetchone()
+        if not account_row:
+            return None
+        row = conn.execute("""
+            SELECT DISTINCT m.shortcode FROM media m
+            JOIN ratings r ON r.shortcode = m.shortcode
+            WHERE m.shortcode IS NOT NULL
+              AND r.favorited_at IS NOT NULL
+              AND m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
+              AND m.account_id = ?
+            ORDER BY RANDOM() LIMIT 1
+        """, (account_row["id"],)).fetchone()
+        if not row:
+            return None
+        rows = conn.execute("""
+            SELECT m.filepath, m.extension, m.post_timestamp, m.caption, m.shortcode,
+                   a.username AS account, a.active AS account_active
+            FROM media m
+            JOIN accounts a ON a.id = m.account_id
+            JOIN ratings r ON r.shortcode = m.shortcode
+            WHERE m.shortcode = ? AND m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
+              AND r.favorited_at IS NOT NULL
+            ORDER BY m.carousel_index ASC
+        """, (row["shortcode"],)).fetchall()
+    finally:
+        conn.close()
+
+    if not rows:
+        return None
+    first = rows[0]
+    return {
+        "account": first["account"],
+        "account_active": bool(first["account_active"]),
+        "post_timestamp": first["post_timestamp"],
+        "caption": first["caption"],
+        "shortcode": first["shortcode"],
+        "media": [(r["filepath"], r["extension"] or "jpg") for r in rows],
+    }
 
 def get_recent_posts(db_path: Path) -> list[dict]:
     conn = _conn(db_path, read_only=True)
