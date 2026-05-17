@@ -13,7 +13,7 @@ Generated: 2026-05-17 · Last updated: 2026-05-17 · Score: **15/20** (Good — 
 ### To Do
 - [x] **[P2] `/impeccable extract`** — accent tokens (`#ed4956`, `#8b2035`, `#2d6a4f`, `#e03131`), mute-btn dark mode (`rgba(0,0,0,0.5)` → `var(--color-nav-btn)`), extract Toggle component
 - [x] **[P3] `/impeccable optimize`** — `will-change: transform` on tab bar
-- [x] **[P3] `/impeccable adapt`** — confirmed mobile-only (PRODUCT.md: iPhone/Android, couch browsing)
+- [x] **[P3] `/impeccable adapt`** — responsive desktop layout: sidebar nav 64px + content 600px above 768px
 - [ ] **[P3] `/impeccable polish`** — final quality pass
 
 ---
@@ -87,7 +87,7 @@ See pass 4 below.
 ### P3 — Responsive
 
 ~~**[P3] No breakpoints for tablet/desktop**~~
-- **Closed as intentional** — PRODUCT.md targets iPhone/Android users browsing on the couch. Single-column 470px layout is correct. No wider breakpoint needed.
+- **Resolved** — sidebar nav at 768px+, content 600px wide. Mobile layout unchanged.
 
 ---
 
