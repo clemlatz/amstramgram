@@ -203,7 +203,7 @@
       <div class="scheduler-info">
         <span class="field-label">Scheduler</span>
         {#if schedulerRunning && nextRunAt}
-          <span class="label">Next cycle at {new Date(nextRunAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          <span class="label">Next cycle at {new Date(nextRunAt).toLocaleTimeString('en', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
         {:else}
           <span class="label">{schedulerRunning ? 'Running' : 'Stopped'}</span>
         {/if}
