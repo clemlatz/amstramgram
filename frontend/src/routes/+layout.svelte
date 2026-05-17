@@ -30,11 +30,11 @@
     {#if $page.url.pathname === '/random'}
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="3" y="3" width="18" height="18" rx="3" fill="currentColor"/>
-        <circle cx="8.5" cy="8.5" r="1.5" fill="white"/>
-        <circle cx="15.5" cy="8.5" r="1.5" fill="white"/>
-        <circle cx="12" cy="12" r="1.5" fill="white"/>
-        <circle cx="8.5" cy="15.5" r="1.5" fill="white"/>
-        <circle cx="15.5" cy="15.5" r="1.5" fill="white"/>
+        <circle cx="8.5" cy="8.5" r="1.5" style="fill: var(--color-bg)"/>
+        <circle cx="15.5" cy="8.5" r="1.5" style="fill: var(--color-bg)"/>
+        <circle cx="12" cy="12" r="1.5" style="fill: var(--color-bg)"/>
+        <circle cx="8.5" cy="15.5" r="1.5" style="fill: var(--color-bg)"/>
+        <circle cx="15.5" cy="15.5" r="1.5" style="fill: var(--color-bg)"/>
       </svg>
     {:else}
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
