@@ -1,6 +1,6 @@
 # Audit — Amstramgram
 
-Generated: 2026-05-17 · Last updated: 2026-05-17 · Score: **15/20** (Good — open P2s remain)
+Generated: 2026-05-17 · Last updated: 2026-05-17 · Score: **18/20** (Solid — no open P1/P2s)
 
 ## Checklist
 
@@ -14,7 +14,7 @@ Generated: 2026-05-17 · Last updated: 2026-05-17 · Score: **15/20** (Good — 
 - [x] **[P2] `/impeccable extract`** — accent tokens (`#ed4956`, `#8b2035`, `#2d6a4f`, `#e03131`), mute-btn dark mode (`rgba(0,0,0,0.5)` → `var(--color-nav-btn)`), extract Toggle component
 - [x] **[P3] `/impeccable optimize`** — `will-change: transform` on tab bar
 - [x] **[P3] `/impeccable adapt`** — responsive desktop layout: sidebar nav 64px + content 600px above 768px
-- [ ] **[P3] `/impeccable polish`** — final quality pass
+- [x] **[P3] `/impeccable polish`** — hover states, hard-coded color cleanup
 
 ---
 

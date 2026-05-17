@@ -518,6 +518,12 @@
   .forget { background: var(--color-action-forget); }
   .remember { background: var(--color-action-remember); }
 
+  @media (hover: hover) and (pointer: fine) {
+    .btn:not(:disabled):hover {
+      opacity: 0.88;
+    }
+  }
+
   .empty {
     display: flex;
     flex-direction: column;
@@ -563,5 +569,11 @@
 
   .retry-btn:active {
     opacity: 0.7;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .retry-btn:hover {
+      opacity: 0.8;
+    }
   }
 </style>

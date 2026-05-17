@@ -211,6 +211,12 @@
       width: 22px;
       height: 22px;
     }
+
+    .tab:hover {
+      color: var(--color-tab-active);
+      background: var(--color-border-subtle);
+      border-radius: 8px;
+    }
   }
 
   .tab svg {

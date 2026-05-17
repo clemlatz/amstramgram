@@ -370,6 +370,12 @@
     opacity: 0.7;
   }
 
+  @media (hover: hover) and (pointer: fine) {
+    .btn:not(:disabled):hover {
+      opacity: 0.8;
+    }
+  }
+
   .btn-row {
     display: flex;
     align-items: center;

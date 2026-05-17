@@ -283,6 +283,14 @@
     fill: var(--color-favorite);
     stroke: var(--color-favorite);
   }
+  @media (hover: hover) and (pointer: fine) {
+    .header-fav-btn:not(.active):hover svg {
+      stroke: var(--color-text);
+    }
+    .header-fav-btn.active:hover svg {
+      opacity: 0.75;
+    }
+  }
   .post-account a {
     font-size: 14px;
     font-weight: 600;

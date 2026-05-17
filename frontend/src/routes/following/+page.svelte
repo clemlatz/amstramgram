@@ -136,7 +136,7 @@
   }
 
   .sync-label.error {
-    color: #e03131;
+    color: var(--color-error);
   }
 
   .btn {
@@ -160,6 +160,12 @@
 
   .btn:not(:disabled):active {
     opacity: 0.7;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn:not(:disabled):hover {
+      opacity: 0.8;
+    }
   }
 
   .empty {
