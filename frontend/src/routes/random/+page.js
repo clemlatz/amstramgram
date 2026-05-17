@@ -1,26 +1,14 @@
-const STORAGE_KEY = 'random_current_post';
+const MODE_KEY = 'random-mode';
 
 export async function load({ fetch }) {
-  if (typeof sessionStorage !== 'undefined') {
-    const cached = sessionStorage.getItem(STORAGE_KEY);
-    if (cached) {
-      try {
-        return { post: JSON.parse(cached) };
-      } catch {
-        sessionStorage.removeItem(STORAGE_KEY);
-      }
-    }
-  }
+  const mode = (typeof localStorage !== 'undefined' && localStorage.getItem(MODE_KEY)) || 'all';
+  const endpoint = mode === 'favorites' ? '/api/random/favorites' : '/api/random';
 
   try {
-    const res = await fetch("/api/random");
+    const res = await fetch(endpoint);
     if (!res.ok) return { post: null, loadError: true };
-    const data = await res.json();
-    const post = data?.post ?? null;
-    if (post && typeof sessionStorage !== 'undefined') {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(post));
-    }
-    return { post };
+    const { post } = await res.json();
+    return { post: post ?? null };
   } catch {
     return { post: null, loadError: true };
   }

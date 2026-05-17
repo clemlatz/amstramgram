@@ -4,6 +4,8 @@
   import Avatar from '$lib/Avatar.svelte';
   import { formatDate } from '$lib/media.js';
 
+  const MODE_KEY = 'random-mode';
+
   let { data } = $props();
 
   let post = $state(data.post);
@@ -12,13 +14,15 @@
   let muted = $state(true);
   let swiperEl = $state(null);
   let fetchError = $state(data.loadError ?? false);
+  let mode = $state(
+    (typeof localStorage !== 'undefined' && localStorage.getItem(MODE_KEY)) || 'all'
+  );
 
   const isCarousel = $derived(post?.media?.length > 1);
 
   $effect(() => {
     if (!swiperEl) return;
 
-    // destroyed guards against the async import resolving after the effect cleanup runs
     let destroyed = false;
     let instance = null;
 
@@ -56,6 +60,16 @@
     muted = !muted;
   }
 
+  function switchMode(newMode) {
+    if (newMode === mode) return;
+    mode = newMode;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(MODE_KEY, mode);
+    }
+    post = null;
+    loadNext();
+  }
+
   async function rate(action) {
     if (!post || loading) return;
     loading = true;
@@ -80,22 +94,25 @@
     await loadNext();
   }
 
+  async function skip() {
+    if (!post || loading) return;
+    loading = true;
+    visible = false;
+    fetchError = false;
+    await loadNext();
+  }
+
   async function loadNext() {
     try {
-      const res = await fetch('/api/random');
+      const endpoint = mode === 'favorites' ? '/api/random/favorites' : '/api/random';
+      const res = await fetch(endpoint);
       if (!res.ok) throw new Error();
       const { post: next } = await res.json();
       post = next;
       muted = true;
-      if (next) {
-        sessionStorage.setItem('random_current_post', JSON.stringify(next));
-      } else {
-        sessionStorage.removeItem('random_current_post');
-      }
     } catch {
       post = null;
       fetchError = true;
-      sessionStorage.removeItem('random_current_post');
     }
     visible = true;
     loading = false;
@@ -125,6 +142,11 @@
 
 {#if post}
   <div class="page">
+    <div class="mode-toggle">
+      <button class="mode-btn" class:active={mode === 'all'} onclick={() => switchMode('all')}>All</button>
+      <button class="mode-btn" class:active={mode === 'favorites'} onclick={() => switchMode('favorites')}>Favorites</button>
+    </div>
+
     <article class="card" class:fade={!visible}>
       <header class="post-header">
         <Avatar account={post.account} active={post.account_active ?? true} />
@@ -183,19 +205,35 @@
     </article>
 
     <div class="actions">
-      <button class="btn forget" disabled={loading} onclick={() => rate('archive')}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <line x1="18" y1="6" x2="6" y2="18"/>
-          <line x1="6" y1="6" x2="18" y2="18"/>
-        </svg>
-        Forget
-      </button>
-      <button class="btn remember" disabled={loading} onclick={() => rate('favorite')}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-        </svg>
-        Remember
-      </button>
+      {#if mode === 'favorites'}
+        <button class="btn forget" disabled={loading} onclick={() => rate('archive')}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+          Forget
+        </button>
+        <button class="btn next" disabled={loading} onclick={skip}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+          Next
+        </button>
+      {:else}
+        <button class="btn forget" disabled={loading} onclick={() => rate('archive')}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+          Forget
+        </button>
+        <button class="btn remember" disabled={loading} onclick={() => rate('favorite')}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+          Remember
+        </button>
+      {/if}
     </div>
   </div>
 {:else if fetchError}
@@ -208,6 +246,15 @@
     <p class="empty-title">Connection error</p>
     <p class="empty-sub">Couldn't load the next post.</p>
     <button class="retry-btn" onclick={retryFetch}>Try again</button>
+  </div>
+{:else if mode === 'favorites'}
+  <div class="empty">
+    <svg class="empty-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <p class="empty-title">No favorites yet</p>
+    <p class="empty-sub">Posts you remember will appear here.</p>
+    <button class="retry-btn" onclick={() => switchMode('all')}>Browse all posts</button>
   </div>
 {:else}
   <div class="empty">
@@ -239,6 +286,37 @@
       max-width: 600px;
     }
   }
+
+  .mode-toggle {
+    display: flex;
+    background: var(--color-border-subtle);
+    border-radius: 8px;
+    padding: 3px;
+    align-self: center;
+  }
+
+  .mode-btn {
+    flex: 1;
+    padding: 6px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    background: transparent;
+    color: var(--color-text-muted);
+    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mode-btn.active {
+    background: var(--color-bg);
+    color: var(--color-text);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  }
+
+  .next { background: var(--color-tab-inactive); }
 
   .card {
     transition: opacity 0.2s ease;
