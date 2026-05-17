@@ -338,35 +338,32 @@ def index_account(account_id: int, dest_dir: Path, db_path: Path) -> int:
 
     return len(rows)
 
-def get_random_account_with_neutral_photos(db_path: Path) -> int:
+def get_random_neutral_photo(db_path: Path) -> dict | None:
     conn = _conn(db_path, read_only=True)
     try:
-        row = conn.execute("""
+        # Pick a random account first so all accounts get equal weight
+        # regardless of how many photos they have.
+        account_row = conn.execute("""
             SELECT a.id
             FROM media m
             LEFT JOIN ratings r ON r.shortcode = m.shortcode
             JOIN accounts a ON a.id = m.account_id
             WHERE r.shortcode IS NULL
+              AND m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
             GROUP BY a.id
             ORDER BY RANDOM()
             LIMIT 1
         """).fetchone()
-        if not row:
+        if not account_row:
             return None
-    finally:
-        conn.close()
-
-
-def get_random_neutral_photo(db_path: Path) -> dict | None:
-    conn = _conn(db_path, read_only=True)
-    try:
         row = conn.execute("""
             SELECT DISTINCT m.shortcode FROM media m
             LEFT JOIN ratings r ON r.shortcode = m.shortcode
             WHERE m.shortcode IS NOT NULL AND r.shortcode IS NULL
               AND m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
+              AND m.account_id = ?
             ORDER BY RANDOM() LIMIT 1
-        """).fetchone()
+        """, (account_row["id"],)).fetchone()
         if not row:
             return None
         rows = conn.execute("""
