@@ -505,13 +505,28 @@ def get_all_accounts(db_path: Path) -> list[dict]:
     conn = _conn(db_path, read_only=True)
     try:
         rows = conn.execute("""
-            SELECT a.username, a.active, COUNT(m.id) AS count
+            SELECT
+                a.username,
+                a.active,
+                COUNT(DISTINCT m.id) AS count,
+                COUNT(DISTINCT CASE WHEN r.favorited_at IS NOT NULL THEN m.shortcode END) AS favorited_count,
+                COUNT(DISTINCT CASE WHEN r.archived_at  IS NOT NULL THEN m.shortcode END) AS archived_count
             FROM accounts a
             LEFT JOIN media m ON m.account_id = a.id
+            LEFT JOIN ratings r ON r.shortcode = m.shortcode
             GROUP BY a.id
             ORDER BY a.username ASC
         """).fetchall()
-        return [{"username": r["username"], "active": bool(r["active"]), "count": r["count"]} for r in rows]
+        return [
+            {
+                "username": r["username"],
+                "active": bool(r["active"]),
+                "count": r["count"],
+                "favorited_count": r["favorited_count"],
+                "archived_count": r["archived_count"],
+            }
+            for r in rows
+        ]
     finally:
         conn.close()
 
