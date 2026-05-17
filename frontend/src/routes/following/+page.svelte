@@ -90,6 +90,12 @@
     padding: 16px 0;
   }
 
+  @media (min-width: 768px) {
+    .page {
+      max-width: 600px;
+    }
+  }
+
   .header {
     display: flex;
     align-items: center;

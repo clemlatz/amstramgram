@@ -245,6 +245,12 @@
     padding: 32px 20px 16px;
   }
 
+  @media (min-width: 768px) {
+    .page {
+      max-width: 600px;
+    }
+  }
+
   .title {
     font-size: 22px;
     font-weight: 700;

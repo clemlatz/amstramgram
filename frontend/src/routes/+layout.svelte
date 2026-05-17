@@ -182,6 +182,37 @@
     transform: scale(0.88);
   }
 
+  @media (min-width: 768px) {
+    .content {
+      padding-bottom: 0;
+      padding-left: 64px;
+    }
+
+    .tab-bar {
+      width: 64px;
+      height: 100dvh;
+      top: 0;
+      bottom: auto;
+      right: auto;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 4px;
+      padding: 20px 0;
+      border-top: none;
+      border-right: 0.5px solid var(--color-tab-border);
+    }
+
+    .tab {
+      width: 44px;
+      height: 44px;
+    }
+
+    .tab svg {
+      width: 22px;
+      height: 22px;
+    }
+  }
+
   .tab svg {
     width: 26px;
     height: 26px;

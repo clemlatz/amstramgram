@@ -27,6 +27,12 @@
     padding: 16px 0;
   }
 
+  @media (min-width: 768px) {
+    .feed {
+      max-width: 600px;
+    }
+  }
+
   .empty {
     display: flex;
     flex-direction: column;

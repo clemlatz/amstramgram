@@ -268,6 +268,12 @@
     gap: 16px;
   }
 
+  @media (min-width: 768px) {
+    .page {
+      max-width: 600px;
+    }
+  }
+
   .card {
     transition: opacity 0.2s ease;
   }
