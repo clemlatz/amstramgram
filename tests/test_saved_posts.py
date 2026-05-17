@@ -1,60 +1,85 @@
 from unittest.mock import MagicMock, patch
-from pathlib import Path
-
-import pytest
 
 from api.db import init_db
 
 
-def _make_video_post(shortcode: str, product_type: str) -> MagicMock:
+def _make_post(shortcode, typename="GraphImage", owner_id=111, username="alice"):
     post = MagicMock()
     post.shortcode = shortcode
-    post.is_video = True
-    post.product_type = product_type
-    post.owner_username = "alice"
-    post.owner_id = 111
+    post.typename = typename
+    post.owner_username = username
+    post.owner_id = owner_id
     return post
 
 
-def _run_sync(posts, tmp_path):
+def _run_sync(tmp_path, posts, *, shortcode_exists_returns=True, download_side_effect=None):
     db = tmp_path / "test.db"
     init_db(db)
     storage = tmp_path / "storage"
     storage.mkdir()
 
     L = MagicMock()
+    if download_side_effect:
+        L.download_post.side_effect = download_side_effect
+
     profile = MagicMock()
     profile.get_saved_posts.return_value = posts
 
     with patch("api.saved.instaloader.Profile.own_profile", return_value=profile), \
          patch("api.saved._set_session_headers"), \
-         patch("api.saved.record_saved_seen") as mock_seen, \
          patch("api.saved.upsert_account", return_value=(1, False)), \
          patch("api.saved.download_lock"), \
-         patch("api.saved.index_account", return_value=0), \
+         patch("api.saved.index_account") as mock_index, \
+         patch("api.saved.shortcode_exists", return_value=shortcode_exists_returns), \
          patch("api.saved.mark_as_saved_posts"), \
          patch("api.saved.time.sleep"):
         from api.saved import sync_saved_posts
-        count, _ = sync_saved_posts(L, db, storage)
-        return count, mock_seen
+        count, new_ids = sync_saved_posts(L, db, storage)
+
+    return count, new_ids, L, mock_index
 
 
-def test_sync_saved_skips_regular_feed_video(tmp_path):
-    feed_video = _make_video_post("FV001", product_type="feed")
-    count, mock_seen = _run_sync([feed_video], tmp_path)
-    assert count == 0
-    mock_seen.assert_called_once_with("FV001", tmp_path / "test.db")
+def test_sync_counts_downloaded_post(tmp_path):
+    storage = tmp_path / "storage"
 
+    def fake_download(p, target):
+        dest = storage / "111"
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / f"{p.shortcode}.mp4").write_bytes(b"x")
 
-def test_sync_saved_skips_igtv(tmp_path):
-    igtv = _make_video_post("IG001", product_type="igtv")
-    count, mock_seen = _run_sync([igtv], tmp_path)
-    assert count == 0
-    mock_seen.assert_called_once_with("IG001", tmp_path / "test.db")
+    count, _, _, mock_index = _run_sync(
+        tmp_path,
+        [_make_post("VID001", typename="GraphVideo")],
+        shortcode_exists_returns=True,
+        download_side_effect=fake_download,
+    )
 
-
-def test_sync_saved_downloads_reel(tmp_path):
-    reel = _make_video_post("REEL001", product_type="clips")
-    count, mock_seen = _run_sync([reel], tmp_path)
     assert count == 1
-    mock_seen.assert_not_called()
+    mock_index.assert_called_once()
+
+
+def test_sync_skips_already_indexed_post(tmp_path):
+    # download produces no new files but shortcode is already in DB → skip silently
+    count, _, _, mock_index = _run_sync(
+        tmp_path,
+        [_make_post("KNOWN01")],
+        shortcode_exists_returns=True,
+    )
+
+    assert count == 0
+    mock_index.assert_not_called()
+
+
+def test_sync_aborts_when_download_produces_no_files_and_not_in_db(tmp_path):
+    # download produces no files and shortcode not in DB → abort after first post
+    posts = [_make_post("BAD001"), _make_post("NEXT01")]
+
+    count, _, L, mock_index = _run_sync(
+        tmp_path,
+        posts,
+        shortcode_exists_returns=False,
+    )
+
+    assert count == 0
+    assert L.download_post.call_count == 1
+    mock_index.assert_not_called()

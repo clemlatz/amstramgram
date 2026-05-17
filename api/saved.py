@@ -5,9 +5,10 @@ from pathlib import Path
 import instaloader
 
 from .db import (
+    MEDIA_EXTS,
     index_account,
     mark_as_saved_posts,
-    record_saved_seen,
+    shortcode_exists,
     upsert_account,
 )
 from .loader import download_lock
@@ -15,12 +16,19 @@ from .scheduler import RateLimitException, _is_rate_limited, _lognormal_delay, _
 
 logger = logging.getLogger(__name__)
 
+_TYPE_LABELS = {
+    "GraphImage": "image",
+    "GraphVideo": "video",
+    "GraphSidecar": "carousel",
+}
+
 
 def sync_saved_posts(
     L: instaloader.Instaloader, db_path: Path, storage_base: Path
 ) -> tuple[int, list[str]]:
-    """Download all saved reels (catchup mode — no early-exit on known shortcodes).
+    """Download all saved posts (catchup mode — no early-exit on known shortcodes).
 
+    Verifies each download on disk and in DB after each post; aborts if a post fails to land.
     Returns (downloaded_count, new_account_platform_user_ids).
     Raises RateLimitException, LoginRequiredException, or AbortDownloadException on hard failures.
     """
@@ -28,7 +36,6 @@ def sync_saved_posts(
     L.download_videos = True
 
     saved_shortcodes: list[str] = []
-    accounts_touched: dict[int, tuple[str, Path]] = {}
     new_platform_user_ids: list[str] = []
 
     own_profile = instaloader.Profile.own_profile(L.context)
@@ -36,6 +43,7 @@ def sync_saved_posts(
     try:
         for post in own_profile.get_saved_posts():
             shortcode = post.shortcode
+            type_label = _TYPE_LABELS.get(post.typename, post.typename)
 
             username = post.owner_username
             platform_user_id = str(post.owner_id)
@@ -46,9 +54,10 @@ def sync_saved_posts(
 
             dest = storage_base / platform_user_id
             dest.mkdir(parents=True, exist_ok=True)
-            L.dirname_pattern = str(dest)
 
-            logger.info("sync-saved: downloading %s from @%s", shortcode, username)
+            before = {f for f in dest.iterdir() if f.is_file() and f.suffix.lower() in MEDIA_EXTS}
+
+            logger.info("sync-saved: [%s] %s from @%s — downloading", type_label, shortcode, username)
             try:
                 with download_lock:
                     L.dirname_pattern = str(dest)
@@ -56,11 +65,43 @@ def sync_saved_posts(
             except Exception as exc:
                 if _is_rate_limited(exc):
                     raise RateLimitException(str(exc)) from exc
-                logger.error("sync-saved: download failed for %s — %s", shortcode, exc)
+                logger.error("sync-saved: [%s] %s — download error: %s", type_label, shortcode, exc)
                 continue
 
+            after = {f for f in dest.iterdir() if f.is_file() and f.suffix.lower() in MEDIA_EXTS}
+            new_files = after - before
+
+            if not new_files:
+                if shortcode_exists(shortcode, db_path):
+                    logger.info("sync-saved: [%s] %s — already indexed, skipping", type_label, shortcode)
+                    continue
+                logger.error(
+                    "sync-saved: [%s] %s — no media files on disk and not in DB, aborting",
+                    type_label, shortcode,
+                )
+                break
+
+            try:
+                index_account(account_id, dest, db_path)
+            except Exception as exc:
+                logger.error(
+                    "sync-saved: [%s] %s — indexing failed: %s, aborting",
+                    type_label, shortcode, exc,
+                )
+                break
+
+            if not shortcode_exists(shortcode, db_path):
+                logger.error(
+                    "sync-saved: [%s] %s — files on disk but not in DB after indexing, aborting",
+                    type_label, shortcode,
+                )
+                break
+
+            logger.info(
+                "sync-saved: [%s] %s ✓ — %d file(s) saved and indexed",
+                type_label, shortcode, len(new_files),
+            )
             saved_shortcodes.append(shortcode)
-            accounts_touched[account_id] = (username, dest)
             time.sleep(_lognormal_delay(2, 5))
 
     except (instaloader.LoginRequiredException, instaloader.AbortDownloadException):
@@ -73,14 +114,6 @@ def sync_saved_posts(
         if _is_rate_limited(exc):
             raise RateLimitException(str(exc)) from exc
         logger.error("sync-saved: unexpected error — %s", exc, exc_info=True)
-
-    for account_id, (username, dest) in accounts_touched.items():
-        try:
-            new_count = index_account(account_id, dest, db_path)
-            if new_count:
-                logger.info("sync-saved: %d file(s) indexed for @%s", new_count, username)
-        except Exception as exc:
-            logger.error("sync-saved: indexing failed for @%s — %s", username, exc)
 
     L.download_videos = False
     mark_as_saved_posts(saved_shortcodes, db_path)
