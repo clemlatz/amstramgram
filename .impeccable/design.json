@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-17T00:00:00Z",
+  "title": "Design System: Amstramgram",
+  "extensions": {
+    "colorMeta": {
+      "bg": {
+        "role": "neutral",
+        "displayName": "Clean White",
+        "canonical": "oklch(100% 0 0)",
+        "darkVariant": "#000000",
+        "tonalRamp": ["oklch(4% 0 0)", "oklch(14% 0 0)", "oklch(28% 0 0)", "oklch(44% 0 0)", "oklch(60% 0 0)", "oklch(76% 0 0)", "oklch(88% 0 0)", "oklch(100% 0 0)"]
+      },
+      "bg-dark": {
+        "role": "neutral",
+        "displayName": "Pure Void",
+        "canonical": "oklch(4% 0 0)",
+        "tonalRamp": ["oklch(4% 0 0)", "oklch(10% 0 0)", "oklch(20% 0 0)", "oklch(34% 0 0)", "oklch(50% 0 0)", "oklch(66% 0 0)", "oklch(82% 0 0)", "oklch(96% 0 0)"]
+      },
+      "ink": {
+        "role": "primary",
+        "displayName": "Ink",
+        "canonical": "oklch(16% 0 0)",
+        "tonalRamp": ["oklch(8% 0 0)", "oklch(16% 0 0)", "oklch(26% 0 0)", "oklch(38% 0 0)", "oklch(52% 0 0)", "oklch(66% 0 0)", "oklch(81% 0 0)", "oklch(95% 0 0)"]
+      },
+      "pale-paper": {
+        "role": "neutral",
+        "displayName": "Pale Paper",
+        "canonical": "oklch(96% 0 0)",
+        "tonalRamp": ["oklch(8% 0 0)", "oklch(20% 0 0)", "oklch(34% 0 0)", "oklch(50% 0 0)", "oklch(66% 0 0)", "oklch(80% 0 0)", "oklch(90% 0 0)", "oklch(96% 0 0)"]
+      },
+      "quiet-gray": {
+        "role": "neutral",
+        "displayName": "Quiet Gray",
+        "canonical": "oklch(58% 0 0)",
+        "darkVariant": "#a8a8a8",
+        "tonalRamp": ["oklch(10% 0 0)", "oklch(22% 0 0)", "oklch(34% 0 0)", "oklch(46% 0 0)", "oklch(58% 0 0)", "oklch(70% 0 0)", "oklch(83% 0 0)", "oklch(94% 0 0)"]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(87% 0 0)",
+        "darkVariant": "#363636",
+        "tonalRamp": ["oklch(14% 0 0)", "oklch(26% 0 0)", "oklch(40% 0 0)", "oklch(55% 0 0)", "oklch(70% 0 0)", "oklch(80% 0 0)", "oklch(87% 0 0)", "oklch(94% 0 0)"]
+      },
+      "ghost": {
+        "role": "neutral",
+        "displayName": "Ghost",
+        "canonical": "oklch(94% 0 0)",
+        "darkVariant": "#1c1c1e",
+        "tonalRamp": ["oklch(8% 0 0)", "oklch(18% 0 0)", "oklch(32% 0 0)", "oklch(48% 0 0)", "oklch(64% 0 0)", "oklch(78% 0 0)", "oklch(88% 0 0)", "oklch(94% 0 0)"]
+      },
+      "signal-red": {
+        "role": "accent",
+        "displayName": "Signal Red",
+        "canonical": "oklch(58% 0.19 16deg)",
+        "tonalRamp": ["oklch(20% 0.10 16)", "oklch(30% 0.14 16)", "oklch(40% 0.17 16)", "oklch(50% 0.19 16)", "oklch(58% 0.19 16)", "oklch(68% 0.16 16)", "oklch(80% 0.10 16)", "oklch(92% 0.04 16)"]
+      },
+      "archive-maroon": {
+        "role": "accent",
+        "displayName": "Archive Maroon",
+        "canonical": "oklch(28% 0.12 20deg)",
+        "tonalRamp": ["oklch(10% 0.07 20)", "oklch(18% 0.10 20)", "oklch(28% 0.12 20)", "oklch(38% 0.14 20)", "oklch(50% 0.15 20)", "oklch(64% 0.13 20)", "oklch(79% 0.08 20)", "oklch(92% 0.03 20)"]
+      },
+      "memory-green": {
+        "role": "accent",
+        "displayName": "Memory Green",
+        "canonical": "oklch(42% 0.10 155deg)",
+        "tonalRamp": ["oklch(14% 0.06 155)", "oklch(24% 0.08 155)", "oklch(34% 0.10 155)", "oklch(42% 0.10 155)", "oklch(54% 0.11 155)", "oklch(67% 0.10 155)", "oklch(80% 0.07 155)", "oklch(93% 0.03 155)"]
+      },
+      "warning": {
+        "role": "semantic",
+        "displayName": "Warning",
+        "canonical": "oklch(52% 0.20 25deg)",
+        "tonalRamp": ["oklch(18% 0.10 25)", "oklch(28% 0.14 25)", "oklch(38% 0.17 25)", "oklch(48% 0.20 25)", "oklch(52% 0.20 25)", "oklch(65% 0.17 25)", "oklch(80% 0.10 25)", "oklch(93% 0.04 25)"]
+      },
+      "system-green": {
+        "role": "semantic",
+        "displayName": "System Green",
+        "canonical": "oklch(74% 0.20 140deg)",
+        "tonalRamp": ["oklch(20% 0.10 140)", "oklch(32% 0.14 140)", "oklch(44% 0.17 140)", "oklch(56% 0.19 140)", "oklch(66% 0.20 140)", "oklch(74% 0.20 140)", "oklch(84% 0.14 140)", "oklch(94% 0.06 140)"]
+      }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Title", "purpose": "Page titles — one per view. Settings, Following headers." },
+      "body": { "displayName": "Body", "purpose": "Post captions, form values, account counts. Max column width 470px." },
+      "label": { "displayName": "Label", "purpose": "Section labels, stat sub-labels. Often uppercase with 0.04em tracking." },
+      "caption": { "displayName": "Caption", "purpose": "Timestamps, secondary metadata. The quietest readable tier." },
+      "action": { "displayName": "Action", "purpose": "Action button labels (Forget, Remember). 16px 600." }
+    },
+    "shadows": [
+      {
+        "name": "float-shadow",
+        "value": "0 1px 6px rgba(0, 0, 0, 0.22)",
+        "purpose": "Carousel nav buttons only — floating over photographic content. Never on cards or surfaces."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-snap",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "State transitions: color changes, opacity, icon swap. Default easing."
+      },
+      {
+        "name": "ease-press",
+        "value": "cubic-bezier(0.4, 0, 0.6, 1)",
+        "purpose": "Press/tap scale — fast in, instant feel."
+      }
+    ],
+    "breakpoints": [
+      { "name": "content-max", "value": "470px", "purpose": "Single-column content max-width. All pages are centered at this width." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Compact solid action button. Ink background, white text. Used for Update, Sync, and confirmatory actions.",
+      "html": "<button class=\"ds-btn-primary\">Update</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; padding: 10px 20px; font-size: 14px; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--color-bg, #ffffff); background: var(--color-text, #262626); border: none; border-radius: 8px; cursor: pointer; transition: opacity 0.15s; -webkit-tap-highlight-color: transparent; } .ds-btn-primary:hover { opacity: 0.85; } .ds-btn-primary:focus-visible { outline: 2px solid var(--color-text, #262626); outline-offset: 2px; } .ds-btn-primary:active { opacity: 0.7; } .ds-btn-primary:disabled { opacity: 0.4; cursor: default; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action. Transparent background, muted text, hairline border. Paired with Primary for secondary choices.",
+      "html": "<button class=\"ds-btn-ghost\">Reset to default</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; padding: 10px 20px; font-size: 14px; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--color-text-muted, #8e8e8e); background: transparent; border: 1px solid var(--color-border, #dbdbdb); border-radius: 8px; cursor: pointer; transition: opacity 0.15s; -webkit-tap-highlight-color: transparent; } .ds-btn-ghost:hover { opacity: 0.75; } .ds-btn-ghost:focus-visible { outline: 2px solid var(--color-text, #262626); outline-offset: 2px; } .ds-btn-ghost:disabled { opacity: 0.4; cursor: default; }"
+    },
+    {
+      "name": "Action Button — Forget",
+      "kind": "button",
+      "refersTo": "action-forget",
+      "description": "Destructive action in the random/rating screen. Archive Maroon background signals irreversibility.",
+      "html": "<button class=\"ds-action-forget\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" width=\"20\" height=\"20\"><line x1=\"18\" y1=\"6\" x2=\"6\" y2=\"18\"/><line x1=\"6\" y1=\"6\" x2=\"18\" y2=\"18\"/></svg>Forget</button>",
+      "css": ".ds-action-forget { display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; height: 56px; padding: 0 16px; font-size: 16px; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #ffffff; background: #8b2035; border: none; border-radius: 12px; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: opacity 0.15s, transform 0.1s cubic-bezier(0.4,0,0.6,1); } .ds-action-forget:focus-visible { outline: 2px solid #8b2035; outline-offset: 2px; } .ds-action-forget:active { transform: scale(0.96); opacity: 0.85; } .ds-action-forget:disabled { opacity: 0.6; cursor: default; transform: none; }"
+    },
+    {
+      "name": "Action Button — Remember",
+      "kind": "button",
+      "refersTo": "action-remember",
+      "description": "Affirmative action in the random/rating screen. Memory Green signals preservation.",
+      "html": "<button class=\"ds-action-remember\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" width=\"20\" height=\"20\"><path d=\"M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z\"/></svg>Remember</button>",
+      "css": ".ds-action-remember { display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; height: 56px; padding: 0 16px; font-size: 16px; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #ffffff; background: #2d6a4f; border: none; border-radius: 12px; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: opacity 0.15s, transform 0.1s cubic-bezier(0.4,0,0.6,1); } .ds-action-remember:focus-visible { outline: 2px solid #2d6a4f; outline-offset: 2px; } .ds-action-remember:active { transform: scale(0.96); opacity: 0.85; } .ds-action-remember:disabled { opacity: 0.6; cursor: default; transform: none; }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Single-line text input. Stroke-style: Hairline border at rest, Ink border on focus.",
+      "html": "<div class=\"ds-input-wrap\"><label class=\"ds-input-label\" for=\"ds-input\">Session ID</label><input class=\"ds-input\" id=\"ds-input\" type=\"text\" placeholder=\"Paste your session ID\" /></div>",
+      "css": ".ds-input-wrap { display: flex; flex-direction: column; gap: 8px; } .ds-input-label { font-size: 13px; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--color-text, #262626); } .ds-input { width: 100%; padding: 10px 12px; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--color-text, #262626); background: var(--color-bg, #ffffff); border: 1px solid var(--color-border, #dbdbdb); border-radius: 8px; outline: none; transition: border-color 0.15s; } .ds-input:focus { border-color: var(--color-text, #262626); } .ds-input::placeholder { color: var(--color-text-muted, #8e8e8e); }"
+    },
+    {
+      "name": "iOS Toggle",
+      "kind": "custom",
+      "description": "On/off switch for Scheduler and account states. Exact iOS visual. Hidden checkbox + styled track.",
+      "html": "<label class=\"ds-toggle\" aria-label=\"Scheduler active\"><input type=\"checkbox\" /><span class=\"ds-track\"></span></label>",
+      "css": ".ds-toggle { position: relative; display: inline-block; width: 51px; height: 31px; cursor: pointer; flex-shrink: 0; } .ds-toggle input { position: absolute; opacity: 0; width: 0; height: 0; } .ds-toggle input:disabled ~ .ds-track { opacity: 0.4; cursor: default; } .ds-track { display: block; width: 51px; height: 31px; border-radius: 16px; background: #e5e5ea; transition: background 0.2s; position: relative; } @media (prefers-color-scheme: dark) { .ds-track { background: #3a3a3c; } } .ds-track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.25); transition: transform 0.2s; } .ds-toggle input:checked ~ .ds-track { background: #34c759; } .ds-toggle input:checked ~ .ds-track::after { transform: translateX(20px); } .ds-toggle input:focus-visible ~ .ds-track { outline: 2px solid #34c759; outline-offset: 2px; }"
+    },
+    {
+      "name": "Post Card Header",
+      "kind": "custom",
+      "description": "Account header for feed posts: avatar ring + username/date + favorite button.",
+      "html": "<header class=\"ds-post-header\"><div class=\"ds-avatar-ring\"><div class=\"ds-avatar-inner\">A</div></div><div class=\"ds-post-meta\"><div class=\"ds-post-account\">username</div><div class=\"ds-post-date\">2 hours ago</div></div><button class=\"ds-fav-btn\" aria-label=\"Remember\" aria-pressed=\"false\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" width=\"20\" height=\"20\"><path d=\"M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z\"/></svg></button></header>",
+      "css": ".ds-post-header { display: flex; align-items: center; padding: 10px 14px; gap: 10px; } .ds-avatar-ring { width: 36px; height: 36px; border-radius: 50%; padding: 2px; background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); flex-shrink: 0; } .ds-avatar-inner { width: 100%; height: 100%; border-radius: 50%; background: #9c27b0; border: 2px solid #ffffff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; } .ds-post-meta { flex: 1; } .ds-post-account { font-size: 14px; font-weight: 600; color: var(--color-text, #262626); line-height: 1.2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; } .ds-post-date { font-size: 12px; color: var(--color-text-muted, #8e8e8e); margin-top: 1px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; } .ds-fav-btn { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: none; border: none; cursor: pointer; border-radius: 50%; -webkit-tap-highlight-color: transparent; flex-shrink: 0; transition: transform 0.1s; } .ds-fav-btn svg { stroke: var(--color-text-muted, #8e8e8e); transition: fill 0.15s, stroke 0.15s; } .ds-fav-btn[aria-pressed='true'] svg { fill: #ed4956; stroke: #ed4956; } .ds-fav-btn:focus-visible { outline: 2px solid var(--color-text, #262626); outline-offset: 2px; } .ds-fav-btn:active { transform: scale(0.88); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Signal, Not the Noise",
+    "overview": "Amstramgram's design system exists for one reason: to make downloaded media visible and actionable, with no platform in between. Every design decision is subtractive. If a visual element can be removed without cost to the user, it was never necessary. The chrome whispers; the content speaks.\n\nThe aesthetic is earned simplicity — not minimalism as a style statement, but minimalism as honesty. System fonts, near-pure neutrals, a tight action vocabulary. No gradient text. No decorative blur. No engagement bait masquerading as interface.\n\nThis system explicitly rejects Instagram 2024's overloaded, algorithm-first visual noise; the media-center weight of Plex or Jellyfin; the admin-grid sterility of SaaS dashboards; and the decorative excess of Pinterest and Tumblr.",
+    "keyCharacteristics": [
+      "Content-first: media fills the frame without competing chrome",
+      "System font stack: native rendering on every OS, zero load cost",
+      "Restrained color strategy: neutrals carry >90% of the surface; accents are functional signals only",
+      "Flat by default: no decorative shadows; depth appears only when floating over dynamic content",
+      "Dual-mode via OS: automatic light/dark response, no toggle required"
+    ],
+    "rules": [
+      { "name": "The Signal Rule", "body": "Each accent color carries exactly one semantic meaning. Signal Red means saved. Archive Maroon means archive. Memory Green means remember. Warning means error. System Green means active. These colors are forbidden in any other context.", "section": "colors" },
+      { "name": "The Ghost Border Rule", "body": "Structural separation uses Hairline, not shadow. If you're reaching for a shadow to divide two content areas, use a 1px Hairline border instead.", "section": "colors" },
+      { "name": "The System Font Rule", "body": "Never load a webfont. The system stack is the design choice. A custom typeface would introduce platform anxiety into a tool whose purpose is calm, private utility.", "section": "typography" },
+      { "name": "The Weight-as-Hierarchy Rule", "body": "Scale steps in this system are narrow (12-22px range). Hierarchy lives primarily in weight contrast (400 vs 600 vs 700), not scale jumps. Do not add new size steps to create hierarchy; add weight contrast instead.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest. A shadow on a card, list item, settings row, or section is forbidden. If an element needs to feel elevated, it is floating over dynamic content — and that is the only case a shadow is permitted.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use the CSS custom property var(--color-text-muted) for muted text — never write #8e8e8e directly",
+      "Do keep action button colors semantic: Archive Maroon for destructive, Memory Green for save/remember",
+      "Do keep touch targets >= 44x44px on mobile — extend clickable area via padding",
+      "Do use Hairline borders as structural dividers",
+      "Do apply env(safe-area-inset-bottom) to any fixed bottom element",
+      "Do lazy-load images below the fold",
+      "Do animate only opacity and transform"
+    ],
+    "donts": [
+      "Don't add border-left or border-right greater than 1px as a colored stripe on any card, list item, or callout",
+      "Don't use gradient text (background-clip: text + gradient)",
+      "Don't add backdrop-filter outside the tab bar",
+      "Don't add a shadow to a card, list row, settings section, or any surface at rest",
+      "Don't make this look like Instagram 2024: algorithmic layout, engagement-bait micro-animations, dark patterns",
+      "Don't use a media-center layout (Plex/Jellyfin patterns): album grids, sidebar navigation, collection headers",
+      "Don't introduce SaaS dashboard aesthetics: sidebar, stat card grids, progress rings, gradient accents",
+      "Don't use Pinterest or Tumblr-style masonry or decorative card chrome",
+      "Don't load a custom webfont",
+      "Don't use Signal Red, Archive Maroon, Memory Green, System Green, or Warning in any new context"
+    ]
+  }
+}
