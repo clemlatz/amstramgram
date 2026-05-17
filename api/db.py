@@ -446,6 +446,7 @@ def get_random_favorite_post(db_path: Path) -> dict | None:
         "media": [(r["filepath"], r["extension"] or "jpg") for r in rows],
     }
 
+
 def get_recent_posts(db_path: Path) -> list[dict]:
     conn = _conn(db_path, read_only=True)
     try:
