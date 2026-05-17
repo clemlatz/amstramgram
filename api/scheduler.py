@@ -32,6 +32,7 @@ _RATE_LIMIT_BACKOFF_BASE = 1800   # 30 min
 _RATE_LIMIT_BACKOFF_MAX = 10800   # 3 h
 _MIN_ACCOUNTS_PER_CYCLE = 5
 _MAX_ACCOUNTS_PER_CYCLE = 15
+_MAX_RECENT_UNSYNCED = 15
 
 _stop_event: threading.Event = threading.Event()
 _scheduler_task: asyncio.Task | None = None
@@ -121,11 +122,13 @@ def _download_account_fast(
     platform_user_id: str,
     username: str,
     db_path: Path,
+    max_posts: int | None = None,
 ) -> None:
     dest = STORAGE_BASE / platform_user_id
     dest.mkdir(parents=True, exist_ok=True)
     L.dirname_pattern = str(dest)
-    logger.info("%s: fast_update", username)
+    label = f"fast_update (max={max_posts})" if max_posts is not None else "fast_update"
+    logger.info("%s: %s", username, label)
     try:
         user_info = L.context.get_iphone_json(f"api/v1/users/{platform_user_id}/info/", {})
         user_data = user_info["user"]
@@ -138,17 +141,22 @@ def _download_account_fast(
             deactivate_account(account_id, db_path)
             return
         profile = instaloader.Profile.from_iphone_struct(L.context, user_data)
+        fetched = 0
         for post in profile.get_posts():
             if _stop_event.is_set():
                 return
             if _post_has_video(post):
                 continue
+            if max_posts is not None and fetched >= max_posts:
+                break
             with download_lock:
                 L.dirname_pattern = str(dest)
                 downloaded = L.download_post(post, target=username)
-            if not downloaded:
+            if not downloaded and max_posts is None:
                 break
-            time.sleep(_lognormal_delay(2, 5))
+            if downloaded:
+                fetched += 1
+                time.sleep(_lognormal_delay(2, 5))
     except (instaloader.LoginRequiredException, instaloader.AbortDownloadException):
         raise
     except instaloader.QueryReturnedBadRequestException as exc:
@@ -176,10 +184,12 @@ def _fetch_new_posts(
     active_accounts: list[tuple[int, str, str, int]],
     db_path: Path,
 ) -> None:
+    # Synced accounts: stop at the first already-known post (unlimited fast_update).
+    # Unsynced accounts: fetch only the N most recent posts so the feed stays fresh
+    # while _fetch_old_posts handles the historical backfill separately.
     to_check = [
-        (account_id, ig_id, username)
+        (account_id, ig_id, username, None if fully_synced else _MAX_RECENT_UNSYNCED)
         for account_id, ig_id, username, fully_synced in active_accounts
-        if fully_synced == 1
     ]
     random.shuffle(to_check)
     cap = random.randint(_MIN_ACCOUNTS_PER_CYCLE, _MAX_ACCOUNTS_PER_CYCLE)
@@ -199,10 +209,10 @@ def _fetch_new_posts(
         i += size
 
     for g_idx, group in enumerate(groups):
-        for a_idx, (account_id, ig_id, username) in enumerate(group):
+        for a_idx, (account_id, ig_id, username, max_posts) in enumerate(group):
             if _stop_event.is_set():
                 return
-            _download_account_fast(L, account_id, ig_id, username, db_path)
+            _download_account_fast(L, account_id, ig_id, username, db_path, max_posts=max_posts)
             if a_idx < len(group) - 1:
                 _sleep(_lognormal_delay(30, 90))
         if g_idx < len(groups) - 1:
