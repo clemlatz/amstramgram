@@ -143,11 +143,6 @@
 
 {#if post}
   <div class="page">
-    <div class="mode-toggle">
-      <button class="mode-btn" class:active={mode === 'all'} onclick={() => switchMode('all')}>All</button>
-      <button class="mode-btn" class:active={mode === 'favorites'} onclick={() => switchMode('favorites')}>Favorites</button>
-    </div>
-
     <article class="card" class:fade={!visible}>
       <header class="post-header">
         <Avatar account={post.account} active={post.account_active ?? true} />
@@ -159,6 +154,12 @@
           </div>
           <div class="post-date">{formatDate(post.post_timestamp)}</div>
         </div>
+        <button
+          class="mode-chip"
+          class:active={mode === 'favorites'}
+          onclick={() => switchMode(mode === 'favorites' ? 'all' : 'favorites')}
+          aria-label={mode === 'favorites' ? 'Switch to all posts' : 'Switch to favorites'}
+        >Favorites</button>
       </header>
 
       {#key post.shortcode}
@@ -288,33 +289,24 @@
     }
   }
 
-  .mode-toggle {
-    display: flex;
-    background: var(--color-border-subtle);
-    border-radius: 8px;
-    padding: 3px;
-    align-self: center;
-  }
-
-  .mode-btn {
-    flex: 1;
-    padding: 6px 20px;
-    border: none;
-    border-radius: 6px;
-    font-size: 14px;
+  .mode-chip {
+    flex-shrink: 0;
+    padding: 3px 9px;
+    border-radius: 20px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    font-size: 12px;
     font-weight: 500;
     font-family: inherit;
-    cursor: pointer;
-    background: transparent;
     color: var(--color-text-muted);
-    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+    cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s, border-color 0.15s;
   }
 
-  .mode-btn.active {
-    background: var(--color-bg);
-    color: var(--color-text);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  .mode-chip.active {
+    color: var(--color-favorite);
+    border-color: var(--color-favorite);
   }
 
   .next { background: var(--color-action-next, #5a6472); }
