@@ -70,7 +70,7 @@
             </div>
           </div>
           <div class="info">
-            <a class="username" href="https://www.instagram.com/{account.username}" target="_blank">
+            <a class="username" href="https://www.instagram.com/{account.username}" target="_blank" rel="noopener noreferrer">
               {account.username}
             </a>
             <span class="count">{account.count.toLocaleString('en')} posts</span>
@@ -108,6 +108,10 @@
     color: var(--color-text);
     letter-spacing: -0.3px;
     margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .sync {
@@ -115,11 +119,16 @@
     align-items: center;
     gap: 10px;
     flex-shrink: 0;
+    min-width: 0;
   }
 
   .sync-label {
     font-size: 12px;
     color: var(--color-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 160px;
   }
 
   .sync-label.error {

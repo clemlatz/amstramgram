@@ -124,6 +124,17 @@ Items below were not in the original audit but fixed during the first harden pas
 - **Caption `<p>` with no content** — Hidden when `post.caption` is null/undefined.
 - **`prefers-reduced-motion`** — Global rule added in layout.
 
+### ✅ Resolved — Robustness (2026-05-17, pass 3)
+
+- **`rel="noopener noreferrer"` missing on all `target="_blank"` links** — `PostCard.svelte`, `random/+page.svelte`, `following/+page.svelte` all linked to Instagram without the rel attribute, exposing opener access. Fixed in all 3 locations.
+- **Initial load error on random page showed "All caught up!"** — `random/+page.js` returned `{ photo: null }` on both empty queue and network failure; component initialised `fetchError = false` unconditionally. Now loader returns `loadError: true` on failure; component seeds `fetchError` from `data.loadError`. Network failures correctly surface the error/retry state.
+- **`PostCard.svelte` Swiper cleanup never registered** — `onMount(async () => { ...; return cleanup })` returns a Promise to Svelte, which ignores it; the Swiper instance was never destroyed (memory leak, potential crash on unmount). Refactored to sync `onMount` + async IIFE + `return () => { cancelled = true; swiper?.destroy() }`.
+- **`post.media?.length` and `post.media[0]?.url` unguarded** — `PostCard.svelte` accessed `post.media.length` and `post.media[0].url` without null guards; a backend response with missing/empty `media` would crash the component. Added `(post.media?.length ?? 0)` and `post.media[0]?.url`.
+- **`photo.media[0].url` unguarded in random page** — Same issue on the single-item image branch of `random/+page.svelte`. Fixed with `photo.media[0]?.url`.
+- **Invalid `nextRunAt` date renders "Invalid Date"** — `settings/+page.svelte` rendered the scheduler next-run label without checking `isNaN(new Date(nextRunAt).getTime())`. Guard added; label only shows when the date is valid.
+- **Username overflow in settings** — `.account-value` had no overflow protection; a long username could push outside the container. Added `overflow: hidden; text-overflow: ellipsis; white-space: nowrap`.
+- **Sync label overflow in following header** — `.sync-label` and `.title` in the following header flex row had no overflow protection. Added `max-width: 160px` + ellipsis on `.sync-label`; `min-width: 0` + ellipsis on `.title`.
+
 ### ✅ Resolved — Robustness (2026-05-17, pass 2)
 
 - **All load functions missing `try/catch`** — A network error or invalid JSON response crashed the page entirely. All 4 `+page.js` files now wrap fetch + `res.json()` in try/catch with typed fallbacks. Data shapes are normalized (`Array.isArray`, `?? []`, `?? null`).

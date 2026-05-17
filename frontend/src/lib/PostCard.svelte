@@ -5,7 +5,7 @@
 
   let { post } = $props();
 
-  const isCarousel = $derived(post.media.length > 1);
+  const isCarousel = $derived((post.media?.length ?? 0) > 1);
 
   let archived = $state(!!post.archived_at);
   let favorited = $state(!!post.favorited_at);
@@ -85,26 +85,36 @@
     muted = !muted;
   }
 
-  onMount(async () => {
+  onMount(() => {
     if (!isCarousel) return;
-    try {
-      const { default: Swiper } = await import('swiper');
-      const { Pagination, Navigation } = await import('swiper/modules');
-      const swiper = new Swiper(swiperEl, {
-        modules: [Pagination, Navigation],
-        pagination: {
-          el: swiperEl.querySelector('.swiper-pagination'),
-          clickable: false,
-        },
-        navigation: {
-          nextEl: swiperEl.querySelector('.nav-next'),
-          prevEl: swiperEl.querySelector('.nav-prev'),
-        },
-      });
-      return () => swiper.destroy();
-    } catch {
-      // carousel falls back to static image display
-    }
+    let swiper = null;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { default: Swiper } = await import('swiper');
+        const { Pagination, Navigation } = await import('swiper/modules');
+        if (cancelled || !swiperEl) return;
+        swiper = new Swiper(swiperEl, {
+          modules: [Pagination, Navigation],
+          pagination: {
+            el: swiperEl.querySelector('.swiper-pagination'),
+            clickable: false,
+          },
+          navigation: {
+            nextEl: swiperEl.querySelector('.nav-next'),
+            prevEl: swiperEl.querySelector('.nav-prev'),
+          },
+        });
+      } catch {
+        // carousel falls back to static image display
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      swiper?.destroy();
+    };
   });
 </script>
 
@@ -123,7 +133,7 @@
     </div>
     <div class="post-meta">
       <div class="post-account">
-        <a href="https://instagram.com/{post.account}" target="_blank">
+        <a href="https://instagram.com/{post.account}" target="_blank" rel="noopener noreferrer">
           {post.account}
         </a>
       </div>
@@ -195,7 +205,7 @@
       </button>
     </div>
   {:else}
-    <img class="post-image" src={post.media[0].url} alt="" loading="lazy" />
+    <img class="post-image" src={post.media[0]?.url} alt="" loading="lazy" />
   {/if}
 
   {#if post.caption}

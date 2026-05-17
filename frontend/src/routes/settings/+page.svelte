@@ -206,7 +206,7 @@
     <div class="scheduler-row">
       <div class="scheduler-info">
         <span class="field-label">Scheduler</span>
-        {#if schedulerRunning && nextRunAt}
+        {#if schedulerRunning && nextRunAt && !isNaN(new Date(nextRunAt).getTime())}
           <span class="label">Next cycle at {new Date(nextRunAt).toLocaleString('en', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
         {:else}
           <span class="label">{schedulerRunning ? 'Running' : 'Stopped'}</span>
@@ -265,6 +265,9 @@
     font-size: 15px;
     font-weight: 500;
     color: var(--color-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .account-value.muted {

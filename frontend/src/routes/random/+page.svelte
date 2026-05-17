@@ -9,7 +9,7 @@
   let visible = $state(true);
   let muted = $state(true);
   let swiperEl = $state(null);
-  let fetchError = $state(false);
+  let fetchError = $state(data.loadError ?? false);
 
   const isCarousel = $derived(photo?.media?.length > 1);
 
@@ -164,7 +164,7 @@
         </div>
         <div class="post-meta">
           <div class="post-account">
-            <a href="https://www.instagram.com/{photo.account}" target="_blank">
+            <a href="https://www.instagram.com/{photo.account}" target="_blank" rel="noopener noreferrer">
               {photo.account}
             </a>
           </div>
@@ -211,7 +211,7 @@
             </button>
           </div>
         {:else}
-          <img class="post-image" src={photo.media[0].url} alt="" />
+          <img class="post-image" src={photo.media[0]?.url} alt="" />
         {/if}
       {/key}
     </article>
