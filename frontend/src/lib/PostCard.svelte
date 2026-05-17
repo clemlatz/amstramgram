@@ -95,7 +95,7 @@
 
 <article class="post">
   <header class="post-header">
-    <Avatar account={post.account} />
+    <Avatar account={post.account} active={post.account_active ?? true} />
     <div class="post-meta">
       <div class="post-account">
         <a href="https://instagram.com/{post.account}" target="_blank" rel="noopener noreferrer">

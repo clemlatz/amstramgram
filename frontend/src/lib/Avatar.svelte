@@ -1,9 +1,9 @@
 <script>
   import { avatarColor, hideAvatarImage } from '$lib/media.js';
-  let { account } = $props();
+  let { account, active = true } = $props();
 </script>
 
-<div class="avatar-ring">
+<div class="avatar-ring" class:inactive={!active}>
   <div class="avatar-inner" style="background: {avatarColor(account)}">
     <img
       class="avatar-img"
@@ -23,6 +23,10 @@
     padding: 2px;
     background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
     flex-shrink: 0;
+  }
+
+  .avatar-ring.inactive {
+    background: var(--color-border);
   }
 
   .avatar-inner {

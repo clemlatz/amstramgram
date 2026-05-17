@@ -368,7 +368,7 @@ def get_random_neutral_post(db_path: Path) -> dict | None:
             return None
         rows = conn.execute("""
             SELECT m.filepath, m.extension, m.post_timestamp, m.caption, m.shortcode,
-                   a.username AS account
+                   a.username AS account, a.active AS account_active
             FROM media m
             JOIN accounts a ON a.id = m.account_id
             LEFT JOIN ratings r ON r.shortcode = m.shortcode
@@ -384,6 +384,7 @@ def get_random_neutral_post(db_path: Path) -> dict | None:
     first = rows[0]
     return {
         "account": first["account"],
+        "account_active": bool(first["account_active"]),
         "post_timestamp": first["post_timestamp"],
         "caption": first["caption"],
         "shortcode": first["shortcode"],
@@ -396,7 +397,7 @@ def get_recent_posts(db_path: Path) -> list[dict]:
     try:
         rows = conn.execute("""
             SELECT m.filepath, m.extension, m.post_timestamp, m.caption, m.shortcode,
-                   r.archived_at, r.favorited_at, a.username AS account
+                   r.archived_at, r.favorited_at, a.username AS account, a.active AS account_active
             FROM media m
             JOIN accounts a ON a.id = m.account_id
             LEFT JOIN ratings r ON r.shortcode = m.shortcode
@@ -412,6 +413,7 @@ def get_recent_posts(db_path: Path) -> list[dict]:
         if key not in posts:
             posts[key] = {
                 "account": row["account"],
+                "account_active": bool(row["account_active"]),
                 "post_timestamp": row["post_timestamp"],
                 "caption": row["caption"],
                 "shortcode": row["shortcode"],

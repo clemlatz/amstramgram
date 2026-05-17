@@ -121,7 +121,7 @@
   <div class="page">
     <article class="card" class:fade={!visible}>
       <header class="post-header">
-        <Avatar account={post.account} />
+        <Avatar account={post.account} active={post.account_active ?? true} />
         <div class="post-meta">
           <div class="post-account">
             <a href="https://www.instagram.com/{post.account}" target="_blank" rel="noopener noreferrer">

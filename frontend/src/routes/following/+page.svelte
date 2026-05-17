@@ -1,18 +1,7 @@
 <script>
   import Toggle from '$lib/Toggle.svelte';
+  import Avatar from '$lib/Avatar.svelte';
   let { data } = $props();
-
-  const AVATAR_COLORS = ['#e91e63', '#9c27b0', '#2196f3', '#00bcd4', '#ff5722', '#ff9800'];
-
-  function avatarColor(account) {
-    let h = 0;
-    for (const c of account) h = (h * 31 + c.charCodeAt(0)) & 0xffff;
-    return AVATAR_COLORS[h % AVATAR_COLORS.length];
-  }
-
-  function hideAvatarImage(e) {
-    e.target.style.display = 'none';
-  }
 
   let syncLoading = $state(false);
   let syncResult = $state(null);
@@ -59,17 +48,7 @@
     <ul class="list">
       {#each data.accounts as account}
         <li class="row">
-          <div class="avatar-wrap">
-            <img
-              class="avatar-img"
-              src="/api/accounts/{account.username}/avatar"
-              alt={account.username}
-              onerror={hideAvatarImage}
-            />
-            <div class="avatar" style="background:{avatarColor(account.username)}">
-              {(account.username?.[0] ?? '').toUpperCase()}
-            </div>
-          </div>
+          <Avatar account={account.username} active={account.active} />
           <div class="info">
             <a class="username" id="account-{account.username}" href="https://www.instagram.com/{account.username}" target="_blank" rel="noopener noreferrer">
               {account.username}
@@ -184,36 +163,6 @@
     align-items: center;
     gap: 12px;
     padding: 10px 16px;
-  }
-
-  .avatar-wrap {
-    flex-shrink: 0;
-    position: relative;
-    width: 44px;
-    height: 44px;
-  }
-
-  .avatar-img {
-    position: absolute;
-    inset: 0;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    object-fit: cover;
-    z-index: 1;
-  }
-
-  .avatar {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    font-weight: 600;
-    color: #fff;
-    letter-spacing: 0;
   }
 
   .info {
