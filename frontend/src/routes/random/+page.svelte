@@ -379,7 +379,7 @@
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: var(--color-nav-btn);
+    background: rgba(0, 0, 0, 0.5);
   }
 
   .mute-btn svg {

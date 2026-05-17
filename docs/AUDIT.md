@@ -69,11 +69,8 @@ See pass 4 below.
   ```
 - **Command:** `/impeccable extract`
 
-**[P2] `.mute-btn` background not dark-mode aware**
-- **Location:** `PostCard.svelte:308`, `random/+page.svelte:321` — `background: rgba(0,0,0,0.5)`
-- **Impact:** In dark mode over a dark video, the button becomes invisible.
-- **Fix:** Use `var(--color-nav-btn)` (already dark-mode aware) instead of `rgba(0,0,0,0.5)`.
-- **Command:** `/impeccable extract`
+~~**[P2] `.mute-btn` background not dark-mode aware**~~
+- **Reverted** — `var(--color-nav-btn)` est blanc en light mode, rendant le bouton invisible sur vidéo claire. `rgba(0,0,0,0.5)` est correct : fond sombre semi-transparent, lisible sur vidéo en light et dark mode.
 
 **[P3] Toggle component duplicated across 2 files**
 - **Location:** `settings/+page.svelte:403-458` and `following/+page.svelte:222-275` — identical CSS
