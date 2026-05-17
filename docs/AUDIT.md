@@ -2,6 +2,22 @@
 
 Generated: 2026-05-17 · Last updated: 2026-05-17 · Score: **15/20** (Good — open P2s remain)
 
+## Checklist
+
+### Done
+- [x] **Robustness pass 1** — rate() UI lock, network vs. empty state, toLocaleTimeString, following crash, scheduler feedback, empty feed, account[0] crash, caption null, prefers-reduced-motion
+- [x] **Robustness pass 2** — load functions try/catch, username[0] crash, media[0].type crash, formatDate invalid, flex overflow, caption word-break, Swiper init unguarded
+- [x] **Robustness pass 3** — rel=noopener on all links, random load error → correct state, Swiper cleanup leak, media[0].url guards, nextRunAt invalid date, overflow on username/sync-label
+- [x] **Accessibility pass 4** — muted text contrast (#8e8e8e → #767676), touch targets fav/mute (44px), :focus-visible global, ARIA on Following toggles, autoplay documented
+
+### To Do
+- [ ] **[P2] `/impeccable extract`** — accent tokens (`#ed4956`, `#8b2035`, `#2d6a4f`, `#e03131`), mute-btn dark mode (`rgba(0,0,0,0.5)` → `var(--color-nav-btn)`), extract Toggle component
+- [ ] **[P3] `/impeccable optimize`** — `will-change: transform` on tab bar
+- [ ] **[P3] `/impeccable adapt`** — tablet/desktop breakpoint (ou confirmer mobile-only)
+- [ ] **[P3] `/impeccable polish`** — final quality pass
+
+---
+
 ## Health Score
 
 | # | Dimension | Score | Key Finding |
