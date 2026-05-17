@@ -1,53 +1,31 @@
 # Audit — Amstramgram
 
-Generated: 2026-05-17 · Last updated: 2026-05-17 · Score: **13/20** (Acceptable — work in progress)
+Generated: 2026-05-17 · Last updated: 2026-05-17 · Score: **15/20** (Good — open P2s remain)
 
 ## Health Score
 
 | # | Dimension | Score | Key Finding |
 |---|-----------|-------|-------------|
-| 1 | Accessibility | 2/4 | `#8e8e8e` muted text = 3.54:1, fails WCAG AA |
+| 1 | Accessibility | 3/4 | ~~Muted text contrast~~ resolved; nav buttons still 30px (desktop-only) |
 | 2 | Performance | 3/4 | Implicit `autoplay` on random page videos |
-| 3 | Responsive Design | 2/4 | Touch targets < 44px on fav/mute/nav buttons |
+| 3 | Responsive Design | 3/4 | ~~fav/mute touch targets~~ resolved; nav buttons 30px (desktop-only, lower priority) |
 | 4 | Theming | 3/4 | ~~`#8e8e8e` hard-coded~~ resolved; accent color tokens still missing |
 | 5 | Anti-Patterns | 3/4 | Clean — no absolute bans violated |
 
-**P0:** 0 · **P1:** 2 · **P2:** 5 · **P3:** 3
+**P0:** 0 · **P1:** 0 · **P2:** 4 · **P3:** 3
 
 ---
 
 ## Findings
 
-### P1 — Accessibility
+### ~~P1 — Accessibility~~ ✅ Resolved
 
-**[P1] Muted text contrast fails WCAG AA**
-- **Location:** `--color-text-muted: #8e8e8e` on `#ffffff` — ratio 3.54:1 (requires 4.5:1)
-- **Affects:** `.post-date`, `.empty-sub`, stat labels, inactive tab icons, ghost button text, helper copy
-- **Fix:** Update `--color-text-muted` to `#767676` minimum (4.54:1). Apply to both light `:root` and dark mode override.
-- **Command:** `/impeccable harden`
+~~**[P1] Muted text contrast fails WCAG AA**~~
+~~**[P1] Touch targets < 44px on key interactive elements**~~
+~~**[P2] No `:focus-visible` styles defined**~~
+~~**[P2] Toggle in Following list has no accessible label**~~
 
-**[P1] Touch targets < 44px on key interactive elements**
-- **Location:**
-  - `.header-fav-btn` — 32×32px (`PostCard.svelte:242`)
-  - `.mute-btn` — 32×32px (`PostCard.svelte:301`, `random/+page.svelte:320`)
-  - `.nav-btn` — 30×30px (`PostCard.svelte:362`)
-- **Fix:** Set `width: 44px; height: 44px` on `.header-fav-btn` and `.mute-btn`. Nav buttons are desktop-only (hover:hover) so less critical.
-- **WCAG:** 2.5.5 Target Size (AA)
-- **Command:** `/impeccable harden`
-
-### P2 — Accessibility
-
-**[P2] No `:focus-visible` styles defined**
-- **Location:** All components — no `:focus-visible` rule anywhere
-- **Fix:** Add globally in `+layout.svelte`: `:global(:focus-visible) { outline: 2px solid var(--color-text); outline-offset: 2px; }`
-- **WCAG:** 2.4.7 Focus Visible (AA)
-- **Command:** `/impeccable harden`
-
-**[P2] Toggle in Following list has no accessible label**
-- **Location:** `following/+page.svelte:79` — `<input type="checkbox" checked={account.active} disabled />`
-- **Fix:** Add `aria-label="Active"` and link to the account name via `aria-describedby`.
-- **WCAG:** 4.1.2 Name, Role, Value (AA)
-- **Command:** `/impeccable harden`
+See pass 4 below.
 
 ### P2 — Performance
 
@@ -124,6 +102,14 @@ Items below were not in the original audit but fixed during the first harden pas
 - **Caption `<p>` with no content** — Hidden when `post.caption` is null/undefined.
 - **`prefers-reduced-motion`** — Global rule added in layout.
 
+### ✅ Resolved — Accessibility (2026-05-17, pass 4)
+
+- **Muted text contrast** — `--color-text-muted` updated from `#8e8e8e` (3.54:1) to `#767676` (4.55:1) in light mode `:root`. `--color-tab-inactive` updated likewise. Dark mode `#a8a8a8` on `#000000` already passed (9:1). WCAG AA now met across all muted/inactive text.
+- **Touch targets** — `.header-fav-btn` expanded from 32×32px to 44×44px. `.mute-btn` expanded to 44×44px hit area via transparent button + `::before` pseudo-element for the 32px visual circle — visual unchanged, tap area correct. Applied to both `PostCard.svelte` and `random/+page.svelte`.
+- **`:focus-visible` global rule** — Added `:global(:focus-visible) { outline: 2px solid var(--color-text); outline-offset: 2px; }` in `+layout.svelte`. All interactive elements now show a keyboard focus ring.
+- **Toggle ARIA in Following** — `<input type="checkbox" disabled>` now carries `aria-label="Active"` and `aria-describedby="account-{username}"`. The account link element has the matching `id`. Screen readers can now announce which account the toggle describes.
+- **`autoplay` on random page** — Confirmed intentional: the pick/rate loop benefits from immediate video preview. Documented; no code change.
+
 ### ✅ Resolved — Robustness (2026-05-17, pass 3)
 
 - **`rel="noopener noreferrer"` missing on all `target="_blank"` links** — `PostCard.svelte`, `random/+page.svelte`, `following/+page.svelte` all linked to Instagram without the rel attribute, exposing opener access. Fixed in all 3 locations.
@@ -160,8 +146,7 @@ Items below were not in the original audit but fixed during the first harden pas
 
 ## Recommended Action Order
 
-1. **[P1] `/impeccable harden` (accessibility pass)** ← **next** — muted text contrast (`#8e8e8e` → `#767676`), touch targets (fav/mute to 44px), `:focus-visible` global rule, ARIA label on Following toggles, confirm `autoplay` intent on random videos
-2. **[P2] `/impeccable extract`** — accent color tokens (`#ed4956`, `#8b2035`, `#2d6a4f`, `#e03131`), mute button dark mode (`rgba(0,0,0,0.5)` → `var(--color-nav-btn)`), extract Toggle component
+1. **[P2] `/impeccable extract`** ← **next** — accent color tokens (`#ed4956`, `#8b2035`, `#2d6a4f`, `#e03131`), mute button dark mode (`rgba(0,0,0,0.5)` → `var(--color-nav-btn)`), extract Toggle component
 3. **[P3] `/impeccable optimize`** — `will-change: transform` on tab bar
 4. **[P3] `/impeccable adapt`** — tablet/desktop breakpoint (or confirm mobile-only intent)
 5. **[P3] `/impeccable polish`** — final quality pass

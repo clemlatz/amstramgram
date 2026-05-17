@@ -82,12 +82,12 @@
   :global(:root) {
     --color-bg: #ffffff;
     --color-text: #262626;
-    --color-text-muted: #8e8e8e;
+    --color-text-muted: #767676;
     --color-border: #dbdbdb;
     --color-border-subtle: #efefef;
     --color-tab-bar: rgba(255, 255, 255, 0.92);
     --color-tab-border: rgba(0, 0, 0, 0.15);
-    --color-tab-inactive: #8e8e8e;
+    --color-tab-inactive: #767676;
     --color-tab-active: #262626;
     --color-nav-btn: rgba(255, 255, 255, 0.9);
     --color-nav-btn-text: #262626;
@@ -121,6 +121,11 @@
   :global(body) {
     background: var(--color-bg);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  :global(:focus-visible) {
+    outline: 2px solid var(--color-text);
+    outline-offset: 2px;
   }
 
   @media (prefers-reduced-motion: reduce) {

@@ -70,13 +70,13 @@
             </div>
           </div>
           <div class="info">
-            <a class="username" href="https://www.instagram.com/{account.username}" target="_blank" rel="noopener noreferrer">
+            <a class="username" id="account-{account.username}" href="https://www.instagram.com/{account.username}" target="_blank" rel="noopener noreferrer">
               {account.username}
             </a>
             <span class="count">{account.count.toLocaleString('en')} posts</span>
           </div>
           <label class="toggle">
-            <input type="checkbox" checked={account.active} disabled />
+            <input type="checkbox" checked={account.active} disabled aria-label="Active" aria-describedby="account-{account.username}" />
             <span class="track"></span>
           </label>
         </li>

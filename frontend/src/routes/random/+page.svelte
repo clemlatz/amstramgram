@@ -357,26 +357,37 @@
 
   .mute-btn {
     position: absolute;
-    bottom: 10px;
-    right: 10px;
-    width: 32px;
-    height: 32px;
+    bottom: 4px;
+    right: 4px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.5);
+    background: transparent;
     border: none;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 6px;
+    padding: 0;
     -webkit-tap-highlight-color: transparent;
     z-index: 10;
+  }
+
+  .mute-btn::before {
+    content: '';
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
   }
 
   .mute-btn svg {
     width: 16px;
     height: 16px;
     stroke: #fff;
+    position: relative;
+    z-index: 1;
   }
 
   /* Carousel */
