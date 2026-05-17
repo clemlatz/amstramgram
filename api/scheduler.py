@@ -30,8 +30,8 @@ _MIN_DOWNLOADS_PER_ACCOUNT = 60
 _MAX_DOWNLOADS_PER_ACCOUNT = 140
 _RATE_LIMIT_BACKOFF_BASE = 1800   # 30 min
 _RATE_LIMIT_BACKOFF_MAX = 10800   # 3 h
-_MIN_ACCOUNTS_PER_CYCLE = 5
-_MAX_ACCOUNTS_PER_CYCLE = 15
+_MIN_ACCOUNTS_PER_CYCLE = 15
+_MAX_ACCOUNTS_PER_CYCLE = 30
 _MAX_RECENT_UNSYNCED = 15
 
 _stop_event: threading.Event = threading.Event()
@@ -364,11 +364,8 @@ async def _scheduler_loop() -> None:
         try:
             await asyncio.to_thread(_run_cycle)
             consecutive_rl = 0
-            now = datetime.now()
-            tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-            target_minute = random.randint(9 * 60, 12 * 60)
-            next_run = tomorrow + timedelta(minutes=target_minute)
-            next_delay = int((next_run - now).total_seconds())
+            next_delay = _lognormal_delay(6 * 3600, 9 * 3600)
+            next_run = datetime.now() + timedelta(seconds=next_delay)
             try:
                 set_setting("next_run_at", next_run.isoformat(), DB_PATH)
             except Exception:
