@@ -149,6 +149,7 @@
     bottom: 0;
     left: 0;
     right: 0;
+    will-change: transform;
     height: calc(49px + env(safe-area-inset-bottom, 0px));
     padding-bottom: env(safe-area-inset-bottom, 0px);
     background: var(--color-tab-bar);
