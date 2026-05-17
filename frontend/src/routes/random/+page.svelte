@@ -67,6 +67,7 @@
       localStorage.setItem(MODE_KEY, mode);
     }
     post = null;
+    loading = true;
     loadNext();
   }
 
@@ -316,7 +317,7 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
   }
 
-  .next { background: var(--color-tab-inactive); }
+  .next { background: var(--color-action-next, #5a6472); }
 
   .card {
     transition: opacity 0.2s ease;
