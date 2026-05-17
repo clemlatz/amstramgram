@@ -280,8 +280,8 @@
     transition: fill 0.15s, stroke 0.15s;
   }
   .header-fav-btn.active svg {
-    fill: #ed4956;
-    stroke: #ed4956;
+    fill: var(--color-favorite);
+    stroke: var(--color-favorite);
   }
   .post-account a {
     font-size: 14px;
@@ -345,7 +345,7 @@
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--color-nav-btn);
   }
   .mute-btn svg {
     width: 16px;
@@ -453,8 +453,8 @@
     stroke: var(--color-text);
   }
   .action-btn.favorite.active svg {
-    fill: #ed4956;
-    stroke: #ed4956;
+    fill: var(--color-favorite);
+    stroke: var(--color-favorite);
   }
   .action-btn:disabled {
     cursor: default;

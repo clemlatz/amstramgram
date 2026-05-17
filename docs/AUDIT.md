@@ -11,7 +11,7 @@ Generated: 2026-05-17 · Last updated: 2026-05-17 · Score: **15/20** (Good — 
 - [x] **Accessibility pass 4** — muted text contrast (#8e8e8e → #767676), touch targets fav/mute (44px), :focus-visible global, ARIA on Following toggles, autoplay documented
 
 ### To Do
-- [ ] **[P2] `/impeccable extract`** — accent tokens (`#ed4956`, `#8b2035`, `#2d6a4f`, `#e03131`), mute-btn dark mode (`rgba(0,0,0,0.5)` → `var(--color-nav-btn)`), extract Toggle component
+- [x] **[P2] `/impeccable extract`** — accent tokens (`#ed4956`, `#8b2035`, `#2d6a4f`, `#e03131`), mute-btn dark mode (`rgba(0,0,0,0.5)` → `var(--color-nav-btn)`), extract Toggle component
 - [ ] **[P3] `/impeccable optimize`** — `will-change: transform` on tab bar
 - [ ] **[P3] `/impeccable adapt`** — tablet/desktop breakpoint (ou confirmer mobile-only)
 - [ ] **[P3] `/impeccable polish`** — final quality pass

@@ -379,7 +379,7 @@
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--color-nav-btn);
   }
 
   .mute-btn svg {
@@ -509,8 +509,8 @@
     flex-shrink: 0;
   }
 
-  .forget { background: #8B2035; }
-  .remember { background: #2D6A4F; }
+  .forget { background: var(--color-action-forget); }
+  .remember { background: var(--color-action-remember); }
 
   .empty {
     display: flex;

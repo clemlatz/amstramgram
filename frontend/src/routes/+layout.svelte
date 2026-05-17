@@ -93,6 +93,10 @@
     --color-nav-btn-text: #262626;
     --color-avatar-border: #ffffff;
     --color-empty-icon: #c7c7cc;
+    --color-favorite: #ed4956;
+    --color-action-forget: #8b2035;
+    --color-action-remember: #2d6a4f;
+    --color-error: #e03131;
   }
 
   @media (prefers-color-scheme: dark) {
