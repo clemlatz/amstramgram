@@ -16,13 +16,13 @@ Every cycle begins with a check: if the current time is outside **07:00–23:00*
 wait initial_delay (5–30 min, log-normal, at startup)
 → wait until 07:00 if outside window
 → run cycle
-→ schedule next cycle at a random time between 09:00 and 12:00 the following day
+→ schedule next cycle 6–9 hours later (log-normal)
 → repeat
 ```
 
 On first startup, a random initial delay of **5–30 minutes** (log-normal) is applied before the first cycle. This avoids predictable startup patterns.
 
-After a successful cycle, the next run is scheduled for a random minute in the **09:00–12:00** window of the following day.
+After a successful cycle, the next run is scheduled **6–9 hours later** (log-normal). Combined with the 07:00–23:00 active window, this results in approximately **3 cycles per day**.
 
 ### Error handling in the loop
 
@@ -42,7 +42,7 @@ Each cycle performs the following steps in order:
 4. **Authentication check** — loads the Instaloader instance; aborts if it has no username (session invalid).
 5. **Session headers** — injects `X-IG-App-ID`, `Accept-Language`, `Referer`, and a mobile `User-Agent` header to mimic the Instagram iPhone app.
 6. **Active accounts** — loads all accounts where `active = 1` and `instagram_user_id IS NOT NULL`.
-7. **`fetch_new_posts`** — checks for new posts on already fully-synced accounts.
+7. **`fetch_new_posts`** — fast-updates all active accounts (recent posts first).
 8. **`fetch_old_posts`** — downloads historical posts for accounts that have not yet been fully synced.
 9. **Session save** — persists the (possibly refreshed) session to disk.
 
@@ -53,7 +53,7 @@ Each cycle performs the following steps in order:
 | Header | Value |
 |---|---|
 | `X-IG-App-ID` | `936619743392459` |
-| `Accept-Language` | `fr-FR,fr;q=0.9` |
+| `Accept-Language` | `en-US,en;q=0.9` |
 | `Referer` | `https://www.instagram.com/` |
 | `User-Agent` | `Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram/274.0.0.0` |
 
@@ -63,9 +63,9 @@ All inter-account and inter-group sleeps use a **log-normal distribution** inste
 
 ## `fetch_new_posts`
 
-Targets accounts that are **fully synced** (`fully_synced = 1`).
+Targets **all active accounts** — both fully synced and unsynced.
 
-The account list is shuffled randomly, then split into groups of **15–20** accounts:
+A random subset of **15–30 accounts** is selected each cycle, shuffled, then split into groups of **15–20**:
 
 - Within a group: **30–90 second** log-normal sleep between accounts.
 - Between groups: **5–10 minute** log-normal sleep.
@@ -75,8 +75,8 @@ For each account, `_download_account_fast` is called:
 
 1. Fetches the profile via the Instagram iPhone API (`/api/v1/users/{id}/info/`).
 2. Iterates the profile's posts in reverse chronological order.
-3. After each successful `download_post`, sleeps **2–5 seconds** (log-normal).
-4. Stops as soon as `download_post` returns `False` — Instaloader returns `False` when the file already exists, indicating the known frontier has been reached.
+3. **Fully synced accounts** (`fully_synced = 1`): stops as soon as `download_post` returns `False` (file already exists — the known frontier has been reached).
+4. **Unsynced accounts** (`fully_synced = 0`): fetches at most `_MAX_RECENT_UNSYNCED` (15) posts so their latest content appears in the feed quickly, while `fetch_old_posts` handles the full historical backfill.
 5. Indexes newly downloaded files (see [Indexing](#indexing)).
 
 A **404 response** (account deleted or made private) deactivates the account (`active = 0`) and skips it.
@@ -87,7 +87,7 @@ Targets accounts where `fully_synced = 0` (accounts that have never had a comple
 
 - Skipped entirely if the current time is **22:00 or later** (to avoid late-night load).
 - At most **3 accounts** are processed per cycle, chosen randomly from the full unsynced list.
-- Per account, at most **100 posts** are downloaded (`_MAX_DOWNLOADS_PER_CYCLE`).
+- Per account, at most **60–140 posts** are downloaded (random, log-normal between `_MIN_DOWNLOADS_PER_ACCOUNT` and `_MAX_DOWNLOADS_PER_ACCOUNT`).
 - A **90–180 second** log-normal sleep is inserted between accounts.
 - When an account returns **0 new downloads** in a cycle, it is marked `fully_synced = 1` — historical backfill is complete.
 - Newly downloaded files are indexed after each account (see [Indexing](#indexing)).
@@ -119,11 +119,15 @@ This is a no-op once all accounts have been migrated.
 
 | Constant | Value | Used in |
 |---|---|---|
-| `_MAX_DOWNLOADS_PER_CYCLE` | 100 | `fetch_old_posts` — max posts downloaded per account per cycle |
+| `_MIN_DOWNLOADS_PER_ACCOUNT` | 60 | `fetch_old_posts` — min posts downloaded per account per cycle |
+| `_MAX_DOWNLOADS_PER_ACCOUNT` | 140 | `fetch_old_posts` — max posts downloaded per account per cycle |
+| `_MAX_RECENT_UNSYNCED` | 15 | `fetch_new_posts` — max recent posts fetched per unsynced account |
+| `_MIN_ACCOUNTS_PER_CYCLE` | 15 | `fetch_new_posts` — min accounts selected per cycle |
+| `_MAX_ACCOUNTS_PER_CYCLE` | 30 | `fetch_new_posts` — max accounts selected per cycle |
 | `_RATE_LIMIT_BACKOFF_BASE` | 1800 s (30 min) | Rate-limit and unexpected-error retry base |
 | `_RATE_LIMIT_BACKOFF_MAX` | 10800 s (3 h) | Cap on exponential rate-limit backoff |
 | Initial startup delay | 5–30 min (log-normal) | First cycle cooldown at startup |
-| Inter-cycle delay | Next day 09:00–12:00 (random minute) | Successful cycle cooldown |
+| Inter-cycle delay | 6–9 h (log-normal) | Successful cycle cooldown (~3 cycles/day) |
 | `fetch_new_posts` intra-account delay | 2–5 s (log-normal) | Between each downloaded post |
 | `fetch_new_posts` inter-account delay | 30–90 s (log-normal) | Within a group |
 | `fetch_new_posts` inter-group delay | 300–600 s (log-normal) | Between groups |
