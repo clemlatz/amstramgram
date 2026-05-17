@@ -1,10 +1,10 @@
 export async function load({ fetch }) {
   try {
-    const res = await fetch('/api/feed');
-    if (!res.ok) return { photos: [] };
+    const res = await fetch("/api/feed");
+    if (!res.ok) return { posts: [] };
     const data = await res.json();
-    return { photos: Array.isArray(data?.photos) ? data.photos : [] };
+    return { posts: Array.isArray(data?.posts) ? data.posts : [] };
   } catch {
-    return { photos: [] };
+    return { posts: [] };
   }
 }

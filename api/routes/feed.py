@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from ..config import DB_PATH
-from ..db import get_recent_photos
+from ..db import get_recent_posts
 
 router = APIRouter()
 
@@ -20,9 +20,9 @@ def _media_type(ext: str) -> str:
 
 @router.get("/feed")
 async def get_feed():
-    photos = await asyncio.to_thread(get_recent_photos, DB_PATH)
+    posts = await asyncio.to_thread(get_recent_posts, DB_PATH)
     return JSONResponse({
-        "photos": [
+        "posts": [
             {
                 "account": p["account"],
                 "caption": p["caption"],
@@ -35,6 +35,6 @@ async def get_feed():
                     for fp, ext in p["media"]
                 ],
             }
-            for p in photos
+            for p in posts
         ]
     })

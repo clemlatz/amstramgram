@@ -6,14 +6,14 @@
 
   let { data } = $props();
 
-  let photo = $state(data.photo);
+  let post = $state(data.post);
   let loading = $state(false);
   let visible = $state(true);
   let muted = $state(true);
   let swiperEl = $state(null);
   let fetchError = $state(data.loadError ?? false);
 
-  const isCarousel = $derived(photo?.media?.length > 1);
+  const isCarousel = $derived(post?.media?.length > 1);
 
   $effect(() => {
     if (!swiperEl) return;
@@ -57,12 +57,12 @@
   }
 
   async function rate(action) {
-    if (!photo || loading) return;
+    if (!post || loading) return;
     loading = true;
     visible = false;
     fetchError = false;
 
-    const shortcode = photo.shortcode;
+    const shortcode = post.shortcode;
 
     try {
       await Promise.all([
@@ -74,7 +74,7 @@
         }),
       ]);
     } catch {
-      // rating request failed — continue to next photo anyway
+      // rating request failed — continue to next post anyway
     }
 
     await loadNext();
@@ -84,11 +84,11 @@
     try {
       const res = await fetch('/api/random');
       if (!res.ok) throw new Error();
-      const { photo: next } = await res.json();
-      photo = next;
+      const { post: next } = await res.json();
+      post = next;
       muted = true;
     } catch {
-      photo = null;
+      post = null;
       fetchError = true;
     }
     visible = true;
@@ -117,26 +117,26 @@
   {/if}
 {/snippet}
 
-{#if photo}
+{#if post}
   <div class="page">
     <article class="card" class:fade={!visible}>
       <header class="post-header">
-        <Avatar account={photo.account} />
+        <Avatar account={post.account} />
         <div class="post-meta">
           <div class="post-account">
-            <a href="https://www.instagram.com/{photo.account}" target="_blank" rel="noopener noreferrer">
-              {photo.account}
+            <a href="https://www.instagram.com/{post.account}" target="_blank" rel="noopener noreferrer">
+              {post.account}
             </a>
           </div>
-          <div class="post-date">{formatDate(photo.post_timestamp)}</div>
+          <div class="post-date">{formatDate(post.post_timestamp)}</div>
         </div>
       </header>
 
-      {#key photo.shortcode}
+      {#key post.shortcode}
         {#if isCarousel}
           <div class="swiper" bind:this={swiperEl}>
             <div class="swiper-wrapper">
-              {#each photo.media as item}
+              {#each post.media as item}
                 <div class="swiper-slide">
                   {#if item.type === 'video'}
                     <div class="video-wrapper">
@@ -163,15 +163,15 @@
               </svg>
             </button>
           </div>
-        {:else if photo.media[0]?.type === 'video'}
+        {:else if post.media[0]?.type === 'video'}
           <div class="video-wrapper">
-            <video class="post-video" src={photo.media[0].url} loop bind:muted={muted} playsinline autoplay onclick={togglePlayPause}></video>
+            <video class="post-video" src={post.media[0].url} loop bind:muted={muted} playsinline autoplay onclick={togglePlayPause}></video>
             <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
               {@render muteIcon()}
             </button>
           </div>
         {:else}
-          <img class="post-image" src={photo.media[0]?.url} alt="" />
+          <img class="post-image" src={post.media[0]?.url} alt="" />
         {/if}
       {/key}
     </article>
@@ -200,7 +200,7 @@
       <circle cx="12" cy="16" r="1" fill="currentColor"/>
     </svg>
     <p class="empty-title">Connection error</p>
-    <p class="empty-sub">Couldn't load the next photo.</p>
+    <p class="empty-sub">Couldn't load the next post.</p>
     <button class="retry-btn" onclick={retryFetch}>Try again</button>
   </div>
 {:else}
@@ -214,7 +214,7 @@
       <circle cx="15.5" cy="15.5" r="1.5" fill="currentColor"/>
     </svg>
     <p class="empty-title">All caught up!</p>
-    <p class="empty-sub">Come back later for new photos.</p>
+    <p class="empty-sub">Come back later for new posts.</p>
   </div>
 {/if}
 

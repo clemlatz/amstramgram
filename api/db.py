@@ -338,11 +338,11 @@ def index_account(account_id: int, dest_dir: Path, db_path: Path) -> int:
 
     return len(rows)
 
-def get_random_neutral_photo(db_path: Path) -> dict | None:
+def get_random_neutral_post(db_path: Path) -> dict | None:
     conn = _conn(db_path, read_only=True)
     try:
         # Pick a random account first so all accounts get equal weight
-        # regardless of how many photos they have.
+        # regardless of how many posts they have.
         account_row = conn.execute("""
             SELECT a.id
             FROM media m
@@ -391,7 +391,7 @@ def get_random_neutral_photo(db_path: Path) -> dict | None:
     }
 
 
-def get_recent_photos(db_path: Path) -> list[dict]:
+def get_recent_posts(db_path: Path) -> list[dict]:
     conn = _conn(db_path, read_only=True)
     try:
         rows = conn.execute("""

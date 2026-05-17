@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from ..config import DB_PATH
-from ..db import get_random_neutral_photo
+from ..db import get_random_neutral_post
 from .feed import _encode, _media_type
 
 router = APIRouter()
@@ -12,17 +12,17 @@ router = APIRouter()
 
 @router.get("/random")
 async def get_random():
-    photo = await asyncio.to_thread(get_random_neutral_photo, DB_PATH)
-    if not photo:
-        return JSONResponse({"photo": None})
+    post = await asyncio.to_thread(get_random_neutral_post, DB_PATH)
+    if not post:
+        return JSONResponse({"post": None})
     return JSONResponse({
-        "photo": {
-            "account": photo["account"],
-            "post_timestamp": photo["post_timestamp"],
-            "shortcode": photo["shortcode"],
+        "post": {
+            "account": post["account"],
+            "post_timestamp": post["post_timestamp"],
+            "shortcode": post["shortcode"],
             "media": [
                 {"url": f"/api/media/{_encode(fp)}", "type": _media_type(ext)}
-                for fp, ext in photo["media"]
+                for fp, ext in post["media"]
             ],
         }
     })
