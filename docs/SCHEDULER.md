@@ -4,7 +4,7 @@
 
 ## Activation
 
-The scheduler only starts if the `ENABLE_SCHEDULER` environment variable is set to a truthy value (`1`, `true`, or `yes`). When disabled, the process runs as a web server only.
+The scheduler state is **persisted in the database** (`scheduler_enabled` setting). On startup, the app reads this value and automatically restarts the scheduler if it was running before the process stopped. The state is toggled via `POST /api/settings/scheduler/start` and `POST /api/settings/scheduler/stop`.
 
 ## Active time window
 
