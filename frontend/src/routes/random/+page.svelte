@@ -1,6 +1,8 @@
 <script>
   import 'swiper/css';
   import 'swiper/css/pagination';
+  import Avatar from '$lib/Avatar.svelte';
+  import { formatDate } from '$lib/media.js';
 
   let { data } = $props();
 
@@ -43,38 +45,6 @@
       instance?.destroy();
     };
   });
-
-  const AVATAR_COLORS = ['#e91e63', '#9c27b0', '#2196f3', '#00bcd4', '#ff5722', '#ff9800'];
-
-  function hideAvatarImage(e) {
-    e.target.style.display = 'none';
-  }
-
-  function avatarColor(account) {
-    let h = 0;
-    for (const c of account) h = (h * 31 + c.charCodeAt(0)) & 0xffff;
-    return AVATAR_COLORS[h % AVATAR_COLORS.length];
-  }
-
-  function formatDate(ts) {
-    if (!ts) return '';
-    const date = new Date(ts);
-    if (isNaN(date.getTime())) return '';
-    const diff = Date.now() - date.getTime();
-    const mins = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-    const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
-
-    const currentYear = new Date().getFullYear();
-    const dateYear = date.getFullYear();
-
-    if (mins < 60) return rtf.format(-mins, 'minute');
-    if (hours < 24) return rtf.format(-hours, 'hour');
-    if (days < 7) return rtf.format(-days, 'day');
-    if (currentYear === dateYear) return date.toLocaleDateString('en', { day: 'numeric', month: 'long' });
-    return date.toLocaleDateString('en', { day: 'numeric', month: 'long', year: 'numeric' });
-  }
 
   function togglePlayPause(e) {
     const video = e.currentTarget;
@@ -151,17 +121,7 @@
   <div class="page">
     <article class="card" class:fade={!visible}>
       <header class="post-header">
-        <div class="avatar-ring">
-          <div class="avatar-inner" style="background: {avatarColor(photo.account)}">
-            <img
-              class="avatar-img"
-              src="/api/accounts/{photo.account}/avatar"
-              alt={photo.account}
-              onerror={hideAvatarImage}
-            />
-            {(photo.account?.[0] ?? '').toUpperCase()}
-          </div>
-        </div>
+        <Avatar account={photo.account} />
         <div class="post-meta">
           <div class="post-account">
             <a href="https://www.instagram.com/{photo.account}" target="_blank" rel="noopener noreferrer">
@@ -287,39 +247,6 @@
     align-items: center;
     padding: 10px 14px;
     gap: 10px;
-  }
-
-  .avatar-ring {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    padding: 2px;
-    background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
-    flex-shrink: 0;
-  }
-
-  .avatar-inner {
-    position: relative;
-    overflow: hidden;
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    border: 2px solid var(--color-avatar-border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    font-weight: 600;
-    color: #fff;
-  }
-
-  .avatar-img {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    z-index: 1;
   }
 
   .post-meta {
