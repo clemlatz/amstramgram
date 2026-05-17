@@ -1,5 +1,10 @@
 export async function load({ fetch }) {
-  const res = await fetch('/api/random');
-  if (!res.ok) return { photo: null };
-  return res.json();
+  try {
+    const res = await fetch('/api/random');
+    if (!res.ok) return { photo: null };
+    const data = await res.json();
+    return { photo: data?.photo ?? null };
+  } catch {
+    return { photo: null };
+  }
 }

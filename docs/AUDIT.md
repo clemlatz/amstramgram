@@ -110,9 +110,9 @@ Generated: 2026-05-17 · Last updated: 2026-05-17 · Score: **13/20** (Acceptabl
 
 ---
 
-### ✅ Resolved — Robustness (2026-05-17)
+### ✅ Resolved — Robustness (2026-05-17, pass 1)
 
-Items below were not in the original audit but fixed during the harden pass:
+Items below were not in the original audit but fixed during the first harden pass:
 
 - **`rate()` UI lock** — `Promise.all` without `try-catch` left `loading=true/visible=false` permanently on network error. Refactored to `loadNext()` + `retryFetch()`.
 - **Network error vs. empty queue** — `random` page now distinguishes the two: shows an error state with a "Try again" button instead of the misleading "All caught up!" message.
@@ -123,6 +123,16 @@ Items below were not in the original audit but fixed during the harden pass:
 - **`post.account[0]` crash** — Optional chaining guard added.
 - **Caption `<p>` with no content** — Hidden when `post.caption` is null/undefined.
 - **`prefers-reduced-motion`** — Global rule added in layout.
+
+### ✅ Resolved — Robustness (2026-05-17, pass 2)
+
+- **All load functions missing `try/catch`** — A network error or invalid JSON response crashed the page entirely. All 4 `+page.js` files now wrap fetch + `res.json()` in try/catch with typed fallbacks. Data shapes are normalized (`Array.isArray`, `?? []`, `?? null`).
+- **`account.username[0]` crash** — `following/+page.svelte` crashed if a username was an empty string. Fixed with `(account.username?.[0] ?? '')`.
+- **`post.media[0].type` crash** — `PostCard.svelte` and `random/+page.svelte` accessed `media[0]` without a length guard. Added optional chaining (`media[0]?.type`).
+- **`formatDate` shows "Invalid Date"** — Both `PostCard.svelte` and `random/+page.svelte` now guard against invalid timestamps with `isNaN(date.getTime())`.
+- **`.post-meta` flex overflow** — Missing `min-width: 0` on the flex child allowed long account names to overflow the post header. Fixed in both PostCard and random, with `overflow: hidden; text-overflow: ellipsis` on the account link.
+- **Caption layout break** — `.post-caption` had no overflow protection; long unbreakable strings (URLs, hashes) could break layout. Added `overflow-wrap: break-word; word-break: break-word`.
+- **Swiper initialization unguarded** — Dynamic `import('swiper')` and `new Swiper(...)` could throw uncaught errors. Both `PostCard.svelte` (`onMount`) and `random/+page.svelte` (`$effect`) now catch failures silently, degrading to static image display.
 
 ---
 
@@ -139,7 +149,7 @@ Items below were not in the original audit but fixed during the harden pass:
 
 ## Recommended Action Order
 
-1. **[P1] `/impeccable harden`** ← **next** — muted text contrast (`#8e8e8e` → `#767676`), touch targets (fav/mute to 44px), `:focus-visible`, aria on Following toggles, autoplay intent
+1. **[P1] `/impeccable harden` (accessibility pass)** ← **next** — muted text contrast (`#8e8e8e` → `#767676`), touch targets (fav/mute to 44px), `:focus-visible` global rule, ARIA label on Following toggles, confirm `autoplay` intent on random videos
 2. **[P2] `/impeccable extract`** — accent color tokens (`#ed4956`, `#8b2035`, `#2d6a4f`, `#e03131`), mute button dark mode (`rgba(0,0,0,0.5)` → `var(--color-nav-btn)`), extract Toggle component
 3. **[P3] `/impeccable optimize`** — `will-change: transform` on tab bar
 4. **[P3] `/impeccable adapt`** — tablet/desktop breakpoint (or confirm mobile-only intent)

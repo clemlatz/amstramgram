@@ -21,17 +21,21 @@
     let instance = null;
 
     (async () => {
-      const { default: Swiper } = await import('swiper');
-      const { Pagination, Navigation } = await import('swiper/modules');
-      if (destroyed) return;
-      instance = new Swiper(swiperEl, {
-        modules: [Pagination, Navigation],
-        pagination: { el: swiperEl.querySelector('.swiper-pagination'), clickable: false },
-        navigation: {
-          nextEl: swiperEl.querySelector('.nav-next'),
-          prevEl: swiperEl.querySelector('.nav-prev'),
-        },
-      });
+      try {
+        const { default: Swiper } = await import('swiper');
+        const { Pagination, Navigation } = await import('swiper/modules');
+        if (destroyed) return;
+        instance = new Swiper(swiperEl, {
+          modules: [Pagination, Navigation],
+          pagination: { el: swiperEl.querySelector('.swiper-pagination'), clickable: false },
+          navigation: {
+            nextEl: swiperEl.querySelector('.nav-next'),
+            prevEl: swiperEl.querySelector('.nav-prev'),
+          },
+        });
+      } catch {
+        // carousel falls back to static image display
+      }
     })();
 
     return () => {
@@ -54,20 +58,22 @@
 
   function formatDate(ts) {
     if (!ts) return '';
-    const diff = Date.now() - new Date(ts).getTime();
+    const date = new Date(ts);
+    if (isNaN(date.getTime())) return '';
+    const diff = Date.now() - date.getTime();
     const mins = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
     const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
     const currentYear = new Date().getFullYear();
-    const dateYear = new Date(ts).getFullYear();
+    const dateYear = date.getFullYear();
 
     if (mins < 60) return rtf.format(-mins, 'minute');
     if (hours < 24) return rtf.format(-hours, 'hour');
     if (days < 7) return rtf.format(-days, 'day');
-    if (currentYear === dateYear) return new Date(ts).toLocaleDateString('en', { day: 'numeric', month: 'long' });
-    return new Date(ts).toLocaleDateString('en', { day: 'numeric', month: 'long', year: 'numeric' });
+    if (currentYear === dateYear) return date.toLocaleDateString('en', { day: 'numeric', month: 'long' });
+    return date.toLocaleDateString('en', { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
   function togglePlayPause(e) {
@@ -197,7 +203,7 @@
               </svg>
             </button>
           </div>
-        {:else if photo.media[0].type === 'video'}
+        {:else if photo.media[0]?.type === 'video'}
           <div class="video-wrapper">
             <video class="post-video" src={photo.media[0].url} loop bind:muted={muted} playsinline autoplay onclick={togglePlayPause}></video>
             <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
@@ -312,6 +318,7 @@
 
   .post-meta {
     flex: 1;
+    min-width: 0;
   }
 
   .post-account a {
@@ -320,6 +327,10 @@
     color: var(--color-text);
     line-height: 1.2;
     text-decoration: none;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .post-date {

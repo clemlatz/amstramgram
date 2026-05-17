@@ -66,7 +66,7 @@
               onerror={hideAvatarImage}
             />
             <div class="avatar" style="background:{avatarColor(account.username)}">
-              {account.username[0].toUpperCase()}
+              {(account.username?.[0] ?? '').toUpperCase()}
             </div>
           </div>
           <div class="info">
