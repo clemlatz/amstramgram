@@ -1,6 +1,6 @@
 # Audit — Amstramgram
 
-Generated: 2026-05-17 · Score: **12/20** (Acceptable — significant work needed)
+Generated: 2026-05-17 · Last updated: 2026-05-17 · Score: **13/20** (Acceptable — work in progress)
 
 ## Health Score
 
@@ -9,10 +9,10 @@ Generated: 2026-05-17 · Score: **12/20** (Acceptable — significant work neede
 | 1 | Accessibility | 2/4 | `#8e8e8e` muted text = 3.54:1, fails WCAG AA |
 | 2 | Performance | 3/4 | Implicit `autoplay` on random page videos |
 | 3 | Responsive Design | 2/4 | Touch targets < 44px on fav/mute/nav buttons |
-| 4 | Theming | 2/4 | `#8e8e8e` hard-coded in 13+ places, breaks dark mode |
+| 4 | Theming | 3/4 | ~~`#8e8e8e` hard-coded~~ resolved; accent color tokens still missing |
 | 5 | Anti-Patterns | 3/4 | Clean — no absolute bans violated |
 
-**P0:** 0 · **P1:** 4 · **P2:** 6 · **P3:** 4
+**P0:** 0 · **P1:** 2 · **P2:** 5 · **P3:** 3
 
 ---
 
@@ -52,17 +52,15 @@ Generated: 2026-05-17 · Score: **12/20** (Acceptable — significant work neede
 ### P2 — Performance
 
 **[P2] Implicit `autoplay` on random page videos**
-- **Location:** `random/+page.svelte:160, 185` — `<video ... autoplay>` (no `={false}`)
-- **Fix:** Change to `autoplay={false}` for consistency with the feed, or confirm the autoplay behavior is intentional.
+- **Location:** `random/+page.svelte` — `<video ... autoplay>` (no `={false}`) on both single and carousel
+- **Note:** May be intentional for the random/pick UX (immediate preview), but inconsistent with feed. Confirm intent.
+- **Fix:** If unintentional, change to `autoplay={false}`. If intentional, document it.
 - **Command:** `/impeccable harden`
 
-### P1 — Theming
+### ✅ Resolved — Theming
 
-**[P1] `#8e8e8e` hard-coded instead of `var(--color-text-muted)` in 13+ places**
-- **Location:** `PostCard.svelte:276, 300`, `random/+page.svelte:299`, and others
-- **Impact:** In dark mode, `--color-text-muted` correctly resolves to `#a8a8a8`, but hard-coded `#8e8e8e` references don't update.
-- **Fix:** Replace all `color: #8e8e8e` with `color: var(--color-text-muted)`.
-- **Command:** `/impeccable extract`
+**~~[P1] `#8e8e8e` hard-coded instead of `var(--color-text-muted)` in 13+ places~~**
+- **Resolved 2026-05-17** — All `color/stroke: #8e8e8e` in `PostCard.svelte` and `random/+page.svelte` replaced with `var(--color-text-muted)`. Dark mode now renders correctly for `.post-date`, `.empty-sub`, heart icon, and action icons.
 
 ### P2 — Theming
 
@@ -112,6 +110,22 @@ Generated: 2026-05-17 · Score: **12/20** (Acceptable — significant work neede
 
 ---
 
+### ✅ Resolved — Robustness (2026-05-17)
+
+Items below were not in the original audit but fixed during the harden pass:
+
+- **`rate()` UI lock** — `Promise.all` without `try-catch` left `loading=true/visible=false` permanently on network error. Refactored to `loadNext()` + `retryFetch()`.
+- **Network error vs. empty queue** — `random` page now distinguishes the two: shows an error state with a "Try again" button instead of the misleading "All caught up!" message.
+- **`toLocaleTimeString` date options ignored** — Scheduler next-run label dropped day/month silently. Fixed to `toLocaleString`.
+- **`following/+page.js` crash on API error** — Missing `res.ok` guard before `.json()`. Fixed.
+- **Scheduler toggle silent failure** — Network error on toggle produced no feedback. Added `schedulerError` state.
+- **Empty feed state** — Feed rendered a blank page when no photos existed. Added an instructive empty state.
+- **`post.account[0]` crash** — Optional chaining guard added.
+- **Caption `<p>` with no content** — Hidden when `post.caption` is null/undefined.
+- **`prefers-reduced-motion`** — Global rule added in layout.
+
+---
+
 ## What's Working Well
 
 - Safe area handling: `env(safe-area-inset-bottom)` correctly applied everywhere
@@ -125,8 +139,8 @@ Generated: 2026-05-17 · Score: **12/20** (Acceptable — significant work neede
 
 ## Recommended Action Order
 
-1. **[P1] `/impeccable harden`** — contrast fix, touch targets, `:focus-visible`, aria toggle, autoplay
-2. **[P2] `/impeccable extract`** — tokenize `#8e8e8e`, accent colors, mute button dark mode, extract Toggle component
-3. **[P3] `/impeccable optimize`** — `will-change` on tab bar
+1. **[P1] `/impeccable harden`** ← **next** — muted text contrast (`#8e8e8e` → `#767676`), touch targets (fav/mute to 44px), `:focus-visible`, aria on Following toggles, autoplay intent
+2. **[P2] `/impeccable extract`** — accent color tokens (`#ed4956`, `#8b2035`, `#2d6a4f`, `#e03131`), mute button dark mode (`rgba(0,0,0,0.5)` → `var(--color-nav-btn)`), extract Toggle component
+3. **[P3] `/impeccable optimize`** — `will-change: transform` on tab bar
 4. **[P3] `/impeccable adapt`** — tablet/desktop breakpoint (or confirm mobile-only intent)
 5. **[P3] `/impeccable polish`** — final quality pass

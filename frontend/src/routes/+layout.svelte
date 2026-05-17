@@ -123,6 +123,14 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    :global(*, *::before, *::after) {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
   .content {
     padding-bottom: calc(49px + env(safe-area-inset-bottom, 0px));
   }

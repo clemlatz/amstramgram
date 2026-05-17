@@ -112,7 +112,7 @@
           alt={post.account}
           onerror={hideAvatarImage}
         />
-        {post.account[0].toUpperCase()}
+        {(post.account?.[0] ?? '').toUpperCase()}
       </div>
     </div>
     <div class="post-meta">
@@ -192,7 +192,9 @@
     <img class="post-image" src={post.media[0].url} alt="" loading="lazy" />
   {/if}
 
-  <p class="post-caption">{post.caption}</p>
+  {#if post.caption}
+    <p class="post-caption">{post.caption}</p>
+  {/if}
 </article>
 
 <style>
@@ -257,7 +259,7 @@
     width: 20px;
     height: 20px;
     fill: none;
-    stroke: #8e8e8e;
+    stroke: var(--color-text-muted);
     transition: fill 0.15s, stroke 0.15s;
   }
   .header-fav-btn.active svg {
@@ -273,7 +275,7 @@
   }
   .post-date {
     font-size: 12px;
-    color: #8e8e8e;
+    color: var(--color-text-muted);
     margin-top: 1px;
   }
   .post-image {
@@ -409,7 +411,7 @@
     width: 22px;
     height: 22px;
     fill: none;
-    stroke: #8e8e8e;
+    stroke: var(--color-text-muted);
     transition: fill 0.15s, stroke 0.15s;
   }
   .action-btn.active svg {

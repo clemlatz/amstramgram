@@ -23,6 +23,7 @@
   let schedulerRunning = $state(data.scheduler_running ?? false);
   let nextRunAt = $state(data.next_run_at ?? null);
   let schedulerLoading = $state(false);
+  let schedulerError = $state(false);
 
   let syncSavedLoading = $state(false);
   let syncSavedResult = $state(null);
@@ -106,6 +107,7 @@
 
   async function toggleScheduler() {
     schedulerLoading = true;
+    schedulerError = false;
     const action = schedulerRunning ? 'stop' : 'start';
     try {
       const res = await fetch(`/api/settings/scheduler/${action}`, { method: 'POST' });
@@ -113,9 +115,11 @@
         const json = await res.json();
         schedulerRunning = json.running;
         if (!schedulerRunning) nextRunAt = null;
+      } else {
+        schedulerError = true;
       }
     } catch {
-      // silently ignore network errors
+      schedulerError = true;
     } finally {
       schedulerLoading = false;
     }
@@ -203,9 +207,12 @@
       <div class="scheduler-info">
         <span class="field-label">Scheduler</span>
         {#if schedulerRunning && nextRunAt}
-          <span class="label">Next cycle at {new Date(nextRunAt).toLocaleTimeString('en', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+          <span class="label">Next cycle at {new Date(nextRunAt).toLocaleString('en', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
         {:else}
           <span class="label">{schedulerRunning ? 'Running' : 'Stopped'}</span>
+        {/if}
+        {#if schedulerError}
+          <span class="error">Couldn't update scheduler. Please try again.</span>
         {/if}
       </div>
       <label class="toggle">

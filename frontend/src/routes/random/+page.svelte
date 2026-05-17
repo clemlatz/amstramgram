@@ -9,6 +9,7 @@
   let visible = $state(true);
   let muted = $state(true);
   let swiperEl = $state(null);
+  let fetchError = $state(false);
 
   const isCarousel = $derived(photo?.media?.length > 1);
 
@@ -83,29 +84,45 @@
     if (!photo || loading) return;
     loading = true;
     visible = false;
+    fetchError = false;
 
     const shortcode = photo.shortcode;
 
-    await Promise.all([
-      new Promise(r => setTimeout(r, 200)),
-      fetch('/api/rate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shortcode, action }),
-      }),
-    ]);
+    try {
+      await Promise.all([
+        new Promise(r => setTimeout(r, 200)),
+        fetch('/api/rate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shortcode, action }),
+        }),
+      ]);
+    } catch {
+      // rating request failed — continue to next photo anyway
+    }
 
+    await loadNext();
+  }
+
+  async function loadNext() {
     try {
       const res = await fetch('/api/random');
+      if (!res.ok) throw new Error();
       const { photo: next } = await res.json();
       photo = next;
       muted = true;
     } catch {
       photo = null;
+      fetchError = true;
     }
-
     visible = true;
     loading = false;
+  }
+
+  async function retryFetch() {
+    fetchError = false;
+    loading = true;
+    await loadNext();
   }
 </script>
 
@@ -136,7 +153,7 @@
               alt={photo.account}
               onerror={hideAvatarImage}
             />
-            {photo.account[0].toUpperCase()}
+            {(photo.account?.[0] ?? '').toUpperCase()}
           </div>
         </div>
         <div class="post-meta">
@@ -208,6 +225,17 @@
         Remember
       </button>
     </div>
+  </div>
+{:else if fetchError}
+  <div class="empty">
+    <svg class="empty-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/>
+      <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="12" cy="16" r="1" fill="currentColor"/>
+    </svg>
+    <p class="empty-title">Connection error</p>
+    <p class="empty-sub">Couldn't load the next photo.</p>
+    <button class="retry-btn" onclick={retryFetch}>Try again</button>
   </div>
 {:else}
   <div class="empty">
@@ -296,7 +324,7 @@
 
   .post-date {
     font-size: 12px;
-    color: #8e8e8e;
+    color: var(--color-text-muted);
     margin-top: 1px;
   }
 
@@ -487,6 +515,25 @@
 
   .empty-sub {
     font-size: 14px;
-    color: #8e8e8e;
+    color: var(--color-text-muted);
+  }
+
+  .retry-btn {
+    margin-top: 4px;
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    color: var(--color-bg);
+    background: var(--color-text);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .retry-btn:active {
+    opacity: 0.7;
   }
 </style>
