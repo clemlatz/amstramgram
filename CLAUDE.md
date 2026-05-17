@@ -55,8 +55,14 @@ amstramgram/
 ## Commands
 
 ```bash
+# Install dependencies (creates .venv + installs Python deps)
+make install
+
+# Run tests
+make test
+
 # Dev — run FastAPI + SvelteKit in parallel
-python -m api          # backend — reads PORT from .env (default 8000)
+make start             # backend — reads PORT from .env (default 8000)
 
 cd frontend && npm run dev   # in another terminal — proxies /api → PORT from .env
 

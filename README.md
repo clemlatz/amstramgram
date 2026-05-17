@@ -33,12 +33,8 @@
 
 ### 1. Backend
 
-Create a virtual environment and install dependencies:
-
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r api/requirements.txt
+make install
 ```
 
 ### 2. Frontend
@@ -55,9 +51,8 @@ Open two terminals from the project root.
 **Terminal 1 — FastAPI**
 
 ```bash
-source .venv/bin/activate
 cp .env.example .env   # adjust storage paths if needed
-python -m api
+make start
 ```
 
 The backend starts a background scheduler that downloads accounts stored in the database and exposes the API on `http://localhost:8000`.
