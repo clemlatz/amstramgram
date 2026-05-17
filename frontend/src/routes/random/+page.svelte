@@ -60,7 +60,7 @@
     muted = !muted;
   }
 
-  function switchMode(newMode) {
+  async function switchMode(newMode) {
     if (newMode === mode) return;
     mode = newMode;
     if (typeof localStorage !== 'undefined') {
@@ -68,7 +68,7 @@
     }
     post = null;
     loading = true;
-    loadNext();
+    await loadNext();
   }
 
   async function rate(action) {
