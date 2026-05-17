@@ -87,9 +87,15 @@
       const { post: next } = await res.json();
       post = next;
       muted = true;
+      if (next) {
+        sessionStorage.setItem('random_current_post', JSON.stringify(next));
+      } else {
+        sessionStorage.removeItem('random_current_post');
+      }
     } catch {
       post = null;
       fetchError = true;
+      sessionStorage.removeItem('random_current_post');
     }
     visible = true;
     loading = false;
