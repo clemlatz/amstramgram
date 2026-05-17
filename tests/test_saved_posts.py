@@ -12,7 +12,7 @@ def _make_post(shortcode, typename="GraphImage", owner_id=111, username="alice")
     return post
 
 
-def _run_sync(tmp_path, posts, *, shortcode_exists_returns=True, download_side_effect=None):
+def _run_sync(tmp_path, posts, *, shortcode_exists=False, download_side_effect=None):
     db = tmp_path / "test.db"
     init_db(db)
     storage = tmp_path / "storage"
@@ -25,12 +25,18 @@ def _run_sync(tmp_path, posts, *, shortcode_exists_returns=True, download_side_e
     profile = MagicMock()
     profile.get_saved_posts.return_value = posts
 
+    se_kwargs = (
+        {"side_effect": shortcode_exists}
+        if isinstance(shortcode_exists, list)
+        else {"return_value": shortcode_exists}
+    )
+
     with patch("api.saved.instaloader.Profile.own_profile", return_value=profile), \
          patch("api.saved._set_session_headers"), \
          patch("api.saved.upsert_account", return_value=(1, False)), \
          patch("api.saved.download_lock"), \
          patch("api.saved.index_account") as mock_index, \
-         patch("api.saved.shortcode_exists", return_value=shortcode_exists_returns), \
+         patch("api.saved.shortcode_exists", **se_kwargs), \
          patch("api.saved.mark_as_saved_posts"), \
          patch("api.saved.time.sleep"):
         from api.saved import sync_saved_posts
@@ -47,10 +53,12 @@ def test_sync_counts_downloaded_post(tmp_path):
         dest.mkdir(parents=True, exist_ok=True)
         (dest / f"{p.shortcode}.mp4").write_bytes(b"x")
 
+    # First call (early-exit check): not in DB → proceed
+    # Second call (post-indexing verification): in DB → success
     count, _, _, mock_index = _run_sync(
         tmp_path,
         [_make_post("VID001", typename="GraphVideo")],
-        shortcode_exists_returns=True,
+        shortcode_exists=[False, True],
         download_side_effect=fake_download,
     )
 
@@ -58,26 +66,25 @@ def test_sync_counts_downloaded_post(tmp_path):
     mock_index.assert_called_once()
 
 
-def test_sync_skips_already_indexed_post(tmp_path):
-    # download produces no new files but shortcode is already in DB → skip silently
-    count, _, _, mock_index = _run_sync(
+def test_sync_stops_at_already_indexed_post(tmp_path):
+    # First post already in DB → stop before downloading anything
+    count, _, L, mock_index = _run_sync(
         tmp_path,
-        [_make_post("KNOWN01")],
-        shortcode_exists_returns=True,
+        [_make_post("KNOWN01"), _make_post("NEXT01")],
+        shortcode_exists=True,
     )
 
     assert count == 0
+    assert L.download_post.call_count == 0
     mock_index.assert_not_called()
 
 
-def test_sync_aborts_when_download_produces_no_files_and_not_in_db(tmp_path):
-    # download produces no files and shortcode not in DB → abort after first post
-    posts = [_make_post("BAD001"), _make_post("NEXT01")]
-
+def test_sync_aborts_when_download_produces_no_files(tmp_path):
+    # Download produces no files and shortcode not in DB → abort after first post
     count, _, L, mock_index = _run_sync(
         tmp_path,
-        posts,
-        shortcode_exists_returns=False,
+        [_make_post("BAD001"), _make_post("NEXT01")],
+        shortcode_exists=False,
     )
 
     assert count == 0

@@ -26,7 +26,7 @@ _TYPE_LABELS = {
 def sync_saved_posts(
     L: instaloader.Instaloader, db_path: Path, storage_base: Path
 ) -> tuple[int, list[str]]:
-    """Download all saved posts (catchup mode — no early-exit on known shortcodes).
+    """Download saved posts, stopping at the first already-indexed shortcode.
 
     Verifies each download on disk and in DB after each post; aborts if a post fails to land.
     Returns (downloaded_count, new_account_platform_user_ids).
@@ -44,6 +44,10 @@ def sync_saved_posts(
         for post in own_profile.get_saved_posts():
             shortcode = post.shortcode
             type_label = _TYPE_LABELS.get(post.typename, post.typename)
+
+            if shortcode_exists(shortcode, db_path):
+                logger.info("sync-saved: [%s] %s — already indexed, stopping", type_label, shortcode)
+                break
 
             username = post.owner_username
             platform_user_id = str(post.owner_id)
@@ -72,11 +76,8 @@ def sync_saved_posts(
             new_files = after - before
 
             if not new_files:
-                if shortcode_exists(shortcode, db_path):
-                    logger.info("sync-saved: [%s] %s — already indexed, skipping", type_label, shortcode)
-                    continue
                 logger.error(
-                    "sync-saved: [%s] %s — no media files on disk and not in DB, aborting",
+                    "sync-saved: [%s] %s — no media files on disk after download, aborting",
                     type_label, shortcode,
                 )
                 break
