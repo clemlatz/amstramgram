@@ -6,6 +6,7 @@ from api.db import (
     init_db,
     index_account,
     get_active_accounts,
+    mark_as_saved_posts,
     migrate_done_files,
     shortcode_exists,
     get_unsynced_accounts,
@@ -362,3 +363,47 @@ def test_get_random_favorite_post_excludes_unrated_and_archived(tmp_path):
     post = get_random_favorite_post(db)
     assert post is not None
     assert post["shortcode"] == "FAVED"
+
+
+def test_mark_as_saved_posts_sets_flag_and_favorites(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    acc = _insert_account(db, "alice", "111")
+    _insert_media(db, acc, "111/a.jpg", "jpg", shortcode="SC001")
+    _insert_media(db, acc, "111/b.jpg", "jpg", shortcode="SC002")
+
+    mark_as_saved_posts(["SC001", "SC002"], db)
+
+    conn = sqlite3.connect(str(db))
+    flags = {r[0]: r[1] for r in conn.execute("SELECT shortcode, is_saved_post FROM media")}
+    ratings = {r[0]: r[1] for r in conn.execute("SELECT shortcode, favorited_at FROM ratings")}
+    conn.close()
+
+    assert flags["SC001"] == 1
+    assert flags["SC002"] == 1
+    assert ratings["SC001"] is not None
+    assert ratings["SC002"] is not None
+
+
+def test_mark_as_saved_posts_does_not_overwrite_existing_rating(tmp_path):
+    from api.db import upsert_rating
+    db = tmp_path / "test.db"
+    init_db(db)
+    acc = _insert_account(db, "alice", "111")
+    _insert_media(db, acc, "111/a.jpg", "jpg", shortcode="SC001")
+    upsert_rating("SC001", "archive", db)
+
+    mark_as_saved_posts(["SC001"], db)
+
+    conn = sqlite3.connect(str(db))
+    row = conn.execute("SELECT archived_at, favorited_at FROM ratings WHERE shortcode = 'SC001'").fetchone()
+    conn.close()
+
+    assert row[0] is not None, "archived_at must be preserved"
+    assert row[1] is None, "favorited_at must not be set when a rating already exists"
+
+
+def test_mark_as_saved_posts_noop_on_empty_list(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    mark_as_saved_posts([], db)

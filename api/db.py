@@ -170,6 +170,10 @@ def mark_as_saved_posts(shortcodes: list[str], db_path: Path) -> None:
             "UPDATE media SET is_saved_post = 1 WHERE shortcode = ?",
             [(s,) for s in shortcodes],
         )
+        conn.executemany(
+            "INSERT OR IGNORE INTO ratings (shortcode, archived_at, favorited_at) VALUES (?, NULL, datetime('now'))",
+            [(s,) for s in shortcodes],
+        )
         conn.commit()
     finally:
         conn.close()
