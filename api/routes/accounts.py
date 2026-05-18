@@ -39,7 +39,7 @@ async def download_profile_pics_by_id(platform_user_ids: list[str], L) -> None:
             dest.mkdir(parents=True, exist_ok=True)
             await asyncio.to_thread((dest / "profile.jpg").write_bytes, resp.content)
             save_account_profile_pic(platform_user_id, f"{platform_user_id}/profile.jpg", DB_PATH)
-            logger.info("profile_pic: saved for @%s", username)
+            logger.info("Downloaded profile pic for @%s", username)
         except Exception as exc:
             logger.error("profile_pic: failed for %s — %s", platform_user_id, exc)
         await asyncio.sleep(random.uniform(1, 2))
@@ -63,7 +63,7 @@ async def _download_profile_pics_bg(candidates: list[dict], L) -> None:
             dest.mkdir(parents=True, exist_ok=True)
             await asyncio.to_thread((dest / "profile.jpg").write_bytes, resp.content)
             save_account_profile_pic(platform_user_id, f"{platform_user_id}/profile.jpg", DB_PATH)
-            logger.info("profile_pic: saved for %s", username)
+            logger.info("Downloaded profile pic for @%s", username)
         except Exception as exc:
             logger.error("profile_pic: failed for %s — %s", username, exc)
         await asyncio.sleep(random.uniform(1, 2))
@@ -132,8 +132,10 @@ def _fetch_and_upsert_following(L, db_path: Path) -> tuple[int, list[dict]]:
         params = {"count": 200, "max_id": next_cursor}
 
     logger.info("sync-following: %d account(s) found in following list", len(accounts))
-    added = upsert_following_accounts(accounts, db_path)
-    logger.info("sync-following: %d new account(s) added", added)
+    added, new_usernames = upsert_following_accounts(accounts, db_path)
+    for uname in new_usernames:
+        logger.info("Added account @%s", uname)
+    logger.info("sync-following: done — %d new account(s) added", added)
 
     missing_ids = get_accounts_missing_profile_pic(
         [a["platform_user_id"] for a in accounts], db_path

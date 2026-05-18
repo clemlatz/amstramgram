@@ -535,17 +535,24 @@ def get_all_accounts(db_path: Path) -> list[dict]:
         conn.close()
 
 
-def upsert_following_accounts(accounts: list[dict], db_path: Path) -> int:
+def upsert_following_accounts(accounts: list[dict], db_path: Path) -> tuple[int, list[str]]:
     if not accounts:
-        return 0
+        return 0, []
     conn = _conn(db_path)
     try:
-        cur = conn.executemany(
+        platform_ids = [a["platform_user_id"] for a in accounts]
+        placeholders = ",".join("?" * len(platform_ids))
+        existing = {r[0] for r in conn.execute(
+            f"SELECT platform_user_id FROM accounts WHERE platform_user_id IN ({placeholders})",
+            platform_ids,
+        )}
+        new_accounts = [a for a in accounts if a["platform_user_id"] not in existing]
+        conn.executemany(
             "INSERT OR IGNORE INTO accounts (username, platform_user_id, active) VALUES (?, ?, 1)",
             [(a["username"], a["platform_user_id"]) for a in accounts],
         )
         conn.commit()
-        return cur.rowcount
+        return len(new_accounts), [a["username"] for a in new_accounts]
     finally:
         conn.close()
 

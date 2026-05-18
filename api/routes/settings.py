@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from ..config import DB_PATH, STORAGE_BASE
 from ..db import delete_setting, get_setting, set_setting
 from ..loader import get_loader, reload_session
+from ..logs import get_logs
 from ..saved import sync_saved_posts
 from ..scheduler import get_scheduler_status, start_scheduler, stop_scheduler
 
@@ -69,6 +70,11 @@ async def start_scheduler_endpoint():
 async def stop_scheduler_endpoint():
     await stop_scheduler()
     return JSONResponse({"running": False})
+
+
+@router.get("/logs")
+async def get_logs_endpoint():
+    return JSONResponse({"logs": get_logs()})
 
 
 @router.post("/settings/sync-saved")

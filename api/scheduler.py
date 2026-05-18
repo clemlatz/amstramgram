@@ -25,6 +25,11 @@ from .loader import download_lock, get_loader, persist_session_cookies
 
 logger = logging.getLogger(__name__)
 
+_TYPE_LABELS = {
+    "GraphImage": "image",
+    "GraphSidecar": "carousel",
+    "GraphVideo": "video",
+}
 
 _MIN_DOWNLOADS_PER_ACCOUNT = 60
 _MAX_DOWNLOADS_PER_ACCOUNT = 140
@@ -123,12 +128,13 @@ def _download_account_fast(
     username: str,
     db_path: Path,
     max_posts: int | None = None,
-) -> None:
+) -> int:
     dest = STORAGE_BASE / platform_user_id
     dest.mkdir(parents=True, exist_ok=True)
     L.dirname_pattern = str(dest)
     label = f"fast_update (max={max_posts})" if max_posts is not None else "fast_update"
     logger.info("%s: %s", username, label)
+    fetched = 0
     try:
         user_info = L.context.get_iphone_json(f"api/v1/users/{platform_user_id}/info/", {})
         user_data = user_info["user"]
@@ -139,12 +145,11 @@ def _download_account_fast(
         if not friendship.get("following", True):
             logger.warning("%s: not followed — deactivating", username)
             deactivate_account(account_id, db_path)
-            return
+            return 0
         profile = instaloader.Profile.from_iphone_struct(L.context, user_data)
-        fetched = 0
         for post in profile.get_posts():
             if _stop_event.is_set():
-                return
+                return fetched
             if _post_has_video(post):
                 continue
             if max_posts is not None and fetched >= max_posts:
@@ -155,6 +160,8 @@ def _download_account_fast(
             if not downloaded and max_posts is None:
                 break
             if downloaded:
+                type_label = _TYPE_LABELS.get(post.typename, "media")
+                logger.info("Downloaded %s %s from @%s", type_label, post.shortcode, username)
                 fetched += 1
                 time.sleep(_lognormal_delay(2, 5))
     except (instaloader.LoginRequiredException, instaloader.AbortDownloadException):
@@ -167,7 +174,7 @@ def _download_account_fast(
         if _is_not_found(exc):
             logger.warning("%s: account not found (404) — deactivating", username)
             deactivate_account(account_id, db_path)
-            return
+            return fetched
         logger.error("%s: download failed — %s", username, exc)
     try:
         new_count = index_account(account_id, dest, db_path)
@@ -177,6 +184,7 @@ def _download_account_fast(
             logger.info("%s: already up to date", username)
     except Exception as exc:
         logger.error("%s: indexing failed — %s", username, exc)
+    return fetched
 
 
 def _fetch_new_posts(
@@ -208,15 +216,17 @@ def _fetch_new_posts(
         groups.append(to_check[i : i + size])
         i += size
 
+    total_downloaded = 0
     for g_idx, group in enumerate(groups):
         for a_idx, (account_id, ig_id, username, max_posts) in enumerate(group):
             if _stop_event.is_set():
                 return
-            _download_account_fast(L, account_id, ig_id, username, db_path, max_posts=max_posts)
+            total_downloaded += _download_account_fast(L, account_id, ig_id, username, db_path, max_posts=max_posts)
             if a_idx < len(group) - 1:
                 _sleep(_lognormal_delay(30, 90))
         if g_idx < len(groups) - 1:
             _sleep(_lognormal_delay(300, 600), "between groups")
+    logger.info("fetch_new_posts: done — %d downloaded", total_downloaded)
 
 
 def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
@@ -233,6 +243,7 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
     candidates = unsynced[:3]
     logger.info("fetch_old_posts: catching up %d account(s)", len(candidates))
 
+    total_downloaded = 0
     for i, (account_id, platform_user_id, username) in enumerate(candidates):
         if _stop_event.is_set():
             return
@@ -264,6 +275,8 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
                     L.dirname_pattern = str(dest)
                     did_download = L.download_post(post, target=username)
                 if did_download:
+                    type_label = _TYPE_LABELS.get(post.typename, "media")
+                    logger.info("Downloaded %s %s from @%s", type_label, post.shortcode, username)
                     downloaded += 1
         except (instaloader.LoginRequiredException, instaloader.AbortDownloadException):
             raise
@@ -278,6 +291,7 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
                 continue
             logger.error("%s: catchup failed — %s", username, exc)
 
+        total_downloaded += downloaded
         if downloaded == 0:
             mark_account_synced(account_id, db_path)
             logger.info("%s: fully synced", username)
@@ -293,6 +307,7 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
 
         if i < len(candidates) - 1:
             _sleep(_lognormal_delay(90, 180))
+    logger.info("fetch_old_posts: done — %d downloaded", total_downloaded)
 
 
 _SESSION_INVALIDATED_EXCEPTIONS = (
@@ -326,6 +341,7 @@ def _run_cycle() -> None:
     _fetch_old_posts(L, DB_PATH)
 
     persist_session_cookies()
+    logger.info("Download cycle complete")
 
 
 def _load_next_delay() -> int:

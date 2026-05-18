@@ -30,6 +30,26 @@
   let syncSavedResult = $state(null);
   let syncSavedError = $state(null);
 
+  let logs = $state([]);
+  let logsLoading = $state(false);
+
+  async function fetchLogs() {
+    logsLoading = true;
+    try {
+      const res = await fetch('/api/logs');
+      if (res.ok) {
+        const json = await res.json();
+        logs = json.logs;
+      }
+    } catch {
+      // silently ignore
+    } finally {
+      logsLoading = false;
+    }
+  }
+
+  $effect(() => { fetchLogs(); });
+
   const UA_PLACEHOLDER = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram/274.0.0.0';
 
   async function handleSubmit(e) {
@@ -236,6 +256,26 @@
     </button>
   </div>
 
+  <div class="divider"></div>
+
+  <div class="logs-section">
+    <div class="logs-header">
+      <span class="field-label">Logs</span>
+      <button class="btn-refresh" type="button" disabled={logsLoading} onclick={fetchLogs} aria-label="Refresh logs">
+        ↻
+      </button>
+    </div>
+    <div class="logs-container">
+      {#if logs.length === 0}
+        <span class="logs-empty">{logsLoading ? 'Loading…' : 'No logs yet.'}</span>
+      {:else}
+        {#each logs as entry}
+          <div class="log-entry {entry.includes('[ERROR]') ? 'log-error' : entry.includes('[WARN]') ? 'log-warn' : ''}">{entry}</div>
+        {/each}
+      {/if}
+    </div>
+  </div>
+
 </div>
 
 <style>
@@ -417,6 +457,69 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+  }
+
+  .logs-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .logs-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .btn-refresh {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: var(--color-text-muted);
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+    transition: color 0.15s;
+  }
+
+  .btn-refresh:not(:disabled):hover {
+    color: var(--color-text);
+  }
+
+  .btn-refresh:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .logs-container {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 12px;
+    max-height: 320px;
+    overflow-y: auto;
+    font-family: ui-monospace, 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .logs-empty {
+    color: var(--color-text-muted);
+  }
+
+  .log-entry {
+    color: var(--color-text);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .log-entry.log-warn {
+    color: #b58a00;
+  }
+
+  .log-entry.log-error {
+    color: var(--color-error);
   }
 
 </style>

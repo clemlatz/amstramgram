@@ -25,24 +25,27 @@ def test_upsert_inserts_new_accounts(db):
         {"username": "alice", "platform_user_id": "111"},
         {"username": "bob",   "platform_user_id": "222"},
     ]
-    added = upsert_following_accounts(accounts, db)
+    added, new_usernames = upsert_following_accounts(accounts, db)
     assert added == 2
+    assert set(new_usernames) == {"alice", "bob"}
 
 
 def test_upsert_ignores_existing_username(db):
     accounts = [{"username": "alice", "platform_user_id": "111"}]
     upsert_following_accounts(accounts, db)
-    added = upsert_following_accounts(accounts, db)
+    added, new_usernames = upsert_following_accounts(accounts, db)
     assert added == 0
+    assert new_usernames == []
 
 
 def test_upsert_counts_only_new_rows(db):
     upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
-    added = upsert_following_accounts([
+    added, new_usernames = upsert_following_accounts([
         {"username": "alice", "platform_user_id": "111"},
         {"username": "bob",   "platform_user_id": "222"},
     ], db)
     assert added == 1
+    assert new_usernames == ["bob"]
 
 
 def test_upsert_sets_active_flag(db):
@@ -64,7 +67,7 @@ def test_upsert_stores_platform_user_id(db):
 
 
 def test_upsert_empty_list_returns_zero(db):
-    assert upsert_following_accounts([], db) == 0
+    assert upsert_following_accounts([], db) == (0, [])
 
 
 # Route tests

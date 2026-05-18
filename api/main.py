@@ -8,6 +8,7 @@ from starlette.exceptions import HTTPException
 
 from .config import DB_PATH, ENABLE_ACCESS_LOG
 from .db import get_setting, init_db
+from .logs import AppLogHandler
 from .routes import accounts, feed, media, random, rate, settings, stats
 from .scheduler import start_scheduler
 
@@ -18,6 +19,10 @@ logging.basicConfig(
 
 if not ENABLE_ACCESS_LOG:
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
+_app_log_handler = AppLogHandler()
+_app_log_handler.setLevel(logging.INFO)
+logging.getLogger("api").addHandler(_app_log_handler)
 
 _FRONTEND = Path("frontend/build")
 

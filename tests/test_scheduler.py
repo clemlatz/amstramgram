@@ -88,51 +88,53 @@ async def test_wait_until_window_sleeps_after_23h():
     assert 26900 < delay < 27100
 
 
-def test_fetch_new_posts_skips_unsynced_accounts(tmp_path):
+def test_fetch_new_posts_synced_accounts_get_unlimited_max_posts(tmp_path):
     from api.scheduler import _fetch_new_posts
 
     db = tmp_path / "test.db"
     active_accounts = [
-        (1, "111", "alice", 1),  # synced — included
-        (2, "222", "bob", 0),    # not synced — excluded
+        (1, "111", "alice", 1),  # synced — max_posts=None
+        (2, "222", "bob", 0),    # unsynced — max_posts=_MAX_RECENT_UNSYNCED
     ]
 
-    with patch("api.scheduler._download_account_fast") as mock_dl:
+    with patch("api.scheduler._download_account_fast", return_value=0) as mock_dl:
         with patch("time.sleep"):
             _fetch_new_posts(MagicMock(), active_accounts, db)
 
-    called_usernames = [c.args[3] for c in mock_dl.call_args_list]
-    assert called_usernames == ["alice"]
+    calls_by_username = {c.args[3]: c.kwargs.get("max_posts") for c in mock_dl.call_args_list}
+    assert calls_by_username["alice"] is None
+    assert calls_by_username["bob"] is not None
 
 
-def test_fetch_new_posts_no_synced_accounts_is_noop(tmp_path):
-    from api.scheduler import _fetch_new_posts
+def test_fetch_new_posts_unsynced_only_still_runs(tmp_path):
+    from api.scheduler import _fetch_new_posts, _MAX_RECENT_UNSYNCED
 
     db = tmp_path / "test.db"
-    active_accounts = [(1, "111", "alice", 0)]  # non synced
+    active_accounts = [(1, "111", "alice", 0)]  # unsynced — included with cap
 
-    with patch("api.scheduler._download_account_fast") as mock_dl:
+    with patch("api.scheduler._download_account_fast", return_value=0) as mock_dl:
         _fetch_new_posts(MagicMock(), active_accounts, db)
 
-    mock_dl.assert_not_called()
+    mock_dl.assert_called_once()
+    assert mock_dl.call_args.kwargs.get("max_posts") == _MAX_RECENT_UNSYNCED
 
 
-def test_fetch_new_posts_calls_download_for_all_synced(tmp_path):
+def test_fetch_new_posts_calls_download_for_all_accounts(tmp_path):
     from api.scheduler import _fetch_new_posts
 
     db = tmp_path / "test.db"
     active_accounts = [
         (1, "111", "alice", 1),
         (2, "222", "bob", 1),
-        (3, "333", "carol", 0),  # not synced — excluded
+        (3, "333", "carol", 0),  # unsynced — included with max_posts cap
     ]
 
-    with patch("api.scheduler._download_account_fast") as mock_dl:
+    with patch("api.scheduler._download_account_fast", return_value=0) as mock_dl:
         with patch("time.sleep"):
             _fetch_new_posts(MagicMock(), active_accounts, db)
 
     called_usernames = {c.args[3] for c in mock_dl.call_args_list}
-    assert called_usernames == {"alice", "bob"}
+    assert called_usernames == {"alice", "bob", "carol"}
 
 
 def test_download_account_fast_stops_on_existing_post(tmp_path):
