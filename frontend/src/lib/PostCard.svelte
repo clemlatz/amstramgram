@@ -60,6 +60,10 @@
     muted = !muted;
   }
 
+  function revealFirstFrame(e) {
+    e.currentTarget.currentTime = 0.001;
+  }
+
   onMount(() => {
     if (!isCarousel) return;
     let swiper = null;
@@ -139,7 +143,7 @@
           <div class="swiper-slide">
             {#if item.type === 'video'}
               <div class="video-wrapper">
-                <video src={item.url} loop bind:muted={muted} playsinline autoplay={false} onclick={togglePlayPause}></video>
+                <video src={item.url} loop bind:muted={muted} playsinline autoplay={false} preload="metadata" onloadedmetadata={revealFirstFrame} onclick={togglePlayPause}></video>
                 <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
                   {@render muteIcon()}
                 </button>
@@ -164,7 +168,7 @@
     </div>
   {:else if post.media[0]?.type === 'video'}
     <div class="video-wrapper">
-      <video class="post-video" src={post.media[0].url} loop bind:muted={muted} playsinline autoplay={false} onclick={togglePlayPause}></video>
+      <video class="post-video" src={post.media[0].url} loop bind:muted={muted} playsinline autoplay={false} preload="metadata" onloadedmetadata={revealFirstFrame} onclick={togglePlayPause}></video>
       <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
         {@render muteIcon()}
       </button>
