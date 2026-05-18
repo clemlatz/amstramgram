@@ -1,11 +1,46 @@
 <script>
+  import { onMount } from 'svelte';
   import { page } from '$app/stores';
+
   let { children } = $props();
+  let serverReachable = $state(true);
+
+  async function checkServer() {
+    try {
+      const res = await fetch('/api/stats', { signal: AbortSignal.timeout(3000) });
+      serverReachable = res.ok;
+    } catch {
+      serverReachable = false;
+    }
+  }
+
+  onMount(() => {
+    checkServer();
+    window.addEventListener('online', checkServer);
+    return () => window.removeEventListener('online', checkServer);
+  });
 </script>
 
 <svelte:head>
   <title>Amstramgram</title>
 </svelte:head>
+
+{#if !serverReachable}
+  <div class="offline-overlay">
+    <svg class="offline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="1" y1="1" x2="23" y2="23"/>
+      <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/>
+      <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/>
+      <path d="M10.71 5.05A16 16 0 0 1 22.56 9"/>
+      <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/>
+      <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+      <line x1="12" y1="20" x2="12.01" y2="20"/>
+    </svg>
+    <h2 class="offline-title">Server unreachable</h2>
+    <p class="offline-body">The server could not be reached.</p>
+    <button class="offline-retry" onclick={checkServer}>Retry</button>
+  </div>
+{/if}
 
 <div class="content">
   {@render children()}
@@ -222,5 +257,56 @@
   .tab svg {
     width: 26px;
     height: 26px;
+  }
+
+  .offline-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    padding: 2rem;
+    text-align: center;
+  }
+
+  .offline-icon {
+    width: 48px;
+    height: 48px;
+    color: var(--color-text-muted);
+    margin-bottom: 4px;
+  }
+
+  .offline-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .offline-body {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+  }
+
+  .offline-retry {
+    margin-top: 8px;
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+  }
+
+  .offline-retry:active {
+    background: var(--color-border-subtle);
   }
 </style>
