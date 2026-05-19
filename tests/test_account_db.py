@@ -10,6 +10,7 @@ from api.db import (
     get_account_profile_pic_path,
     get_accounts_missing_profile_pic,
     get_all_accounts,
+    get_account_detail,
 )
 
 
@@ -197,3 +198,61 @@ def test_get_all_accounts_counts_distinct_shortcodes(tmp_path):
     accounts = get_all_accounts(db)
     carol = next(a for a in accounts if a["username"] == "carol")
     assert carol["favorited_count"] == 1  # not 2
+
+
+def test_get_account_detail_returns_none_for_unknown(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    assert get_account_detail("nobody", db) is None
+
+
+def test_get_account_detail_returns_basic_fields(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
+    result = get_account_detail("alice", db)
+    assert result is not None
+    assert result["username"] == "alice"
+    assert result["active"] is True
+    assert result["post_count"] == 0
+    assert result["unrated_count"] == 0
+    assert result["favorited_count"] == 0
+    assert result["archived_count"] == 0
+
+
+def test_get_account_detail_counts_posts_and_ratings(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
+    conn = sqlite3.connect(str(db))
+    account_id = conn.execute("SELECT id FROM accounts WHERE username='alice'").fetchone()[0]
+    conn.close()
+    _insert_media(db, account_id, "sc1")
+    _insert_media(db, account_id, "sc2")
+    _insert_media(db, account_id, "sc3")
+    _insert_rating(db, "sc1", favorited=True)
+    _insert_rating(db, "sc2", archived=True)
+
+    result = get_account_detail("alice", db)
+    assert result["post_count"] == 3
+    assert result["unrated_count"] == 1   # sc3 has no rating
+    assert result["favorited_count"] == 1
+    assert result["archived_count"] == 1
+
+
+def test_get_account_detail_returns_bio_fields(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
+    # bio fields are stored by Task 4; insert directly until then
+    conn = sqlite3.connect(str(db))
+    conn.execute(
+        "UPDATE accounts SET bio=?, full_name=?, external_url=? WHERE username='alice'",
+        ("Hello world", "Alice Smith", "https://example.com"),
+    )
+    conn.commit()
+    conn.close()
+    result = get_account_detail("alice", db)
+    assert result["bio"] == "Hello world"
+    assert result["full_name"] == "Alice Smith"
+    assert result["external_url"] == "https://example.com"

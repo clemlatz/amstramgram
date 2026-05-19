@@ -539,6 +539,48 @@ def get_all_accounts(db_path: Path) -> list[dict]:
         conn.close()
 
 
+def get_account_detail(username: str, db_path: Path) -> dict | None:
+    conn = _conn(db_path, read_only=True)
+    try:
+        row = conn.execute("""
+            SELECT
+                a.username,
+                a.full_name,
+                a.bio,
+                a.external_url,
+                a.active,
+                COUNT(DISTINCT m.id) AS post_count,
+                COUNT(DISTINCT CASE WHEN m.shortcode IS NOT NULL AND r.shortcode IS NULL
+                                    THEN m.shortcode END) AS unrated_count,
+                COUNT(DISTINCT CASE WHEN r.favorited_at IS NOT NULL
+                                    THEN m.shortcode END) AS favorited_count,
+                COUNT(DISTINCT CASE WHEN r.archived_at IS NOT NULL
+                                    THEN m.shortcode END) AS archived_count
+            FROM accounts a
+            LEFT JOIN media m
+                ON m.account_id = a.id
+                AND m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
+            LEFT JOIN ratings r ON r.shortcode = m.shortcode
+            WHERE a.username = ?
+            GROUP BY a.id
+        """, (username,)).fetchone()
+        if not row:
+            return None
+        return {
+            "username": row["username"],
+            "full_name": row["full_name"],
+            "bio": row["bio"],
+            "external_url": row["external_url"],
+            "active": bool(row["active"]),
+            "post_count": row["post_count"],
+            "unrated_count": row["unrated_count"],
+            "favorited_count": row["favorited_count"],
+            "archived_count": row["archived_count"],
+        }
+    finally:
+        conn.close()
+
+
 def upsert_following_accounts(accounts: list[dict], db_path: Path) -> tuple[int, list[str]]:
     if not accounts:
         return 0, []
