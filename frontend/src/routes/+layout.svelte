@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { page } from '$app/stores';
+  import { page, navigating } from '$app/stores';
 
   let { children } = $props();
   let serverReachable = $state(true);
@@ -24,6 +24,12 @@
 <svelte:head>
   <title>Amstramgram</title>
 </svelte:head>
+
+{#if $navigating}
+  <div class="nav-progress" aria-hidden="true">
+    <div class="nav-progress-bar"></div>
+  </div>
+{/if}
 
 {#if !serverReachable}
   <div class="offline-overlay">
@@ -257,6 +263,31 @@
   .tab svg {
     width: 26px;
     height: 26px;
+  }
+
+  .nav-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    z-index: 9998;
+    background: var(--color-border-subtle);
+    overflow: hidden;
+  }
+
+  .nav-progress-bar {
+    height: 100%;
+    background: var(--color-text);
+    width: 40%;
+    animation: nav-slide 1.2s ease-in-out infinite;
+    transform-origin: left;
+  }
+
+  @keyframes nav-slide {
+    0% { transform: translateX(-100%) scaleX(1); }
+    50% { transform: translateX(150%) scaleX(1.5); }
+    100% { transform: translateX(400%) scaleX(1); }
   }
 
   .offline-overlay {
