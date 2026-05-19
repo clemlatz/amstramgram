@@ -633,6 +633,11 @@ def upsert_following_accounts(accounts: list[dict], db_path: Path) -> tuple[int,
             "INSERT OR IGNORE INTO accounts (username, platform_user_id, active) VALUES (?, ?, 1)",
             [(a["username"], a["platform_user_id"]) for a in accounts],
         )
+        conn.executemany(
+            "UPDATE accounts SET bio = ?, full_name = ?, external_url = ? WHERE platform_user_id = ?",
+            [(a.get("bio"), a.get("full_name"), a.get("external_url"), a["platform_user_id"])
+             for a in accounts],
+        )
         conn.commit()
         return len(new_accounts), [a["username"] for a in new_accounts]
     finally:

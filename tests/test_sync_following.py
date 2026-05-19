@@ -70,6 +70,35 @@ def test_upsert_empty_list_returns_zero(db):
     assert upsert_following_accounts([], db) == (0, [])
 
 
+def test_upsert_stores_bio_fields(db):
+    import sqlite3
+    upsert_following_accounts([{
+        "username": "alice", "platform_user_id": "111",
+        "bio": "Hello", "full_name": "Alice Smith", "external_url": "https://example.com",
+    }], db)
+    conn = sqlite3.connect(str(db))
+    row = conn.execute("SELECT bio, full_name, external_url FROM accounts WHERE username='alice'").fetchone()
+    conn.close()
+    assert row[0] == "Hello"
+    assert row[1] == "Alice Smith"
+    assert row[2] == "https://example.com"
+
+
+def test_upsert_updates_bio_on_resync(db):
+    import sqlite3
+    upsert_following_accounts([{"username": "alice", "platform_user_id": "111", "bio": "Old bio"}], db)
+    upsert_following_accounts([{"username": "alice", "platform_user_id": "111", "bio": "New bio"}], db)
+    conn = sqlite3.connect(str(db))
+    row = conn.execute("SELECT bio FROM accounts WHERE username='alice'").fetchone()
+    conn.close()
+    assert row[0] == "New bio"
+
+
+def test_upsert_tolerates_missing_bio_fields(db):
+    added, _ = upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
+    assert added == 1  # must not raise
+
+
 # Route tests
 
 def _make_loader(following_pages):
