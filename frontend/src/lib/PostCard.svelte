@@ -12,6 +12,8 @@
   let archived = $state(!!post.archived_at);
   let favorited = $state(!!post.favorited_at);
   let muted = $state(true);
+  let paused = $state(true);
+  let videoPaused = $state(post.media?.map(() => true) ?? []);
 
   async function rate(action) {
     if (!post.shortcode) return;
@@ -52,6 +54,12 @@
 
   function togglePlayPause(e) {
     const video = e.currentTarget;
+    video.paused ? video.play().catch(() => {}) : video.pause();
+  }
+
+  function toggleVideoFromOverlay(e) {
+    const video = e.currentTarget.closest('.video-wrapper')?.querySelector('video');
+    if (!video) return;
     video.paused ? video.play().catch(() => {}) : video.pause();
   }
 
@@ -121,6 +129,13 @@
     </button>
   </header>
 
+{#snippet playIcon()}
+  <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="32" cy="32" r="32" fill="rgba(15,10,8,0.62)"/>
+    <path d="M23,19 L47,32 L23,45 Z" fill="white" stroke="white" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>
+{/snippet}
+
 {#snippet muteIcon()}
   {#if muted}
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -139,11 +154,14 @@
   {#if isCarousel}
     <div class="swiper" bind:this={swiperEl}>
       <div class="swiper-wrapper">
-        {#each post.media as item}
+        {#each post.media as item, i}
           <div class="swiper-slide">
             {#if item.type === 'video'}
               <div class="video-wrapper" style={item.width && item.height ? `aspect-ratio: ${item.width} / ${item.height}` : ''}>
-                <video src={item.url} loop bind:muted={muted} playsinline autoplay={false} preload="metadata" onloadedmetadata={revealFirstFrame} onclick={togglePlayPause}></video>
+                <video src={item.url} loop bind:muted={muted} playsinline autoplay={false} preload="metadata" onloadedmetadata={revealFirstFrame} onclick={togglePlayPause} onplay={() => { videoPaused[i] = false }} onpause={() => { videoPaused[i] = true }}></video>
+                {#if videoPaused[i]}
+                  <div class="play-overlay" onclick={toggleVideoFromOverlay}>{@render playIcon()}</div>
+                {/if}
                 <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
                   {@render muteIcon()}
                 </button>
@@ -170,7 +188,10 @@
     </div>
   {:else if post.media[0]?.type === 'video'}
     <div class="video-wrapper" style={post.media[0].width && post.media[0].height ? `aspect-ratio: ${post.media[0].width} / ${post.media[0].height}` : ''}>
-      <video class="post-video" src={post.media[0].url} loop bind:muted={muted} playsinline autoplay={false} preload="metadata" onloadedmetadata={revealFirstFrame} onclick={togglePlayPause}></video>
+      <video class="post-video" src={post.media[0].url} loop bind:muted={muted} playsinline autoplay={false} preload="metadata" onloadedmetadata={revealFirstFrame} onclick={togglePlayPause} onplay={() => paused = false} onpause={() => paused = true}></video>
+      {#if paused}
+        <div class="play-overlay" onclick={toggleVideoFromOverlay}>{@render playIcon()}</div>
+      {/if}
       <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
         {@render muteIcon()}
       </button>
@@ -275,6 +296,21 @@
   /* Video */
   .video-wrapper {
     position: relative;
+  }
+  .play-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 5;
+  }
+  .play-overlay svg {
+    width: 64px;
+    height: 64px;
+    opacity: 0.9;
+    pointer-events: none;
   }
   .post-video {
     width: 100%;
