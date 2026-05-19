@@ -22,6 +22,7 @@
   let uaSaved = $state(false);
 
   let schedulerRunning = $state(data.scheduler_running ?? false);
+  let cycleRunning = $state(data.cycle_running ?? false);
   let nextRunAt = $state(data.next_run_at ?? null);
   let schedulerLoading = $state(false);
   let schedulerError = $state(false);
@@ -135,7 +136,7 @@
       if (res.ok) {
         const json = await res.json();
         schedulerRunning = json.running;
-        if (!schedulerRunning) nextRunAt = null;
+        if (!schedulerRunning) { nextRunAt = null; cycleRunning = false; }
       } else {
         schedulerError = true;
       }
@@ -227,7 +228,7 @@
     <div class="scheduler-row">
       <div class="scheduler-info">
         <span class="field-label">Scheduler</span>
-        {#if schedulerRunning && nextRunAt && !isNaN(new Date(nextRunAt).getTime())}
+        {#if schedulerRunning && !cycleRunning && nextRunAt && !isNaN(new Date(nextRunAt).getTime())}
           <span class="label">Next cycle at {new Date(nextRunAt).toLocaleString('en', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
         {:else}
           <span class="label">{schedulerRunning ? 'Running' : 'Stopped'}</span>

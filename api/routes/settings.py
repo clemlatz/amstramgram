@@ -38,6 +38,7 @@ async def get_settings():
         "session_id": session_id,
         "user_agent": user_agent,
         "scheduler_running": status["running"],
+        "cycle_running": status["cycle_running"],
         "next_run_at": status["next_run_at"],
     })
 

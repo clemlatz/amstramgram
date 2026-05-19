@@ -41,6 +41,7 @@ _MAX_RECENT_UNSYNCED = 15
 
 _stop_event: threading.Event = threading.Event()
 _scheduler_task: asyncio.Task | None = None
+_cycle_running: bool = False
 
 
 def _fmt_delay(seconds: int) -> str:
@@ -392,6 +393,8 @@ async def _scheduler_loop() -> None:
         await _wait_until_window()
         logger.info("Starting download cycle")
 
+        global _cycle_running
+        _cycle_running = True
         try:
             await asyncio.to_thread(_run_cycle)
             consecutive_rl = 0
@@ -417,6 +420,8 @@ async def _scheduler_loop() -> None:
         except Exception as exc:
             next_delay = _RATE_LIMIT_BACKOFF_BASE
             logger.error("Unexpected error in cycle — retry in %d min: %s", next_delay // 60, exc, exc_info=True)
+        finally:
+            _cycle_running = False
 
 
 async def start_scheduler() -> None:
@@ -449,4 +454,4 @@ def get_scheduler_status() -> dict:
         next_run_at = get_setting("next_run_at", DB_PATH)
     except Exception:
         next_run_at = None
-    return {"running": running, "next_run_at": next_run_at}
+    return {"running": running, "cycle_running": _cycle_running, "next_run_at": next_run_at}
