@@ -147,3 +147,19 @@ def test_sync_returns_zero_when_all_accounts_exist(client):
         resp = tc.post("/api/accounts/sync-following")
     assert resp.status_code == 200
     assert resp.json() == {"added": 0}
+
+
+def test_sync_stores_bio_from_instagram_response(client):
+    import sqlite3
+    tc, db = client
+    page = {"users": [{"username": "alice", "pk": "111", "biography": "My bio", "full_name": "Alice", "external_url": "https://alice.com"}]}
+    mock_L = _make_loader([page])
+    with patch("api.routes.accounts.get_loader", return_value=mock_L):
+        resp = tc.post("/api/accounts/sync-following")
+    assert resp.status_code == 200
+    conn = sqlite3.connect(str(db))
+    row = conn.execute("SELECT bio, full_name, external_url FROM accounts WHERE username='alice'").fetchone()
+    conn.close()
+    assert row[0] == "My bio"
+    assert row[1] == "Alice"
+    assert row[2] == "https://alice.com"

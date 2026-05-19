@@ -125,6 +125,9 @@ def _fetch_and_upsert_following(L, db_path: Path) -> tuple[int, list[dict]]:
                 "username": user["username"],
                 "platform_user_id": str(user["pk"]),
                 "profile_pic_url": user.get("profile_pic_url", ""),
+                "bio": user.get("biography") or "",
+                "full_name": user.get("full_name") or "",
+                "external_url": user.get("external_url") or "",
             })
         next_cursor = data.get("next_max_id")
         if not next_cursor:
