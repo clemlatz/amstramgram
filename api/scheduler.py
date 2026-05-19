@@ -55,11 +55,13 @@ def _fmt_delay(seconds: int) -> str:
 
 
 def _sleep(seconds: int, reason: str = "") -> None:
-    until = datetime.now() + timedelta(seconds=seconds)
-    now = datetime.now()
-    until_str = until.strftime("%H:%M:%S") if until.date() == now.date() else until.strftime("%m/%d %H:%M:%S")
     label = f" ({reason})" if reason else ""
-    logger.info("Waiting %s until %s%s", _fmt_delay(seconds), until_str, label)
+    if seconds < 3600:
+        logger.info("Waiting %s%s", _fmt_delay(seconds), label)
+    else:
+        until = datetime.now() + timedelta(seconds=seconds)
+        until_str = until.strftime("%H:%M:%S") if until.date() == datetime.now().date() else until.strftime("%m/%d %H:%M:%S")
+        logger.info("Waiting until %s%s", until_str, label)
     time.sleep(seconds)
 
 
