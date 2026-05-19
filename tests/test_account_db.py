@@ -11,6 +11,7 @@ from api.db import (
     get_accounts_missing_profile_pic,
     get_all_accounts,
     get_account_detail,
+    get_account_posts,
 )
 
 
@@ -256,3 +257,76 @@ def test_get_account_detail_returns_bio_fields(tmp_path):
     assert result["bio"] == "Hello world"
     assert result["full_name"] == "Alice Smith"
     assert result["external_url"] == "https://example.com"
+
+
+def _insert_media_with_timestamp(db: Path, account_id: int, shortcode: str, ts: str, filepath: str) -> None:
+    conn = sqlite3.connect(str(db))
+    conn.execute(
+        "INSERT INTO media (account_id, filename, filepath, extension, shortcode, post_timestamp)"
+        " VALUES (?, ?, ?, 'jpg', ?, ?)",
+        (account_id, f"{shortcode}.jpg", filepath, shortcode, ts),
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_get_account_posts_returns_empty_for_unknown(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    assert get_account_posts("nobody", db) == []
+
+
+def test_get_account_posts_returns_posts_for_account(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
+    conn = sqlite3.connect(str(db))
+    account_id = conn.execute("SELECT id FROM accounts WHERE username='alice'").fetchone()[0]
+    conn.close()
+    _insert_media_with_timestamp(db, account_id, "sc1", "2024-01-02T00:00:00Z", "111/sc1.jpg")
+    _insert_media_with_timestamp(db, account_id, "sc2", "2024-01-01T00:00:00Z", "111/sc2.jpg")
+    posts = get_account_posts("alice", db)
+    assert len(posts) == 2
+    assert posts[0]["shortcode"] == "sc1"  # newer first
+    assert posts[1]["shortcode"] == "sc2"
+
+
+def test_get_account_posts_does_not_include_other_accounts(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    upsert_following_accounts([
+        {"username": "alice", "platform_user_id": "111"},
+        {"username": "bob",   "platform_user_id": "222"},
+    ], db)
+    conn = sqlite3.connect(str(db))
+    alice_id = conn.execute("SELECT id FROM accounts WHERE username='alice'").fetchone()[0]
+    bob_id   = conn.execute("SELECT id FROM accounts WHERE username='bob'").fetchone()[0]
+    conn.close()
+    _insert_media_with_timestamp(db, alice_id, "sc_alice", "2024-01-01T00:00:00Z", "111/a.jpg")
+    _insert_media_with_timestamp(db, bob_id,   "sc_bob",   "2024-01-01T00:00:00Z", "222/b.jpg")
+    posts = get_account_posts("alice", db)
+    assert len(posts) == 1
+    assert posts[0]["shortcode"] == "sc_alice"
+
+
+def test_get_account_posts_groups_carousel_slides(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
+    conn = sqlite3.connect(str(db))
+    account_id = conn.execute("SELECT id FROM accounts WHERE username='alice'").fetchone()[0]
+    conn.execute(
+        "INSERT INTO media (account_id, filename, filepath, extension, shortcode, post_timestamp, carousel_index)"
+        " VALUES (?, 'sc1_1.jpg', '111/sc1_1.jpg', 'jpg', 'sc1', '2024-01-01T00:00:00Z', 1)",
+        (account_id,),
+    )
+    conn.execute(
+        "INSERT INTO media (account_id, filename, filepath, extension, shortcode, post_timestamp, carousel_index)"
+        " VALUES (?, 'sc1_2.jpg', '111/sc1_2.jpg', 'jpg', 'sc1', '2024-01-01T00:00:00Z', 2)",
+        (account_id,),
+    )
+    conn.commit()
+    conn.close()
+    posts = get_account_posts("alice", db)
+    assert len(posts) == 1
+    assert len(posts[0]["media"]) == 2

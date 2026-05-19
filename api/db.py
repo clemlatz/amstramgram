@@ -581,6 +581,42 @@ def get_account_detail(username: str, db_path: Path) -> dict | None:
         conn.close()
 
 
+def get_account_posts(username: str, db_path: Path) -> list[dict]:
+    conn = _conn(db_path, read_only=True)
+    try:
+        rows = conn.execute("""
+            SELECT m.filepath, m.extension, m.post_timestamp, m.caption, m.shortcode,
+                   m.width, m.height, r.archived_at, r.favorited_at,
+                   a.username AS account, a.active AS account_active
+            FROM media m
+            JOIN accounts a ON a.id = m.account_id
+            LEFT JOIN ratings r ON r.shortcode = m.shortcode
+            WHERE m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
+              AND a.username = ?
+            ORDER BY m.post_timestamp DESC, m.carousel_index ASC
+        """, (username,)).fetchall()
+    finally:
+        conn.close()
+
+    posts: dict[str, dict] = {}
+    for row in rows:
+        key = f"{row['account']}/{row['post_timestamp']}" if row["post_timestamp"] else row["filepath"]
+        if key not in posts:
+            posts[key] = {
+                "account": row["account"],
+                "account_active": bool(row["account_active"]),
+                "post_timestamp": row["post_timestamp"],
+                "caption": row["caption"],
+                "shortcode": row["shortcode"],
+                "archived_at": row["archived_at"],
+                "favorited_at": row["favorited_at"],
+                "media": [],
+            }
+        posts[key]["media"].append((row["filepath"], row["extension"] or "jpg", row["width"], row["height"]))
+
+    return list(posts.values())
+
+
 def upsert_following_accounts(accounts: list[dict], db_path: Path) -> tuple[int, list[str]]:
     if not accounts:
         return 0, []
