@@ -78,6 +78,19 @@ def _is_not_found(exc: Exception) -> bool:
     return "404" in str(exc)
 
 
+def _fmt_download_summary(type_counts: dict[str, int]) -> str:
+    parts = []
+    for key in ("image", "carousel", "video", "media"):
+        n = type_counts.get(key, 0)
+        if n:
+            parts.append(f"{n} {key}{'s' if n > 1 else ''}")
+    if not parts:
+        return "nothing new"
+    if len(parts) == 1:
+        return parts[0]
+    return ", ".join(parts[:-1]) + " and " + parts[-1]
+
+
 def _post_has_video(post) -> bool:
     if post.is_video:
         return True
@@ -132,9 +145,10 @@ def _download_account_fast(
     dest = STORAGE_BASE / platform_user_id
     dest.mkdir(parents=True, exist_ok=True)
     L.dirname_pattern = str(dest)
-    label = f"fast_update (max={max_posts})" if max_posts is not None else "fast_update"
-    logger.info("%s: %s", username, label)
+    suffix = f" (max={max_posts})" if max_posts is not None else ""
+    logger.info("%s: downloading new media…%s", username, suffix)
     fetched = 0
+    type_counts: dict[str, int] = {}
     try:
         user_info = L.context.get_iphone_json(f"api/v1/users/{platform_user_id}/info/", {})
         user_data = user_info["user"]
@@ -161,7 +175,7 @@ def _download_account_fast(
                 break
             if downloaded:
                 type_label = _TYPE_LABELS.get(post.typename, "media")
-                logger.info("Downloaded %s %s from @%s", type_label, post.shortcode, username)
+                type_counts[type_label] = type_counts.get(type_label, 0) + 1
                 fetched += 1
                 time.sleep(_lognormal_delay(2, 5))
     except (instaloader.LoginRequiredException, instaloader.AbortDownloadException):
@@ -176,12 +190,12 @@ def _download_account_fast(
             deactivate_account(account_id, db_path)
             return fetched
         logger.error("%s: download failed — %s", username, exc)
+    if fetched:
+        logger.info("%s: downloaded %s", username, _fmt_download_summary(type_counts))
+    else:
+        logger.info("%s: up to date", username)
     try:
-        new_count = index_account(account_id, dest, db_path)
-        if new_count:
-            logger.info("%s: %d new file(s) indexed", username, new_count)
-        else:
-            logger.info("%s: already up to date", username)
+        index_account(account_id, dest, db_path)
     except Exception as exc:
         logger.error("%s: indexing failed — %s", username, exc)
     return fetched
@@ -207,7 +221,7 @@ def _fetch_new_posts(
         logger.info("fetch_new_posts: no accounts to check")
         return
 
-    logger.info("fetch_new_posts: checking %d account(s) (cap=%d)", len(to_check), cap)
+    logger.info("fetch_new_posts: checking %d account(s)… (cap=%d)", len(to_check), cap)
 
     groups: list[list] = []
     i = 0
@@ -241,7 +255,7 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
 
     random.shuffle(unsynced)
     candidates = unsynced[:3]
-    logger.info("fetch_old_posts: catching up %d account(s)", len(candidates))
+    logger.info("fetch_old_posts: catching up %d account(s)…", len(candidates))
 
     total_downloaded = 0
     for i, (account_id, platform_user_id, username) in enumerate(candidates):
@@ -251,9 +265,10 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
         dest.mkdir(parents=True, exist_ok=True)
         L.dirname_pattern = str(dest)
         max_downloads = random.randint(_MIN_DOWNLOADS_PER_ACCOUNT, _MAX_DOWNLOADS_PER_ACCOUNT)
-        logger.info("%s: catchup download (max=%d)", username, max_downloads)
+        logger.info("%s: downloading new media… (max=%d)", username, max_downloads)
 
         downloaded = 0
+        type_counts: dict[str, int] = {}
         try:
             user_info = L.context.get_iphone_json(f"api/v1/users/{platform_user_id}/info/", {})
             user_data = user_info["user"]
@@ -276,7 +291,7 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
                     did_download = L.download_post(post, target=username)
                 if did_download:
                     type_label = _TYPE_LABELS.get(post.typename, "media")
-                    logger.info("Downloaded %s %s from @%s", type_label, post.shortcode, username)
+                    type_counts[type_label] = type_counts.get(type_label, 0) + 1
                     downloaded += 1
         except (instaloader.LoginRequiredException, instaloader.AbortDownloadException):
             raise
@@ -296,12 +311,10 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
             mark_account_synced(account_id, db_path)
             logger.info("%s: fully synced", username)
         else:
-            logger.info("%s: %d post(s) fetched this cycle", username, downloaded)
+            logger.info("%s: downloaded %s", username, _fmt_download_summary(type_counts))
 
         try:
-            new_count = index_account(account_id, dest, db_path)
-            if new_count:
-                logger.info("%s: %d new file(s) indexed", username, new_count)
+            index_account(account_id, dest, db_path)
         except Exception as exc:
             logger.error("%s: indexing failed — %s", username, exc)
 
