@@ -51,6 +51,7 @@
   }
 
   let swiperEl = $state(null);
+  let videoEl = $state(null);
 
   function togglePlayPause(e) {
     const video = e.currentTarget;
@@ -73,34 +74,54 @@
   }
 
   onMount(() => {
-    if (!isCarousel) return;
     let swiper = null;
     let cancelled = false;
+    let observer = null;
 
-    (async () => {
-      try {
-        const { default: Swiper } = await import('swiper');
-        const { Pagination, Navigation } = await import('swiper/modules');
-        if (cancelled || !swiperEl) return;
-        swiper = new Swiper(swiperEl, {
-          modules: [Pagination, Navigation],
-          pagination: {
-            el: swiperEl.querySelector('.swiper-pagination'),
-            clickable: false,
-          },
-          navigation: {
-            nextEl: swiperEl.querySelector('.nav-next'),
-            prevEl: swiperEl.querySelector('.nav-prev'),
-          },
-        });
-      } catch {
-        // carousel falls back to static image display
-      }
-    })();
+    if (isCarousel) {
+      (async () => {
+        try {
+          const { default: Swiper } = await import('swiper');
+          const { Pagination, Navigation } = await import('swiper/modules');
+          if (cancelled || !swiperEl) return;
+          swiper = new Swiper(swiperEl, {
+            modules: [Pagination, Navigation],
+            pagination: {
+              el: swiperEl.querySelector('.swiper-pagination'),
+              clickable: false,
+            },
+            navigation: {
+              nextEl: swiperEl.querySelector('.nav-next'),
+              prevEl: swiperEl.querySelector('.nav-prev'),
+            },
+          });
+        } catch {
+          // carousel falls back to static image display
+        }
+      })();
+    }
+
+    const videos = isCarousel
+      ? Array.from(swiperEl?.querySelectorAll('video') ?? [])
+      : videoEl ? [videoEl] : [];
+
+    if (videos.length > 0) {
+      observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            const video = /** @type {HTMLVideoElement} */ (entry.target);
+            entry.isIntersecting ? video.play().catch(() => {}) : video.pause();
+          }
+        },
+        { threshold: 1.0 },
+      );
+      for (const video of videos) observer.observe(video);
+    }
 
     return () => {
       cancelled = true;
       swiper?.destroy();
+      observer?.disconnect();
     };
   });
 </script>
@@ -188,7 +209,7 @@
     </div>
   {:else if post.media[0]?.type === 'video'}
     <div class="video-wrapper" style={post.media[0].width && post.media[0].height ? `aspect-ratio: ${post.media[0].width} / ${post.media[0].height}` : ''}>
-      <video class="post-video" src={post.media[0].url} loop bind:muted={muted} playsinline autoplay={false} preload="metadata" onloadedmetadata={revealFirstFrame} onclick={togglePlayPause} onplay={() => paused = false} onpause={() => paused = true}></video>
+      <video class="post-video" bind:this={videoEl} src={post.media[0].url} loop bind:muted={muted} playsinline autoplay={false} preload="metadata" onloadedmetadata={revealFirstFrame} onclick={togglePlayPause} onplay={() => paused = false} onpause={() => paused = true}></video>
       {#if paused}
         <div class="play-overlay" onclick={toggleVideoFromOverlay}>{@render playIcon()}</div>
       {/if}
