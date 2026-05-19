@@ -80,6 +80,10 @@ def init_db(db_path: Path) -> None:
         if "profile_pic_path" not in cols:
             conn.execute("ALTER TABLE accounts ADD COLUMN profile_pic_path TEXT")
             conn.commit()
+        for col in ("bio", "full_name", "external_url"):
+            if col not in cols:
+                conn.execute(f"ALTER TABLE accounts ADD COLUMN {col} TEXT")
+        conn.commit()
         media_cols = {row[1] for row in conn.execute("PRAGMA table_info(media)")}
         if "is_saved_post" not in media_cols:
             conn.execute("ALTER TABLE media ADD COLUMN is_saved_post INTEGER NOT NULL DEFAULT 0")

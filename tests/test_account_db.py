@@ -67,6 +67,18 @@ def test_profile_pic_path_column_exists_after_init(tmp_path):
     assert "profile_pic_path" in cols
 
 
+def test_bio_columns_exist_after_init(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    import sqlite3
+    conn = sqlite3.connect(str(db))
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(accounts)")}
+    conn.close()
+    assert "bio" in cols
+    assert "full_name" in cols
+    assert "external_url" in cols
+
+
 def test_save_and_get_account_profile_pic(tmp_path):
     db = tmp_path / "test.db"
     init_db(db)
