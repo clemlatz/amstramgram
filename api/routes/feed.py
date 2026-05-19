@@ -25,6 +25,7 @@ async def get_feed():
         "posts": [
             {
                 "account": p["account"],
+                "account_active": p["account_active"],
                 "caption": p["caption"],
                 "post_timestamp": p["post_timestamp"],
                 "shortcode": p["shortcode"],

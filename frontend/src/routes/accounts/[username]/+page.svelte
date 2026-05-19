@@ -32,7 +32,7 @@
   {:else}
     <div class="profile-header">
       <div class="profile-top">
-        <Avatar account={profile.username} active={profile.active} size={80} />
+        <Avatar account={profile.username} active={active} size={80} />
         <div class="profile-stats">
           <h1 class="profile-username">{profile.username}</h1>
           <p class="profile-counts">
