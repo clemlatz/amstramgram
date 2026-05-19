@@ -31,8 +31,8 @@ async def get_feed():
                 "archived_at": p["archived_at"],
                 "favorited_at": p["favorited_at"],
                 "media": [
-                    {"url": f"/api/media/{_encode(fp)}", "type": _media_type(ext)}
-                    for fp, ext in p["media"]
+                    {"url": f"/api/media/{_encode(fp)}", "type": _media_type(ext), "width": w, "height": h}
+                    for fp, ext, w, h in p["media"]
                 ],
             }
             for p in posts

@@ -372,7 +372,7 @@ def get_random_neutral_post(db_path: Path) -> dict | None:
             return None
         rows = conn.execute("""
             SELECT m.filepath, m.extension, m.post_timestamp, m.caption, m.shortcode,
-                   a.username AS account, a.active AS account_active
+                   m.width, m.height, a.username AS account, a.active AS account_active
             FROM media m
             JOIN accounts a ON a.id = m.account_id
             LEFT JOIN ratings r ON r.shortcode = m.shortcode
@@ -392,7 +392,7 @@ def get_random_neutral_post(db_path: Path) -> dict | None:
         "post_timestamp": first["post_timestamp"],
         "caption": first["caption"],
         "shortcode": first["shortcode"],
-        "media": [(r["filepath"], r["extension"] or "jpg") for r in rows],
+        "media": [(r["filepath"], r["extension"] or "jpg", r["width"], r["height"]) for r in rows],
     }
 
 
@@ -427,7 +427,7 @@ def get_random_favorite_post(db_path: Path) -> dict | None:
             return None
         rows = conn.execute("""
             SELECT m.filepath, m.extension, m.post_timestamp, m.caption, m.shortcode,
-                   a.username AS account, a.active AS account_active
+                   m.width, m.height, a.username AS account, a.active AS account_active
             FROM media m
             JOIN accounts a ON a.id = m.account_id
             JOIN ratings r ON r.shortcode = m.shortcode
@@ -447,7 +447,7 @@ def get_random_favorite_post(db_path: Path) -> dict | None:
         "post_timestamp": first["post_timestamp"],
         "caption": first["caption"],
         "shortcode": first["shortcode"],
-        "media": [(r["filepath"], r["extension"] or "jpg") for r in rows],
+        "media": [(r["filepath"], r["extension"] or "jpg", r["width"], r["height"]) for r in rows],
     }
 
 
@@ -456,7 +456,7 @@ def get_recent_posts(db_path: Path) -> list[dict]:
     try:
         rows = conn.execute("""
             SELECT m.filepath, m.extension, m.post_timestamp, m.caption, m.shortcode,
-                   r.archived_at, r.favorited_at, a.username AS account, a.active AS account_active
+                   m.width, m.height, r.archived_at, r.favorited_at, a.username AS account, a.active AS account_active
             FROM media m
             JOIN accounts a ON a.id = m.account_id
             LEFT JOIN ratings r ON r.shortcode = m.shortcode
@@ -480,7 +480,7 @@ def get_recent_posts(db_path: Path) -> list[dict]:
                 "favorited_at": row["favorited_at"],
                 "media": [],
             }
-        posts[key]["media"].append((row["filepath"], row["extension"] or "jpg"))
+        posts[key]["media"].append((row["filepath"], row["extension"] or "jpg", row["width"], row["height"]))
 
     return list(posts.values())[:100]
 

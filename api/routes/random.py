@@ -21,8 +21,8 @@ async def get_random():
             "post_timestamp": post["post_timestamp"],
             "shortcode": post["shortcode"],
             "media": [
-                {"url": f"/api/media/{_encode(fp)}", "type": _media_type(ext)}
-                for fp, ext in post["media"]
+                {"url": f"/api/media/{_encode(fp)}", "type": _media_type(ext), "width": w, "height": h}
+                for fp, ext, w, h in post["media"]
             ],
         }
     })
@@ -39,8 +39,8 @@ async def get_random_favorites():
             "post_timestamp": post["post_timestamp"],
             "shortcode": post["shortcode"],
             "media": [
-                {"url": f"/api/media/{_encode(fp)}", "type": _media_type(ext)}
-                for fp, ext in post["media"]
+                {"url": f"/api/media/{_encode(fp)}", "type": _media_type(ext), "width": w, "height": h}
+                for fp, ext, w, h in post["media"]
             ],
         }
     })

@@ -142,14 +142,16 @@
         {#each post.media as item}
           <div class="swiper-slide">
             {#if item.type === 'video'}
-              <div class="video-wrapper">
+              <div class="video-wrapper" style={item.width && item.height ? `aspect-ratio: ${item.width} / ${item.height}` : ''}>
                 <video src={item.url} loop bind:muted={muted} playsinline autoplay={false} preload="metadata" onloadedmetadata={revealFirstFrame} onclick={togglePlayPause}></video>
                 <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
                   {@render muteIcon()}
                 </button>
               </div>
             {:else}
-              <img src={item.url} alt="" loading="lazy" />
+              <div class="media-placeholder" style={item.width && item.height ? `aspect-ratio: ${item.width} / ${item.height}` : ''}>
+                <img src={item.url} alt="" loading="lazy" />
+              </div>
             {/if}
           </div>
         {/each}
@@ -167,14 +169,16 @@
       </button>
     </div>
   {:else if post.media[0]?.type === 'video'}
-    <div class="video-wrapper">
+    <div class="video-wrapper" style={post.media[0].width && post.media[0].height ? `aspect-ratio: ${post.media[0].width} / ${post.media[0].height}` : ''}>
       <video class="post-video" src={post.media[0].url} loop bind:muted={muted} playsinline autoplay={false} preload="metadata" onloadedmetadata={revealFirstFrame} onclick={togglePlayPause}></video>
       <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
         {@render muteIcon()}
       </button>
     </div>
   {:else}
-    <img class="post-image" src={post.media[0]?.url} alt="" loading="lazy" />
+    <div class="media-placeholder" style={post.media[0]?.width && post.media[0]?.height ? `aspect-ratio: ${post.media[0].width} / ${post.media[0].height}` : ''}>
+      <img class="post-image" src={post.media[0]?.url} alt="" loading="lazy" />
+    </div>
   {/if}
 
   {#if post.caption}
@@ -247,6 +251,15 @@
     margin-top: 1px;
   }
   .post-image {
+    width: 100%;
+    display: block;
+  }
+  .media-placeholder {
+    width: 100%;
+    background: var(--color-border-subtle);
+    overflow: hidden;
+  }
+  .media-placeholder img {
     width: 100%;
     display: block;
   }

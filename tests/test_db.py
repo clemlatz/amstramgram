@@ -270,7 +270,7 @@ def test_get_recent_posts_includes_mp4(tmp_path):
                   shortcode="VID001", post_timestamp="2026-01-01T10:00:00Z")
     posts = get_recent_posts(db)
     assert len(posts) == 1
-    assert posts[0]["media"] == [("111/reel.mp4", "mp4")]
+    assert posts[0]["media"] == [("111/reel.mp4", "mp4", None, None)]
 
 
 def test_get_recent_posts_excludes_gif(tmp_path):
@@ -296,8 +296,8 @@ def test_get_recent_posts_groups_mixed_carousel(tmp_path):
     posts = get_recent_posts(db)
     assert len(posts) == 1
     media = posts[0]["media"]
-    assert ("111/c_1.jpg", "jpg") in media
-    assert ("111/c_2.mp4", "mp4") in media
+    assert ("111/c_1.jpg", "jpg", None, None) in media
+    assert ("111/c_2.mp4", "mp4", None, None) in media
 
 
 def test_get_random_neutral_post_includes_mp4(tmp_path):
@@ -309,7 +309,7 @@ def test_get_random_neutral_post_includes_mp4(tmp_path):
                   shortcode="VID001", post_timestamp="2026-01-01T10:00:00Z")
     post = get_random_neutral_post(db)
     assert post is not None
-    assert post["media"] == [("111/reel.mp4", "mp4")]
+    assert post["media"] == [("111/reel.mp4", "mp4", None, None)]
 
 
 def test_get_random_neutral_post_returns_none_when_all_rated(tmp_path):
@@ -344,7 +344,7 @@ def test_get_random_favorite_post_returns_favorited_post(tmp_path):
     post = get_random_favorite_post(db)
     assert post is not None
     assert post["shortcode"] == "POST001"
-    assert post["media"] == [("111/img.jpg", "jpg")]
+    assert post["media"] == [("111/img.jpg", "jpg", None, None)]
 
 
 def test_get_random_favorite_post_excludes_unrated_and_archived(tmp_path):
