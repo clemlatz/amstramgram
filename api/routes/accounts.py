@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import logging
 import random
 from pathlib import Path
@@ -8,6 +9,8 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from ..config import DB_PATH, STORAGE_BASE
 from ..db import (
+    get_account_detail,
+    get_account_posts,
     get_account_profile_pic_path,
     get_accounts_missing_profile_pic,
     get_all_accounts,
@@ -69,6 +72,14 @@ async def _download_profile_pics_bg(candidates: list[dict], L) -> None:
         await asyncio.sleep(random.uniform(1, 2))
 
 
+def _encode(filepath: str) -> str:
+    return base64.urlsafe_b64encode(filepath.encode()).decode().rstrip("=")
+
+
+def _media_type(ext: str) -> str:
+    return "video" if ext == "mp4" else "image"
+
+
 router = APIRouter()
 
 _bg_tasks: set[asyncio.Task] = set()
@@ -109,6 +120,37 @@ async def get_account_avatar_route(username: str):
         raise HTTPException(status_code=404, detail="Avatar not found")
     return FileResponse(str(full_path), media_type="image/jpeg",
                         headers={"Cache-Control": "public, max-age=86400"})
+
+
+@router.get("/accounts/{username}")
+async def get_account_detail_route(username: str):
+    detail = await asyncio.to_thread(get_account_detail, username, DB_PATH)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return JSONResponse(detail)
+
+
+@router.get("/accounts/{username}/posts")
+async def get_account_posts_route(username: str):
+    posts = await asyncio.to_thread(get_account_posts, username, DB_PATH)
+    return JSONResponse({
+        "posts": [
+            {
+                "account": p["account"],
+                "account_active": p["account_active"],
+                "caption": p["caption"],
+                "post_timestamp": p["post_timestamp"],
+                "shortcode": p["shortcode"],
+                "archived_at": p["archived_at"],
+                "favorited_at": p["favorited_at"],
+                "media": [
+                    {"url": f"/api/media/{_encode(fp)}", "type": _media_type(ext), "width": w, "height": h}
+                    for fp, ext, w, h in p["media"]
+                ],
+            }
+            for p in posts
+        ]
+    })
 
 
 def _fetch_and_upsert_following(L, db_path: Path) -> tuple[int, list[dict]]:

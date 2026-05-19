@@ -1,3 +1,4 @@
+import sqlite3 as _sqlite3
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -124,3 +125,70 @@ def test_avatar_returns_jpeg_when_pic_exists(avatar_client):
     resp = tc.get("/api/accounts/alice/avatar")
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("image/jpeg")
+
+
+@pytest.fixture()
+def account_client(tmp_path):
+    db = tmp_path / "test.db"
+    storage = tmp_path / "storage"
+    storage.mkdir()
+    init_db(db)
+    with (
+        patch("api.routes.accounts.DB_PATH", db),
+        patch("api.routes.accounts.STORAGE_BASE", storage),
+    ):
+        yield TestClient(app), db, storage
+
+
+def _insert_account_media(db, account_id: int, shortcode: str, ts: str, filepath: str) -> None:
+    conn = _sqlite3.connect(str(db))
+    conn.execute(
+        "INSERT INTO media (account_id, filename, filepath, extension, shortcode, post_timestamp)"
+        " VALUES (?, ?, ?, 'jpg', ?, ?)",
+        (account_id, f"{shortcode}.jpg", filepath, shortcode, ts),
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_get_account_detail_returns_404_for_unknown(account_client):
+    tc, db, _ = account_client
+    resp = tc.get("/api/accounts/nobody")
+    assert resp.status_code == 404
+
+
+def test_get_account_detail_returns_profile(account_client):
+    tc, db, _ = account_client
+    upsert_following_accounts([{"username": "alice", "platform_user_id": "111", "bio": "Hi"}], db)
+    resp = tc.get("/api/accounts/alice")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["username"] == "alice"
+    assert data["bio"] == "Hi"
+    assert "post_count" in data
+    assert "unrated_count" in data
+    assert "favorited_count" in data
+    assert "archived_count" in data
+
+
+def test_get_account_posts_returns_empty_for_unknown(account_client):
+    tc, db, _ = account_client
+    resp = tc.get("/api/accounts/nobody/posts")
+    assert resp.status_code == 200
+    assert resp.json() == {"posts": []}
+
+
+def test_get_account_posts_returns_posts(account_client):
+    tc, db, _ = account_client
+    upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
+    conn = _sqlite3.connect(str(db))
+    account_id = conn.execute("SELECT id FROM accounts WHERE username='alice'").fetchone()[0]
+    conn.close()
+    _insert_account_media(db, account_id, "sc1", "2024-01-01T00:00:00Z", "111/sc1.jpg")
+    resp = tc.get("/api/accounts/alice/posts")
+    assert resp.status_code == 200
+    posts = resp.json()["posts"]
+    assert len(posts) == 1
+    assert posts[0]["shortcode"] == "sc1"
+    assert posts[0]["media"][0]["url"].startswith("/api/media/")
+    assert posts[0]["media"][0]["type"] == "image"
