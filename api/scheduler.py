@@ -191,6 +191,10 @@ def _download_account_fast(
         raise
     except instaloader.QueryReturnedBadRequestException as exc:
         raise RateLimitException(str(exc)) from exc
+    except instaloader.PrivateProfileNotFollowedException:
+        logger.warning("%s: private profile, not followed — deactivating", username)
+        deactivate_account(account_id, db_path)
+        return fetched
     except Exception as exc:
         if _is_rate_limited(exc):
             raise RateLimitException(str(exc)) from exc
@@ -306,6 +310,10 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
             raise
         except instaloader.QueryReturnedBadRequestException as exc:
             raise RateLimitException(str(exc)) from exc
+        except instaloader.PrivateProfileNotFollowedException:
+            logger.warning("%s: private profile, not followed — deactivating", username)
+            deactivate_account(account_id, db_path)
+            continue
         except Exception as exc:
             if _is_rate_limited(exc):
                 raise RateLimitException(str(exc)) from exc
@@ -335,6 +343,8 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
 _SESSION_INVALIDATED_EXCEPTIONS = (
     instaloader.LoginRequiredException,
     instaloader.AbortDownloadException,
+    instaloader.BadCredentialsException,
+    instaloader.TwoFactorAuthRequiredException,
 )
 
 
@@ -426,6 +436,14 @@ async def _scheduler_loop() -> None:
         except _SESSION_INVALIDATED_EXCEPTIONS as exc:
             logger.critical("Session invalidated — scheduler stopped. Update session ID at /settings. (%s)", exc)
             return
+        except instaloader.ConnectionException as exc:
+            next_delay = _RATE_LIMIT_BACKOFF_BASE
+            retry_at = datetime.now() + timedelta(seconds=next_delay)
+            try:
+                set_setting("next_run_at", retry_at.isoformat(), DB_PATH)
+            except Exception:
+                pass
+            logger.warning("Network error — retry in %s: %s", _fmt_delay(next_delay), exc)
         except Exception as exc:
             consecutive_rl += 1
             if consecutive_rl >= _RATE_LIMIT_MAX_RETRIES:

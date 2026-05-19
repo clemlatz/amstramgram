@@ -105,7 +105,12 @@ def sync_saved_posts(
             saved_shortcodes.append(shortcode)
             time.sleep(_lognormal_delay(2, 5))
 
-    except (instaloader.LoginRequiredException, instaloader.AbortDownloadException):
+    except (
+        instaloader.LoginRequiredException,
+        instaloader.AbortDownloadException,
+        instaloader.BadCredentialsException,
+        instaloader.TwoFactorAuthRequiredException,
+    ):
         raise
     except instaloader.QueryReturnedBadRequestException as exc:
         raise RateLimitException(str(exc)) from exc
