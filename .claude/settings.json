@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(~/)",
+      "Write(~/)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "filesystem": {
+      "denyRead": [
+        "~/"
+      ],
+      "allowRead": [
+        "."
+      ]
+    }
+  }
+}
