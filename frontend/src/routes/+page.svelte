@@ -3,6 +3,11 @@
   let { data } = $props();
 </script>
 
+<div class="page">
+  <div class="header">
+    <h1 class="title">Feed</h1>
+  </div>
+
 {#if data.posts.length === 0}
   <div class="empty">
     <svg class="empty-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -19,18 +24,33 @@
     {/each}
   </div>
 {/if}
+</div>
 
 <style>
-  .feed {
+  .page {
     max-width: 470px;
     margin: 0 auto;
     padding: 16px 0;
   }
 
   @media (min-width: 768px) {
-    .feed {
+    .page {
       max-width: 600px;
     }
+  }
+
+  .header {
+    padding: 8px 16px 16px;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 8px;
+  }
+
+  .title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-text);
+    letter-spacing: -0.3px;
+    margin: 0;
   }
 
   .empty {
