@@ -35,6 +35,7 @@ _MIN_DOWNLOADS_PER_ACCOUNT = 60
 _MAX_DOWNLOADS_PER_ACCOUNT = 140
 _RATE_LIMIT_BACKOFF_BASE = 1800   # 30 min
 _RATE_LIMIT_BACKOFF_MAX = 10800   # 3 h
+_RATE_LIMIT_MAX_RETRIES = 3
 _MIN_ACCOUNTS_PER_CYCLE = 15
 _MAX_ACCOUNTS_PER_CYCLE = 30
 _MAX_RECENT_UNSYNCED = 15
@@ -68,6 +69,11 @@ def _sleep(seconds: int, reason: str = "") -> None:
 
 class RateLimitException(Exception):
     pass
+
+
+def _backoff_delay(consecutive: int) -> int:
+    cap = min(_RATE_LIMIT_BACKOFF_BASE * (2 ** (consecutive - 1)), _RATE_LIMIT_BACKOFF_MAX)
+    return int(random.uniform(cap / 2, cap))
 
 
 def _is_rate_limited(exc: Exception) -> bool:
@@ -405,21 +411,33 @@ async def _scheduler_loop() -> None:
             except Exception:
                 pass
             logger.info("Next download at %s (%s)", next_run.strftime("%m/%d %H:%M"), _fmt_delay(next_delay))
-        except RateLimitException:
+        except RateLimitException as exc:
             consecutive_rl += 1
-            next_delay = min(_RATE_LIMIT_BACKOFF_BASE * (2 ** (consecutive_rl - 1)), _RATE_LIMIT_BACKOFF_MAX)
+            if consecutive_rl >= _RATE_LIMIT_MAX_RETRIES:
+                logger.critical("Rate limited %d times consecutively — scheduler stopped. (%s)", consecutive_rl, exc)
+                return
+            next_delay = _backoff_delay(consecutive_rl)
             retry_at = datetime.now() + timedelta(seconds=next_delay)
             try:
                 set_setting("next_run_at", retry_at.isoformat(), DB_PATH)
             except Exception:
                 pass
-            logger.warning("Rate limited (%dx consecutive) — retry in %d min", consecutive_rl, next_delay // 60)
+            logger.warning("Rate limited (attempt %d/%d) — retry in %s", consecutive_rl, _RATE_LIMIT_MAX_RETRIES - 1, _fmt_delay(next_delay))
         except _SESSION_INVALIDATED_EXCEPTIONS as exc:
             logger.critical("Session invalidated — scheduler stopped. Update session ID at /settings. (%s)", exc)
             return
         except Exception as exc:
-            next_delay = _RATE_LIMIT_BACKOFF_BASE
-            logger.error("Unexpected error in cycle — retry in %d min: %s", next_delay // 60, exc, exc_info=True)
+            consecutive_rl += 1
+            if consecutive_rl >= _RATE_LIMIT_MAX_RETRIES:
+                logger.critical("Too many consecutive errors (%d) — scheduler stopped: %s", consecutive_rl, exc)
+                return
+            next_delay = _backoff_delay(consecutive_rl)
+            retry_at = datetime.now() + timedelta(seconds=next_delay)
+            try:
+                set_setting("next_run_at", retry_at.isoformat(), DB_PATH)
+            except Exception:
+                pass
+            logger.error("Unexpected error in cycle (attempt %d/%d) — retry in %s: %s", consecutive_rl, _RATE_LIMIT_MAX_RETRIES - 1, _fmt_delay(next_delay), exc, exc_info=True)
         finally:
             _cycle_running = False
 
