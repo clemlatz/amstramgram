@@ -4,9 +4,25 @@
   let { data } = $props();
   const { profile, posts } = data;
 
+  let active = $state(profile?.active ?? true);
+
   function displayUrl(url) {
     if (!url) return '';
     return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  }
+
+  async function toggleActive() {
+    const next = !active;
+    active = next;
+    try {
+      await fetch(`/api/accounts/${profile.username}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: next }),
+      });
+    } catch {
+      active = !next;
+    }
   }
 </script>
 
@@ -54,14 +70,23 @@
         </div>
       {/if}
 
-      <a
-        href="https://www.instagram.com/{profile.username}"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="instagram-link"
-      >
-        View on Instagram ↗
-      </a>
+      <div class="profile-actions">
+        <a
+          href="https://www.instagram.com/{profile.username}"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="profile-action-btn"
+        >
+          View on Instagram ↗
+        </a>
+        <button
+          class="profile-action-btn"
+          class:inactive={!active}
+          onclick={toggleActive}
+        >
+          {active ? 'Disable' : 'Enable'}
+        </button>
+      </div>
     </div>
 
     {#if posts.length === 0}
@@ -188,7 +213,14 @@
     }
   }
 
-  .instagram-link {
+  .profile-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .profile-action-btn {
+    flex: 1;
     display: block;
     text-align: center;
     padding: 7px 14px;
@@ -198,11 +230,18 @@
     font-weight: 600;
     color: var(--color-text);
     text-decoration: none;
-    margin-bottom: 16px;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .profile-action-btn.inactive {
+    color: var(--color-text-muted);
+    border-color: var(--color-border);
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .instagram-link:hover {
+    .profile-action-btn:hover {
       background: var(--color-border-subtle);
     }
   }

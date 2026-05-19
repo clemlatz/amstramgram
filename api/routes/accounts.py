@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel
 
 from ..config import DB_PATH, STORAGE_BASE
 from ..db import (
@@ -15,6 +16,7 @@ from ..db import (
     get_accounts_missing_profile_pic,
     get_all_accounts,
     save_account_profile_pic,
+    set_account_active,
     upsert_following_accounts,
 )
 from ..loader import get_loader
@@ -120,6 +122,18 @@ async def get_account_avatar_route(username: str):
         raise HTTPException(status_code=404, detail="Avatar not found")
     return FileResponse(str(full_path), media_type="image/jpeg",
                         headers={"Cache-Control": "public, max-age=86400"})
+
+
+class AccountPatch(BaseModel):
+    active: bool
+
+
+@router.patch("/accounts/{username}")
+async def patch_account_route(username: str, body: AccountPatch):
+    updated = await asyncio.to_thread(set_account_active, username, body.active, DB_PATH)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return JSONResponse({"active": body.active})
 
 
 @router.get("/accounts/{username}")

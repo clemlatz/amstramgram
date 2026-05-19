@@ -581,6 +581,19 @@ def get_account_detail(username: str, db_path: Path) -> dict | None:
         conn.close()
 
 
+def set_account_active(username: str, active: bool, db_path: Path) -> bool:
+    conn = _conn(db_path)
+    try:
+        result = conn.execute(
+            "UPDATE accounts SET active = ? WHERE username = ?",
+            (1 if active else 0, username),
+        )
+        conn.commit()
+        return result.rowcount > 0
+    finally:
+        conn.close()
+
+
 def get_account_posts(username: str, db_path: Path) -> list[dict]:
     conn = _conn(db_path, read_only=True)
     try:
