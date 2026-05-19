@@ -1,9 +1,13 @@
 <script>
   import { avatarColor, hideAvatarImage } from '$lib/media.js';
-  let { account, active = true } = $props();
+  let { account, active = true, size = 36 } = $props();
 </script>
 
-<div class="avatar-ring" class:inactive={!active}>
+<div
+  class="avatar-ring"
+  class:inactive={!active}
+  style="--size: {size}px; --font-size: {Math.round(size * 0.36)}px"
+>
   <div class="avatar-inner" style="background: {avatarColor(account)}">
     <img
       class="avatar-img"
@@ -17,8 +21,8 @@
 
 <style>
   .avatar-ring {
-    width: 36px;
-    height: 36px;
+    width: var(--size, 36px);
+    height: var(--size, 36px);
     border-radius: 50%;
     padding: 2px;
     background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
@@ -39,7 +43,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
+    font-size: var(--font-size, 13px);
     font-weight: 600;
     color: #fff;
   }
