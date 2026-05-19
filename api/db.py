@@ -83,6 +83,8 @@ def init_db(db_path: Path) -> None:
         for col in ("bio", "full_name", "external_url"):
             if col not in cols:
                 conn.execute(f"ALTER TABLE accounts ADD COLUMN {col} TEXT")
+        if "hidden" not in cols:
+            conn.execute("ALTER TABLE accounts ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0")
         conn.commit()
         media_cols = {row[1] for row in conn.execute("PRAGMA table_info(media)")}
         if "is_saved_post" not in media_cols:
@@ -358,6 +360,7 @@ def get_random_neutral_post(db_path: Path) -> dict | None:
             JOIN accounts a ON a.id = m.account_id
             WHERE r.shortcode IS NULL
               AND m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
+              AND a.hidden = 0
             GROUP BY a.id
             ORDER BY RANDOM()
             LIMIT 1
@@ -412,6 +415,7 @@ def get_random_favorite_post(db_path: Path) -> dict | None:
             JOIN accounts a ON a.id = m.account_id
             WHERE r.favorited_at IS NOT NULL
               AND m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
+              AND a.hidden = 0
             GROUP BY a.id
             ORDER BY RANDOM()
             LIMIT 1
@@ -465,6 +469,7 @@ def get_recent_posts(db_path: Path) -> list[dict]:
             JOIN accounts a ON a.id = m.account_id
             LEFT JOIN ratings r ON r.shortcode = m.shortcode
             WHERE m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
+              AND a.hidden = 0
             ORDER BY m.post_timestamp DESC, m.carousel_index ASC
         """).fetchall()
     finally:
@@ -516,6 +521,7 @@ def get_all_accounts(db_path: Path) -> list[dict]:
             SELECT
                 a.username,
                 a.active,
+                a.hidden,
                 COUNT(DISTINCT m.id) AS count,
                 COUNT(DISTINCT CASE WHEN r.favorited_at IS NOT NULL THEN m.shortcode END) AS favorited_count,
                 COUNT(DISTINCT CASE WHEN r.archived_at  IS NOT NULL THEN m.shortcode END) AS archived_count
@@ -529,6 +535,7 @@ def get_all_accounts(db_path: Path) -> list[dict]:
             {
                 "username": r["username"],
                 "active": bool(r["active"]),
+                "hidden": bool(r["hidden"]),
                 "count": r["count"],
                 "favorited_count": r["favorited_count"],
                 "archived_count": r["archived_count"],
@@ -549,6 +556,7 @@ def get_account_detail(username: str, db_path: Path) -> dict | None:
                 a.bio,
                 a.external_url,
                 a.active,
+                a.hidden,
                 COUNT(DISTINCT m.id) AS post_count,
                 COUNT(DISTINCT CASE WHEN m.shortcode IS NOT NULL AND r.shortcode IS NULL
                                     THEN m.shortcode END) AS unrated_count,
@@ -572,6 +580,7 @@ def get_account_detail(username: str, db_path: Path) -> dict | None:
             "bio": row["bio"],
             "external_url": row["external_url"],
             "active": bool(row["active"]),
+            "hidden": bool(row["hidden"]),
             "post_count": row["post_count"],
             "unrated_count": row["unrated_count"],
             "favorited_count": row["favorited_count"],
@@ -588,6 +597,25 @@ def set_account_active(username: str, active: bool, db_path: Path) -> bool:
             "UPDATE accounts SET active = ? WHERE username = ?",
             (1 if active else 0, username),
         )
+        conn.commit()
+        return result.rowcount > 0
+    finally:
+        conn.close()
+
+
+def set_account_hidden(username: str, hidden: bool, db_path: Path) -> bool:
+    conn = _conn(db_path)
+    try:
+        if hidden:
+            result = conn.execute(
+                "UPDATE accounts SET hidden = 1, active = 0 WHERE username = ?",
+                (username,),
+            )
+        else:
+            result = conn.execute(
+                "UPDATE accounts SET hidden = 0 WHERE username = ?",
+                (username,),
+            )
         conn.commit()
         return result.rowcount > 0
     finally:

@@ -5,6 +5,7 @@
   const { profile, posts } = data;
 
   let active = $state(profile?.active ?? true);
+  let hidden = $state(profile?.hidden ?? false);
 
   function displayUrl(url) {
     if (!url) return '';
@@ -22,6 +23,30 @@
       });
     } catch {
       active = !next;
+    }
+  }
+
+  async function toggleHidden() {
+    const next = !hidden;
+    hidden = next;
+    if (next) active = false;
+    try {
+      const res = await fetch(`/api/accounts/${profile.username}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hidden: next }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        active = json.active;
+        hidden = json.hidden;
+      } else {
+        hidden = !next;
+        if (!next) active = profile.active;
+      }
+    } catch {
+      hidden = !next;
+      if (!next) active = profile.active;
     }
   }
 </script>
@@ -85,6 +110,13 @@
           onclick={toggleActive}
         >
           {active ? 'Disable' : 'Enable'}
+        </button>
+        <button
+          class="profile-action-btn"
+          class:hidden-btn={hidden}
+          onclick={toggleHidden}
+        >
+          {hidden ? 'Show' : 'Hide'}
         </button>
       </div>
     </div>
@@ -236,6 +268,11 @@
   }
 
   .profile-action-btn.inactive {
+    color: var(--color-text-muted);
+    border-color: var(--color-border);
+  }
+
+  .profile-action-btn.hidden-btn {
     color: var(--color-text-muted);
     border-color: var(--color-border);
   }

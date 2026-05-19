@@ -17,6 +17,7 @@ from ..db import (
     get_all_accounts,
     save_account_profile_pic,
     set_account_active,
+    set_account_hidden,
     upsert_following_accounts,
 )
 from ..loader import get_loader
@@ -125,15 +126,24 @@ async def get_account_avatar_route(username: str):
 
 
 class AccountPatch(BaseModel):
-    active: bool
+    active: bool | None = None
+    hidden: bool | None = None
 
 
 @router.patch("/accounts/{username}")
 async def patch_account_route(username: str, body: AccountPatch):
-    updated = await asyncio.to_thread(set_account_active, username, body.active, DB_PATH)
-    if not updated:
-        raise HTTPException(status_code=404, detail="Account not found")
-    return JSONResponse({"active": body.active})
+    if body.hidden is not None:
+        updated = await asyncio.to_thread(set_account_hidden, username, body.hidden, DB_PATH)
+        if not updated:
+            raise HTTPException(status_code=404, detail="Account not found")
+        detail = await asyncio.to_thread(get_account_detail, username, DB_PATH)
+        return JSONResponse({"active": detail["active"], "hidden": detail["hidden"]})
+    if body.active is not None:
+        updated = await asyncio.to_thread(set_account_active, username, body.active, DB_PATH)
+        if not updated:
+            raise HTTPException(status_code=404, detail="Account not found")
+        return JSONResponse({"active": body.active})
+    raise HTTPException(status_code=422, detail="No field to update")
 
 
 @router.get("/accounts/{username}")
