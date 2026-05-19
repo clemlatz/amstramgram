@@ -27,4 +27,4 @@ class AppLogHandler(logging.Handler):
 
 def get_logs() -> list[str]:
     with _lock:
-        return list(_buffer)
+        return list(reversed(_buffer))
