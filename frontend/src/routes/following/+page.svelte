@@ -50,7 +50,7 @@
         <li class="row">
           <Avatar account={account.username} active={account.active} />
           <div class="info">
-            <a class="username" id="account-{account.username}" href="https://www.instagram.com/{account.username}" target="_blank" rel="noopener noreferrer">
+            <a class="username" id="account-{account.username}" href="/accounts/{account.username}">
               {account.username}
             </a>
             <span class="count">

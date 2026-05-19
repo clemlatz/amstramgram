@@ -89,7 +89,7 @@
     {/if}
   </a>
 
-  <a href="/following" class="tab" class:active={$page.url.pathname === '/following'} aria-label="Following">
+  <a href="/following" class="tab" class:active={$page.url.pathname === '/following' || $page.url.pathname.startsWith('/accounts')} aria-label="Following">
     {#if $page.url.pathname === '/following'}
       <!-- User group filled (Heroicons solid user-group) -->
       <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
