@@ -20,9 +20,9 @@
         <div class="profile-stats">
           <h1 class="profile-username">{profile.username}</h1>
           <p class="profile-counts">
-            {profile.post_count.toLocaleString('en')} posts
+            {(profile.post_count ?? 0).toLocaleString('en')} posts
             {#if profile.unrated_count > 0}
-              · {profile.unrated_count.toLocaleString('en')} unrated
+              · {(profile.unrated_count ?? 0).toLocaleString('en')} unrated
             {/if}
           </p>
           {#if profile.favorited_count > 0}
@@ -70,8 +70,12 @@
       <div class="grid">
         {#each posts as post (post.shortcode ?? post.post_timestamp)}
           <div class="grid-cell">
-            <img src={post.media[0]?.url} alt="" loading="lazy" />
-            {#if post.media.length > 1}
+            {#if post.media[0]?.type === 'video'}
+              <video src={post.media[0].url} muted playsinline preload="none"></video>
+            {:else}
+              <img src={post.media[0]?.url} alt="" loading="lazy" />
+            {/if}
+            {#if post.media?.length > 1}
               <span class="carousel-indicator" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <rect x="1" y="7" width="13" height="13" rx="2" stroke="white" stroke-width="1.5"/>
@@ -224,7 +228,8 @@
     background: var(--color-border-subtle);
   }
 
-  .grid-cell img {
+  .grid-cell img,
+  .grid-cell video {
     width: 100%;
     height: 100%;
     object-fit: cover;
