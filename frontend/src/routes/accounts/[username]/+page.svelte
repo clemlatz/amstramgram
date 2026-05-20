@@ -129,7 +129,13 @@
           {@const thumb = post.media?.find(m => m.type === 'image') ?? post.media?.[0]}
           <div class="grid-cell">
             {#if thumb?.type === 'video'}
-              <video src={thumb.url} muted playsinline preload="metadata"></video>
+              <video
+                src={thumb.url}
+                muted
+                playsinline
+                preload="metadata"
+                onloadedmetadata={(e) => { e.currentTarget.currentTime = 0.001; }}
+              ></video>
             {:else}
               <img src={thumb?.url} alt="" loading="lazy" />
             {/if}
