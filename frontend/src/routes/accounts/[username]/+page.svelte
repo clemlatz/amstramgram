@@ -127,7 +127,12 @@
       <div class="grid">
         {#each posts as post (post.shortcode ?? post.post_timestamp)}
           {@const thumb = post.media?.find(m => m.type === 'image') ?? post.media?.[0]}
-          <div class="grid-cell">
+          <a
+            class="grid-cell"
+            href={post.shortcode ? `https://www.instagram.com/p/${post.shortcode}/` : undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             {#if thumb?.type === 'video'}
               <video
                 src={thumb.url}
@@ -147,7 +152,7 @@
                 </svg>
               </span>
             {/if}
-          </div>
+          </a>
         {/each}
       </div>
     {/if}
@@ -309,6 +314,8 @@
     aspect-ratio: 1;
     overflow: hidden;
     background: var(--color-border-subtle);
+    display: block;
+    cursor: pointer;
   }
 
   .grid-cell img,
