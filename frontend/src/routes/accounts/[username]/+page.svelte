@@ -126,11 +126,12 @@
     {:else}
       <div class="grid">
         {#each posts as post (post.shortcode ?? post.post_timestamp)}
+          {@const thumb = post.media?.find(m => m.type === 'image') ?? post.media?.[0]}
           <div class="grid-cell">
-            {#if post.media[0]?.type === 'video'}
-              <video src={post.media[0].url} muted playsinline preload="none"></video>
+            {#if thumb?.type === 'video'}
+              <video src={thumb.url} muted playsinline preload="metadata"></video>
             {:else}
-              <img src={post.media[0]?.url} alt="" loading="lazy" />
+              <img src={thumb?.url} alt="" loading="lazy" />
             {/if}
             {#if post.media?.length > 1}
               <span class="carousel-indicator" aria-hidden="true">
