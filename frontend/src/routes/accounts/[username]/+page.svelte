@@ -335,19 +335,13 @@
   .post-indicator {
     position: absolute;
     top: 6px;
-    left: 6px;
+    right: 6px;
     pointer-events: none;
-    width: 26px;
-    height: 26px;
-    background: rgba(0, 0, 0, 0.55);
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
 
   .post-indicator svg {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
   }
 </style>
