@@ -145,10 +145,16 @@
               <img src={thumb?.url} alt="" loading="lazy" />
             {/if}
             {#if post.media?.length > 1}
-              <span class="carousel-indicator" aria-hidden="true">
+              <span class="post-indicator" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="1" y="7" width="13" height="13" rx="2" stroke="white" stroke-width="1.5"/>
-                  <path d="M5 5V4a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2h-1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  <rect x="1" y="7" width="13" height="13" rx="2.5" fill="white"/>
+                  <rect x="5" y="3" width="13" height="13" rx="2.5" fill="white" opacity="0.7"/>
+                </svg>
+              </span>
+            {:else if post.media?.[0]?.type === 'video'}
+              <span class="post-indicator" aria-hidden="true">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M8 5.5L19 12 8 18.5V5.5Z" fill="white"/>
                 </svg>
               </span>
             {/if}
@@ -326,16 +332,22 @@
     display: block;
   }
 
-  .carousel-indicator {
+  .post-indicator {
     position: absolute;
     top: 6px;
-    right: 6px;
+    left: 6px;
     pointer-events: none;
+    width: 26px;
+    height: 26px;
+    background: rgba(0, 0, 0, 0.55);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
-  .carousel-indicator svg {
+  .post-indicator svg {
     width: 16px;
     height: 16px;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
   }
 </style>
