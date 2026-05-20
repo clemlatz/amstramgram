@@ -129,7 +129,7 @@
           {@const thumb = post.media?.find(m => m.type === 'image') ?? post.media?.[0]}
           <a
             class="grid-cell"
-            href={post.shortcode ? `https://www.instagram.com/p/${post.shortcode}/` : undefined}
+            href={post.shortcode && !post.shortcode.startsWith('syn_') ? `https://www.instagram.com/p/${post.shortcode}/` : undefined}
             target="_blank"
             rel="noopener noreferrer"
           >
