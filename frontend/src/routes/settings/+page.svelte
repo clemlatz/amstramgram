@@ -18,6 +18,7 @@
   }
   let loading = $state(false);
   let error = $state(null);
+  let showSessionId = $state(false);
 
   let userAgent = $state(data.user_agent ?? '');
   let uaLoading = $state(false);
@@ -162,83 +163,128 @@
 
   <div class="divider"></div>
 
-  <div class="account-section">
-    <span class="field-label">Account</span>
-    <span class="account-value {username ? '' : 'muted'}"
-      >{username ? '@' + username : 'Not connected'}</span
-    >
-  </div>
+  <div class="stats-section">
+    <span class="field-label">Statistics</span>
 
-  <div class="divider"></div>
-
-  <div class="stats-row">
-    <div class="stat">
-      <span class="stat-value">{images.toLocaleString('en')}</span>
-      <span class="stat-label">photos</span>
-    </div>
-    <div class="stat">
-      <span class="stat-value">{videos.toLocaleString('en')}</span>
-      <span class="stat-label">videos</span>
-    </div>
-    <div class="stat">
-      <span class="stat-value">{unrated.toLocaleString('en')}</span>
-      <span class="stat-label">unrated</span>
-    </div>
-    <div class="stat">
-      <span class="stat-value">{formatBytes(diskBytes)}</span>
-      <span class="stat-label">on disk</span>
+    <div class="stats-row">
+      <div class="stat">
+        <span class="stat-value">{images.toLocaleString('en')}</span>
+        <span class="stat-label">photos</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{videos.toLocaleString('en')}</span>
+        <span class="stat-label">videos</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{unrated.toLocaleString('en')}</span>
+        <span class="stat-label">unrated</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{formatBytes(diskBytes)}</span>
+        <span class="stat-label">on disk</span>
+      </div>
     </div>
   </div>
 
   <div class="divider"></div>
 
   <form class="form" onsubmit={handleSubmit}>
-    <label class="field-label" for="session-id">Session ID</label>
-    <input
-      id="session-id"
-      class="input"
-      type="password"
-      bind:value={sessionId}
-      placeholder="Paste your session ID"
-      autocomplete="off"
-      spellcheck="false"
-    />
+    <div class="session-header">
+      <label class="field-label" for="session-id">Session ID</label>
+      <span class="account-value {username ? '' : 'muted'}"
+        >{username ? '@' + username : 'Not connected'}</span
+      >
+    </div>
+    <div class="input-row">
+      <div class="input-wrapper">
+        <input
+          id="session-id"
+          class="input"
+          type={showSessionId ? 'text' : 'password'}
+          bind:value={sessionId}
+          placeholder="Paste your session ID"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button
+          class="btn-eye"
+          type="button"
+          onclick={() => (showSessionId = !showSessionId)}
+          aria-label={showSessionId ? 'Hide session ID' : 'Show session ID'}
+        >
+          {#if showSessionId}
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"
+              />
+              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+              <line x1="1" y1="1" x2="23" y2="23" />
+            </svg>
+          {:else}
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          {/if}
+        </button>
+      </div>
+      <button class="btn" type="submit" disabled={loading || !sessionId.trim()}>
+        {loading ? 'Connecting…' : 'Update'}
+      </button>
+    </div>
     {#if error}
       <p class="error">{error}</p>
     {/if}
-    <button class="btn" type="submit" disabled={loading || !sessionId.trim()}>
-      {loading ? 'Connecting…' : 'Update'}
-    </button>
   </form>
 
-  <div class="divider"></div>
+  {#if false}
+    <div class="divider"></div>
 
-  <form class="form" onsubmit={handleUaSubmit}>
-    <label class="field-label" for="user-agent">User-Agent</label>
-    <input
-      id="user-agent"
-      class="input"
-      type="text"
-      bind:value={userAgent}
-      placeholder={UA_PLACEHOLDER}
-      autocomplete="off"
-      spellcheck="false"
-    />
-    {#if uaError}
-      <p class="error">{uaError}</p>
-    {/if}
-    {#if uaSaved}
-      <p class="saved">Saved — applies on next download cycle.</p>
-    {/if}
-    <div class="btn-row">
-      <button class="btn" type="submit" disabled={uaLoading || !userAgent.trim()}>
-        {uaLoading ? 'Saving…' : 'Update'}
-      </button>
-      <button class="btn btn-ghost" type="button" disabled={uaLoading} onclick={resetUa}>
-        Reset to default
-      </button>
-    </div>
-  </form>
+    <form class="form" onsubmit={handleUaSubmit}>
+      <label class="field-label" for="user-agent">User-Agent</label>
+      <input
+        id="user-agent"
+        class="input"
+        type="text"
+        bind:value={userAgent}
+        placeholder={UA_PLACEHOLDER}
+        autocomplete="off"
+        spellcheck="false"
+      />
+      {#if uaError}
+        <p class="error">{uaError}</p>
+      {/if}
+      {#if uaSaved}
+        <p class="saved">Saved — applies on next download cycle.</p>
+      {/if}
+      <div class="btn-row">
+        <button class="btn" type="submit" disabled={uaLoading || !userAgent.trim()}>
+          {uaLoading ? 'Saving…' : 'Update'}
+        </button>
+        <button class="btn btn-ghost" type="button" disabled={uaLoading} onclick={resetUa}>
+          Reset to default
+        </button>
+      </div>
+    </form>
+  {/if}
 
   <div class="divider"></div>
 
@@ -342,10 +388,11 @@
     margin: 0 0 0;
   }
 
-  .account-section {
+  .session-header {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
   }
 
   .account-value {
@@ -400,6 +447,49 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .input-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .input-wrapper .input {
+    width: 100%;
+    padding-right: 38px;
+  }
+
+  .input-row .btn {
+    align-self: auto;
+    flex-shrink: 0;
+  }
+
+  .btn-eye {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: color 0.15s;
+  }
+
+  .btn-eye:hover {
+    color: var(--color-text);
   }
 
   .field-label {
@@ -482,6 +572,7 @@
     margin: 0;
   }
 
+  .stats-section,
   .scheduler-section,
   .sync-saved-section {
     display: flex;
