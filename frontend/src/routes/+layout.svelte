@@ -2,16 +2,22 @@
   import { onMount } from 'svelte';
   import { page, navigating } from '$app/stores';
   import { audio } from '$lib/audio.svelte.js';
+  import { offline } from '$lib/offline.svelte.js';
 
   let { children } = $props();
-  let serverReachable = $state(true);
+  let retryTimer = null;
 
   async function checkServer() {
     try {
       const res = await fetch('/api/stats', { signal: AbortSignal.timeout(3000) });
-      serverReachable = res.ok;
+      offline.value = !res.ok;
     } catch {
-      serverReachable = false;
+      offline.value = true;
+    }
+
+    clearTimeout(retryTimer);
+    if (offline.value) {
+      retryTimer = setTimeout(checkServer, 30_000);
     }
   }
 
@@ -22,10 +28,15 @@
   onMount(() => {
     checkServer();
     window.addEventListener('online', checkServer);
+    window.addEventListener('offline', () => {
+      offline.value = true;
+    });
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       window.removeEventListener('online', checkServer);
+      window.removeEventListener('offline', () => {});
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearTimeout(retryTimer);
     };
   });
 </script>
@@ -40,16 +51,16 @@
   </div>
 {/if}
 
-{#if !serverReachable}
-  <div class="offline-overlay">
+{#if offline.value}
+  <div class="offline-pill" role="status" aria-live="polite">
     <svg
-      class="offline-icon"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      stroke-width="1.5"
+      stroke-width="2"
       stroke-linecap="round"
       stroke-linejoin="round"
+      aria-hidden="true"
     >
       <line x1="1" y1="1" x2="23" y2="23" />
       <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
@@ -59,9 +70,7 @@
       <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
       <line x1="12" y1="20" x2="12.01" y2="20" />
     </svg>
-    <h2 class="offline-title">Server unreachable</h2>
-    <p class="offline-body">The server could not be reached.</p>
-    <button class="offline-retry" onclick={checkServer}>Retry</button>
+    <span>Offline</span>
   </div>
 {/if}
 
@@ -358,54 +367,41 @@
     }
   }
 
-  .offline-overlay {
+  .offline-pill {
     position: fixed;
-    inset: 0;
+    top: calc(env(safe-area-inset-top, 0px) + 8px);
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 9999;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 12px;
-    background: var(--color-bg);
-    color: var(--color-text);
-    padding: 2rem;
-    text-align: center;
-  }
-
-  .offline-icon {
-    width: 48px;
-    height: 48px;
-    color: var(--color-text-muted);
-    margin-bottom: 4px;
-  }
-
-  .offline-title {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: var(--color-text);
-  }
-
-  .offline-body {
-    font-size: 0.875rem;
-    color: var(--color-text-muted);
-  }
-
-  .offline-retry {
-    margin-top: 8px;
-    padding: 10px 24px;
-    border-radius: 8px;
-    border: 1px solid var(--color-border);
-    background: transparent;
-    color: var(--color-text);
-    font-size: 0.9375rem;
+    gap: 5px;
+    padding: 5px 12px 5px 9px;
+    border-radius: 100px;
+    background: var(--color-text-muted);
+    color: var(--color-bg);
+    font-size: 12px;
     font-weight: 500;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    transition: background 0.15s;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    pointer-events: none;
+    animation: pill-in 0.2s ease-out;
   }
 
-  .offline-retry:active {
-    background: var(--color-border-subtle);
+  .offline-pill svg {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+  }
+
+  @keyframes pill-in {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
   }
 </style>
