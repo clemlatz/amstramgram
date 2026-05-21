@@ -55,6 +55,8 @@
 
   $effect(() => {
     fetchLogs();
+    const interval = setInterval(fetchLogs, 3000);
+    return () => clearInterval(interval);
   });
 
   const UA_PLACEHOLDER =
