@@ -1,11 +1,8 @@
-import asyncio
-from datetime import datetime, timedelta
-from pathlib import Path
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from api.db import init_db
 
 pytest_plugins = ("pytest_asyncio",)
 
@@ -94,14 +91,16 @@ def test_fetch_new_posts_synced_accounts_get_unlimited_max_posts(tmp_path):
     db = tmp_path / "test.db"
     active_accounts = [
         (1, "111", "alice", 1),  # synced — max_posts=None
-        (2, "222", "bob", 0),    # unsynced — max_posts=_MAX_RECENT_UNSYNCED
+        (2, "222", "bob", 0),  # unsynced — max_posts=_MAX_RECENT_UNSYNCED
     ]
 
     with patch("api.scheduler._download_account_fast", return_value=0) as mock_dl:
         with patch("time.sleep"):
             _fetch_new_posts(MagicMock(), active_accounts, db)
 
-    calls_by_username = {c.args[3]: c.kwargs.get("max_posts") for c in mock_dl.call_args_list}
+    calls_by_username = {
+        c.args[3]: c.kwargs.get("max_posts") for c in mock_dl.call_args_list
+    }
     assert calls_by_username["alice"] is None
     assert calls_by_username["bob"] is not None
 
@@ -182,7 +181,9 @@ def test_fetch_old_posts_marks_synced_when_no_new_posts(tmp_path):
 
     with patch("api.scheduler.datetime") as mock_dt:
         mock_dt.now.return_value = datetime(2026, 5, 10, 10, 0)
-        with patch("api.scheduler.get_unsynced_accounts", return_value=[(1, "111", "alice")]):
+        with patch(
+            "api.scheduler.get_unsynced_accounts", return_value=[(1, "111", "alice")]
+        ):
             with patch("api.scheduler.mark_account_synced") as mock_mark:
                 with patch("api.scheduler.index_account", return_value=0):
                     with patch("api.scheduler.STORAGE_BASE", tmp_path):
@@ -190,7 +191,10 @@ def test_fetch_old_posts_marks_synced_when_no_new_posts(tmp_path):
                         L.context.get_iphone_json.return_value = {"user": {}}
                         profile = MagicMock()
                         profile.get_posts.return_value = []
-                        with patch("instaloader.Profile.from_iphone_struct", return_value=profile):
+                        with patch(
+                            "instaloader.Profile.from_iphone_struct",
+                            return_value=profile,
+                        ):
                             _fetch_old_posts(L, db)
     mock_mark.assert_called_once_with(1, db)
 
@@ -214,7 +218,10 @@ def test_fetch_old_posts_selects_max_3_accounts(tmp_path):
                             L = MagicMock()
                             profile = MagicMock()
                             profile.get_posts.return_value = []
-                            with patch("instaloader.Profile.from_iphone_struct", return_value=profile) as mock_from_struct:
+                            with patch(
+                                "instaloader.Profile.from_iphone_struct",
+                                return_value=profile,
+                            ) as mock_from_struct:
                                 _fetch_old_posts(L, db)
                             assert mock_from_struct.call_count <= 3
 
@@ -241,7 +248,10 @@ def test_fetch_old_posts_stops_when_stop_event_set(tmp_path):
     try:
         with patch("api.scheduler.datetime") as mock_dt:
             mock_dt.now.return_value = datetime(2026, 5, 10, 10, 0)
-            with patch("api.scheduler.get_unsynced_accounts", return_value=[(1, "111", "alice")]):
+            with patch(
+                "api.scheduler.get_unsynced_accounts",
+                return_value=[(1, "111", "alice")],
+            ):
                 with patch("instaloader.Profile.from_iphone_struct") as mock_struct:
                     _fetch_old_posts(MagicMock(), tmp_path / "test.db")
         mock_struct.assert_not_called()
@@ -300,6 +310,7 @@ def test_get_scheduler_status_returns_next_run_at():
 
 def test_post_has_video_pure_video_post():
     from api.scheduler import _post_has_video
+
     post = MagicMock()
     post.is_video = True
     assert _post_has_video(post) is True
@@ -307,6 +318,7 @@ def test_post_has_video_pure_video_post():
 
 def test_post_has_video_image_post():
     from api.scheduler import _post_has_video
+
     post = MagicMock()
     post.is_video = False
     post.typename = "GraphImage"
@@ -315,6 +327,7 @@ def test_post_has_video_image_post():
 
 def test_post_has_video_clean_carousel():
     from api.scheduler import _post_has_video
+
     node = MagicMock()
     node.is_video = False
     post = MagicMock()
@@ -326,6 +339,7 @@ def test_post_has_video_clean_carousel():
 
 def test_post_has_video_carousel_with_video_slide():
     from api.scheduler import _post_has_video
+
     img_node = MagicMock()
     img_node.is_video = False
     vid_node = MagicMock()

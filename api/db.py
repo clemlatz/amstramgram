@@ -9,14 +9,20 @@ logger = logging.getLogger(__name__)
 
 MEDIA_EXTS = {".jpg", ".jpeg", ".webp", ".png", ".mp4"}
 _EMPTY_SIDECAR: dict = dict(
-    shortcode=None, post_type=None, caption=None,
-    like_count=None, comment_count=None, location=None,
+    shortcode=None,
+    post_type=None,
+    caption=None,
+    like_count=None,
+    comment_count=None,
+    location=None,
 )
 
 
 def _conn(db_path: Path, read_only: bool = False) -> sqlite3.Connection:
     if read_only:
-        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, check_same_thread=False)
+        conn = sqlite3.connect(
+            f"file:{db_path}?mode=ro", uri=True, check_same_thread=False
+        )
     else:
         conn = sqlite3.connect(str(db_path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
@@ -75,7 +81,9 @@ def init_db(db_path: Path) -> None:
         """)
         cols = {row[1] for row in conn.execute("PRAGMA table_info(accounts)")}
         if "instagram_user_id" in cols:
-            conn.execute("ALTER TABLE accounts RENAME COLUMN instagram_user_id TO platform_user_id")
+            conn.execute(
+                "ALTER TABLE accounts RENAME COLUMN instagram_user_id TO platform_user_id"
+            )
             conn.commit()
         if "profile_pic_path" not in cols:
             conn.execute("ALTER TABLE accounts ADD COLUMN profile_pic_path TEXT")
@@ -84,11 +92,15 @@ def init_db(db_path: Path) -> None:
             if col not in cols:
                 conn.execute(f"ALTER TABLE accounts ADD COLUMN {col} TEXT")
         if "hidden" not in cols:
-            conn.execute("ALTER TABLE accounts ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0")
+            conn.execute(
+                "ALTER TABLE accounts ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0"
+            )
         conn.commit()
         media_cols = {row[1] for row in conn.execute("PRAGMA table_info(media)")}
         if "is_saved_post" not in media_cols:
-            conn.execute("ALTER TABLE media ADD COLUMN is_saved_post INTEGER NOT NULL DEFAULT 0")
+            conn.execute(
+                "ALTER TABLE media ADD COLUMN is_saved_post INTEGER NOT NULL DEFAULT 0"
+            )
             conn.commit()
     finally:
         conn.close()
@@ -100,7 +112,10 @@ def get_active_accounts(db_path: Path) -> list[tuple[int, str, str, int]]:
         rows = conn.execute(
             "SELECT id, platform_user_id, username, fully_synced FROM accounts WHERE active = 1 AND platform_user_id IS NOT NULL"
         ).fetchall()
-        return [(r["id"], r["platform_user_id"], r["username"], r["fully_synced"]) for r in rows]
+        return [
+            (r["id"], r["platform_user_id"], r["username"], r["fully_synced"])
+            for r in rows
+        ]
     finally:
         conn.close()
 
@@ -108,7 +123,9 @@ def get_active_accounts(db_path: Path) -> list[tuple[int, str, str, int]]:
 def shortcode_exists(shortcode: str, db_path: Path) -> bool:
     conn = _conn(db_path, read_only=True)
     try:
-        row = conn.execute("SELECT 1 FROM media WHERE shortcode = ?", (shortcode,)).fetchone()
+        row = conn.execute(
+            "SELECT 1 FROM media WHERE shortcode = ?", (shortcode,)
+        ).fetchone()
         return row is not None
     finally:
         conn.close()
@@ -118,7 +135,12 @@ def get_all_shortcodes_set(db_path: Path) -> set[str]:
     """Return all known shortcodes: downloaded media + saved-but-skipped entries."""
     conn = _conn(db_path, read_only=True)
     try:
-        media = {r[0] for r in conn.execute("SELECT shortcode FROM media WHERE shortcode IS NOT NULL")}
+        media = {
+            r[0]
+            for r in conn.execute(
+                "SELECT shortcode FROM media WHERE shortcode IS NOT NULL"
+            )
+        }
         seen = {r[0] for r in conn.execute("SELECT shortcode FROM saved_seen")}
         return media | seen
     finally:
@@ -137,7 +159,9 @@ def record_saved_seen(shortcode: str, db_path: Path) -> None:
         conn.close()
 
 
-def upsert_account(username: str, platform_user_id: str, db_path: Path) -> tuple[int, bool]:
+def upsert_account(
+    username: str, platform_user_id: str, db_path: Path
+) -> tuple[int, bool]:
     """Insert account if not exists, ensure active=1. Returns (account_id, is_new)."""
     conn = _conn(db_path)
     try:
@@ -147,7 +171,9 @@ def upsert_account(username: str, platform_user_id: str, db_path: Path) -> tuple
         ).fetchone()
         if existing:
             if not existing["active"]:
-                conn.execute("UPDATE accounts SET active = 1 WHERE id = ?", (existing["id"],))
+                conn.execute(
+                    "UPDATE accounts SET active = 1 WHERE id = ?", (existing["id"],)
+                )
                 conn.commit()
             return existing["id"], False
         try:
@@ -159,7 +185,9 @@ def upsert_account(username: str, platform_user_id: str, db_path: Path) -> tuple
             return cur.lastrowid, True
         except sqlite3.IntegrityError:
             # Username already exists with a different platform_user_id (e.g. from a prior import)
-            row = conn.execute("SELECT id FROM accounts WHERE username = ?", (username,)).fetchone()
+            row = conn.execute(
+                "SELECT id FROM accounts WHERE username = ?", (username,)
+            ).fetchone()
             if row:
                 return row["id"], False
             raise
@@ -219,7 +247,9 @@ def migrate_done_files(db_path: Path, storage_base: Path) -> None:
     try:
         cols = {row[1] for row in conn.execute("PRAGMA table_info(accounts)")}
         if "fully_synced" not in cols:
-            conn.execute("ALTER TABLE accounts ADD COLUMN fully_synced INTEGER NOT NULL DEFAULT 0")
+            conn.execute(
+                "ALTER TABLE accounts ADD COLUMN fully_synced INTEGER NOT NULL DEFAULT 0"
+            )
             conn.commit()
 
         rows = conn.execute(
@@ -230,7 +260,9 @@ def migrate_done_files(db_path: Path, storage_base: Path) -> None:
         for row in rows:
             done_file = storage_base / row["platform_user_id"] / ".done"
             if done_file.exists():
-                conn.execute("UPDATE accounts SET fully_synced = 1 WHERE id = ?", (row["id"],))
+                conn.execute(
+                    "UPDATE accounts SET fully_synced = 1 WHERE id = ?", (row["id"],)
+                )
                 done_file.unlink()
                 updated += 1
 
@@ -242,13 +274,19 @@ def migrate_done_files(db_path: Path, storage_base: Path) -> None:
 
 
 def _typename_to_post_type(typename: str | None) -> str | None:
-    return {"GraphImage": "image", "GraphSidecar": "carousel", "GraphVideo": "video"}.get(typename or "")
+    return {
+        "GraphImage": "image",
+        "GraphSidecar": "carousel",
+        "GraphVideo": "video",
+    }.get(typename or "")
 
 
 def _parse_stem(stem: str) -> tuple[str | None, int | None]:
     base = re.sub(r"_\d+$", "", stem)
     m = re.match(r"^(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})-(\d{2})_UTC", base)
-    post_timestamp = f"{m.group(1)}T{m.group(2)}:{m.group(3)}:{m.group(4)}Z" if m else None
+    post_timestamp = (
+        f"{m.group(1)}T{m.group(2)}:{m.group(3)}:{m.group(4)}Z" if m else None
+    )
     idx = re.search(r"_(\d+)$", stem)
     carousel_index = int(idx.group(1)) if idx else None
     return post_timestamp, carousel_index
@@ -270,10 +308,13 @@ def _parse_json_sidecar(json_path: Path) -> dict:
     node = raw.get("node", raw)
     edges = node.get("edge_media_to_caption", {}).get("edges", [])
     caption = node.get("caption") or (edges[0]["node"]["text"] if edges else None)
-    like_count = (node.get("edge_media_preview_like") or node.get("edge_liked_by") or {}).get("count")
+    like_count = (
+        node.get("edge_media_preview_like") or node.get("edge_liked_by") or {}
+    ).get("count")
     comments = node.get("comments")
     comment_count = (
-        comments if isinstance(comments, int)
+        comments
+        if isinstance(comments, int)
         else (node.get("edge_media_to_comment") or {}).get("count")
     )
     return dict(
@@ -287,15 +328,24 @@ def _parse_json_sidecar(json_path: Path) -> dict:
 
 
 def index_account(account_id: int, dest_dir: Path, db_path: Path) -> int:
-    media_files = [f for f in dest_dir.iterdir() if f.is_file() and f.suffix.lower() in MEDIA_EXTS]
+    media_files = [
+        f for f in dest_dir.iterdir() if f.is_file() and f.suffix.lower() in MEDIA_EXTS
+    ]
 
     conn = _conn(db_path, read_only=True)
     try:
-        known = {row[0] for row in conn.execute("SELECT filepath FROM media WHERE account_id = ?", (account_id,))}
+        known = {
+            row[0]
+            for row in conn.execute(
+                "SELECT filepath FROM media WHERE account_id = ?", (account_id,)
+            )
+        }
     finally:
         conn.close()
 
-    new_files = [f for f in media_files if str(f.relative_to(dest_dir.parent)) not in known]
+    new_files = [
+        f for f in media_files if str(f.relative_to(dest_dir.parent)) not in known
+    ]
     if not new_files:
         return 0
 
@@ -313,16 +363,30 @@ def index_account(account_id: int, dest_dir: Path, db_path: Path) -> int:
             width = height = None
             try:
                 from PIL import Image
+
                 with Image.open(f) as img:
                     width, height = img.size
             except Exception:
                 pass
-            rows.append((
-                account_id, f.name, str(f.relative_to(dest_dir.parent)), f.suffix[1:].lower(),
-                post_timestamp, file_size, width, height,
-                sidecar["shortcode"], sidecar["post_type"], carousel_index,
-                sidecar["caption"], sidecar["like_count"], sidecar["comment_count"], sidecar["location"],
-            ))
+            rows.append(
+                (
+                    account_id,
+                    f.name,
+                    str(f.relative_to(dest_dir.parent)),
+                    f.suffix[1:].lower(),
+                    post_timestamp,
+                    file_size,
+                    width,
+                    height,
+                    sidecar["shortcode"],
+                    sidecar["post_type"],
+                    carousel_index,
+                    sidecar["caption"],
+                    sidecar["like_count"],
+                    sidecar["comment_count"],
+                    sidecar["location"],
+                )
+            )
 
         for p in [dest_dir / f"{base}.json", dest_dir / f"{base}.json.xz"]:
             p.unlink(missing_ok=True)
@@ -348,6 +412,7 @@ def index_account(account_id: int, dest_dir: Path, db_path: Path) -> int:
 
     return len(rows)
 
+
 def get_random_neutral_post(db_path: Path) -> dict | None:
     conn = _conn(db_path, read_only=True)
     try:
@@ -368,17 +433,21 @@ def get_random_neutral_post(db_path: Path) -> dict | None:
         """).fetchone()
         if not account_row:
             return None
-        row = conn.execute("""
+        row = conn.execute(
+            """
             SELECT DISTINCT m.shortcode FROM media m
             LEFT JOIN ratings r ON r.shortcode = m.shortcode
             WHERE m.shortcode IS NOT NULL AND r.shortcode IS NULL
               AND m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
               AND m.account_id = ?
             ORDER BY RANDOM() LIMIT 1
-        """, (account_row["id"],)).fetchone()
+        """,
+            (account_row["id"],),
+        ).fetchone()
         if not row:
             return None
-        rows = conn.execute("""
+        rows = conn.execute(
+            """
             SELECT m.filepath, m.extension, m.post_timestamp, m.caption, m.shortcode,
                    m.width, m.height, a.username AS account, a.active AS account_active
             FROM media m
@@ -387,7 +456,9 @@ def get_random_neutral_post(db_path: Path) -> dict | None:
             WHERE m.shortcode = ? AND m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
               AND r.shortcode IS NULL
             ORDER BY m.carousel_index ASC
-        """, (row["shortcode"],)).fetchall()
+        """,
+            (row["shortcode"],),
+        ).fetchall()
     finally:
         conn.close()
 
@@ -400,7 +471,10 @@ def get_random_neutral_post(db_path: Path) -> dict | None:
         "post_timestamp": first["post_timestamp"],
         "caption": first["caption"],
         "shortcode": first["shortcode"],
-        "media": [(r["filepath"], r["extension"] or "jpg", r["width"], r["height"]) for r in rows],
+        "media": [
+            (r["filepath"], r["extension"] or "jpg", r["width"], r["height"])
+            for r in rows
+        ],
     }
 
 
@@ -423,7 +497,8 @@ def get_random_favorite_post(db_path: Path) -> dict | None:
         """).fetchone()
         if not account_row:
             return None
-        row = conn.execute("""
+        row = conn.execute(
+            """
             SELECT DISTINCT m.shortcode FROM media m
             JOIN ratings r ON r.shortcode = m.shortcode
             WHERE m.shortcode IS NOT NULL
@@ -431,10 +506,13 @@ def get_random_favorite_post(db_path: Path) -> dict | None:
               AND m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
               AND m.account_id = ?
             ORDER BY RANDOM() LIMIT 1
-        """, (account_row["id"],)).fetchone()
+        """,
+            (account_row["id"],),
+        ).fetchone()
         if not row:
             return None
-        rows = conn.execute("""
+        rows = conn.execute(
+            """
             SELECT m.filepath, m.extension, m.post_timestamp, m.caption, m.shortcode,
                    m.width, m.height, a.username AS account, a.active AS account_active
             FROM media m
@@ -443,7 +521,9 @@ def get_random_favorite_post(db_path: Path) -> dict | None:
             WHERE m.shortcode = ? AND m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
               AND r.favorited_at IS NOT NULL
             ORDER BY m.carousel_index ASC
-        """, (row["shortcode"],)).fetchall()
+        """,
+            (row["shortcode"],),
+        ).fetchall()
     finally:
         conn.close()
 
@@ -456,7 +536,10 @@ def get_random_favorite_post(db_path: Path) -> dict | None:
         "post_timestamp": first["post_timestamp"],
         "caption": first["caption"],
         "shortcode": first["shortcode"],
-        "media": [(r["filepath"], r["extension"] or "jpg", r["width"], r["height"]) for r in rows],
+        "media": [
+            (r["filepath"], r["extension"] or "jpg", r["width"], r["height"])
+            for r in rows
+        ],
     }
 
 
@@ -478,7 +561,11 @@ def get_recent_posts(db_path: Path) -> list[dict]:
 
     posts: dict[str, dict] = {}
     for row in rows:
-        key = f"{row['account']}/{row['post_timestamp']}" if row["post_timestamp"] else row["filepath"]
+        key = (
+            f"{row['account']}/{row['post_timestamp']}"
+            if row["post_timestamp"]
+            else row["filepath"]
+        )
         if key not in posts:
             posts[key] = {
                 "account": row["account"],
@@ -490,7 +577,9 @@ def get_recent_posts(db_path: Path) -> list[dict]:
                 "favorited_at": row["favorited_at"],
                 "media": [],
             }
-        posts[key]["media"].append((row["filepath"], row["extension"] or "jpg", row["width"], row["height"]))
+        posts[key]["media"].append(
+            (row["filepath"], row["extension"] or "jpg", row["width"], row["height"])
+        )
 
     return list(posts.values())[:100]
 
@@ -550,7 +639,8 @@ def get_all_accounts(db_path: Path) -> list[dict]:
 def get_account_detail(username: str, db_path: Path) -> dict | None:
     conn = _conn(db_path, read_only=True)
     try:
-        row = conn.execute("""
+        row = conn.execute(
+            """
             SELECT
                 a.username,
                 a.full_name,
@@ -572,7 +662,9 @@ def get_account_detail(username: str, db_path: Path) -> dict | None:
             LEFT JOIN ratings r ON r.shortcode = m.shortcode
             WHERE a.username = ?
             GROUP BY a.id
-        """, (username,)).fetchone()
+        """,
+            (username,),
+        ).fetchone()
         if not row:
             return None
         return {
@@ -626,7 +718,8 @@ def set_account_hidden(username: str, hidden: bool, db_path: Path) -> bool:
 def get_account_posts(username: str, db_path: Path) -> list[dict]:
     conn = _conn(db_path, read_only=True)
     try:
-        rows = conn.execute("""
+        rows = conn.execute(
+            """
             SELECT m.filepath, m.extension, m.post_timestamp, m.caption, m.shortcode,
                    m.width, m.height, r.archived_at, r.favorited_at,
                    a.username AS account, a.active AS account_active
@@ -636,13 +729,19 @@ def get_account_posts(username: str, db_path: Path) -> list[dict]:
             WHERE m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
               AND a.username = ?
             ORDER BY m.post_timestamp DESC, m.carousel_index ASC
-        """, (username,)).fetchall()
+        """,
+            (username,),
+        ).fetchall()
     finally:
         conn.close()
 
     posts: dict[str, dict] = {}
     for row in rows:
-        key = f"{row['account']}/{row['post_timestamp']}" if row["post_timestamp"] else row["filepath"]
+        key = (
+            f"{row['account']}/{row['post_timestamp']}"
+            if row["post_timestamp"]
+            else row["filepath"]
+        )
         if key not in posts:
             posts[key] = {
                 "account": row["account"],
@@ -654,22 +753,29 @@ def get_account_posts(username: str, db_path: Path) -> list[dict]:
                 "favorited_at": row["favorited_at"],
                 "media": [],
             }
-        posts[key]["media"].append((row["filepath"], row["extension"] or "jpg", row["width"], row["height"]))
+        posts[key]["media"].append(
+            (row["filepath"], row["extension"] or "jpg", row["width"], row["height"])
+        )
 
     return list(posts.values())
 
 
-def upsert_following_accounts(accounts: list[dict], db_path: Path) -> tuple[int, list[str]]:
+def upsert_following_accounts(
+    accounts: list[dict], db_path: Path
+) -> tuple[int, list[str]]:
     if not accounts:
         return 0, []
     conn = _conn(db_path)
     try:
         platform_ids = [a["platform_user_id"] for a in accounts]
         placeholders = ",".join("?" * len(platform_ids))
-        existing = {r[0] for r in conn.execute(
-            f"SELECT platform_user_id FROM accounts WHERE platform_user_id IN ({placeholders})",
-            platform_ids,
-        )}
+        existing = {
+            r[0]
+            for r in conn.execute(
+                f"SELECT platform_user_id FROM accounts WHERE platform_user_id IN ({placeholders})",
+                platform_ids,
+            )
+        }
         new_accounts = [a for a in accounts if a["platform_user_id"] not in existing]
         conn.executemany(
             "INSERT OR IGNORE INTO accounts (username, platform_user_id, active) VALUES (?, ?, 1)",
@@ -677,8 +783,15 @@ def upsert_following_accounts(accounts: list[dict], db_path: Path) -> tuple[int,
         )
         conn.executemany(
             "UPDATE accounts SET bio = ?, full_name = ?, external_url = ? WHERE platform_user_id = ?",
-            [(a.get("bio"), a.get("full_name"), a.get("external_url"), a["platform_user_id"])
-             for a in accounts],
+            [
+                (
+                    a.get("bio"),
+                    a.get("full_name"),
+                    a.get("external_url"),
+                    a["platform_user_id"],
+                )
+                for a in accounts
+            ],
         )
         conn.commit()
         return len(new_accounts), [a["username"] for a in new_accounts]
@@ -710,7 +823,9 @@ def get_account_profile_pic_path(username: str, db_path: Path) -> str | None:
         conn.close()
 
 
-def get_accounts_missing_profile_pic(platform_user_ids: list[str], db_path: Path) -> set[str]:
+def get_accounts_missing_profile_pic(
+    platform_user_ids: list[str], db_path: Path
+) -> set[str]:
     if not platform_user_ids:
         return set()
     conn = _conn(db_path, read_only=True)
@@ -728,6 +843,7 @@ def get_accounts_missing_profile_pic(platform_user_ids: list[str], db_path: Path
 
 def get_stats(db_path: Path, storage_base: Path) -> dict:
     import subprocess
+
     conn = _conn(db_path, read_only=True)
     try:
         rows = conn.execute("""
@@ -746,7 +862,9 @@ def get_stats(db_path: Path, storage_base: Path) -> dict:
     try:
         result = subprocess.run(
             ["du", "-sk", str(storage_base)],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if result.returncode == 0:
             disk_bytes = int(result.stdout.split("\t")[0]) * 1024
@@ -757,6 +875,7 @@ def get_stats(db_path: Path, storage_base: Path) -> dict:
 
 
 # --- Backfill ---
+
 
 def init_backfill_progress(db_path: Path) -> None:
     conn = _conn(db_path)
@@ -820,8 +939,16 @@ def update_post_metadata(
             """UPDATE media
                SET shortcode=?, post_type=?, caption=?, like_count=?, comment_count=?, location=?
                WHERE account_id=? AND post_timestamp=? AND shortcode IS NULL""",
-            (shortcode, post_type, caption, like_count, comment_count, location,
-             account_id, post_timestamp),
+            (
+                shortcode,
+                post_type,
+                caption,
+                like_count,
+                comment_count,
+                location,
+                account_id,
+                post_timestamp,
+            ),
         )
         conn.commit()
         return cur.rowcount
@@ -860,7 +987,9 @@ def save_backfill_cursor(account_id: int, cursor_timestamp: str, db_path: Path) 
 def get_setting(key: str, db_path: Path) -> str | None:
     conn = _conn(db_path, read_only=True)
     try:
-        row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+        row = conn.execute(
+            "SELECT value FROM settings WHERE key = ?", (key,)
+        ).fetchone()
         return row["value"] if row else None
     finally:
         conn.close()

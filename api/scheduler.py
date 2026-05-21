@@ -33,8 +33,8 @@ _TYPE_LABELS = {
 
 _MIN_DOWNLOADS_PER_ACCOUNT = 60
 _MAX_DOWNLOADS_PER_ACCOUNT = 140
-_RATE_LIMIT_BACKOFF_BASE = 1800   # 30 min
-_RATE_LIMIT_BACKOFF_MAX = 10800   # 3 h
+_RATE_LIMIT_BACKOFF_BASE = 1800  # 30 min
+_RATE_LIMIT_BACKOFF_MAX = 10800  # 3 h
 _RATE_LIMIT_MAX_RETRIES = 3
 _MIN_ACCOUNTS_PER_CYCLE = 15
 _MAX_ACCOUNTS_PER_CYCLE = 30
@@ -62,7 +62,11 @@ def _sleep(seconds: int, reason: str = "") -> None:
         logger.info("Waiting %s%s", _fmt_delay(seconds), label)
     else:
         until = datetime.now() + timedelta(seconds=seconds)
-        until_str = until.strftime("%H:%M:%S") if until.date() == datetime.now().date() else until.strftime("%m/%d %H:%M:%S")
+        until_str = (
+            until.strftime("%H:%M:%S")
+            if until.date() == datetime.now().date()
+            else until.strftime("%m/%d %H:%M:%S")
+        )
         logger.info("Waiting until %s%s", until_str, label)
     time.sleep(seconds)
 
@@ -72,7 +76,9 @@ class RateLimitException(Exception):
 
 
 def _backoff_delay(consecutive: int) -> int:
-    cap = min(_RATE_LIMIT_BACKOFF_BASE * (2 ** (consecutive - 1)), _RATE_LIMIT_BACKOFF_MAX)
+    cap = min(
+        _RATE_LIMIT_BACKOFF_BASE * (2 ** (consecutive - 1)), _RATE_LIMIT_BACKOFF_MAX
+    )
     return int(random.uniform(cap / 2, cap))
 
 
@@ -121,12 +127,14 @@ _DEFAULT_USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Ap
 
 def _set_session_headers(L: instaloader.Instaloader) -> None:
     ua = get_setting("user_agent", DB_PATH) or _DEFAULT_USER_AGENT
-    L.context._session.headers.update({
-        "X-IG-App-ID": "936619743392459",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": "https://www.instagram.com/",
-        "User-Agent": ua,
-    })
+    L.context._session.headers.update(
+        {
+            "X-IG-App-ID": "936619743392459",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Referer": "https://www.instagram.com/",
+            "User-Agent": ua,
+        }
+    )
 
 
 async def _wait_until_window() -> None:
@@ -136,11 +144,12 @@ async def _wait_until_window() -> None:
     if now.hour < 7:
         target = now.replace(hour=7, minute=0, second=0, microsecond=0)
     else:
-        target = (now + timedelta(days=1)).replace(hour=7, minute=0, second=0, microsecond=0)
+        target = (now + timedelta(days=1)).replace(
+            hour=7, minute=0, second=0, microsecond=0
+        )
     delay = (target - now).total_seconds()
     logger.info("Outside active window — sleeping until 07:00 (%.0f min)", delay / 60)
     await asyncio.sleep(delay)
-
 
 
 def _download_account_fast(
@@ -159,7 +168,9 @@ def _download_account_fast(
     fetched = 0
     type_counts: dict[str, int] = {}
     try:
-        user_info = L.context.get_iphone_json(f"api/v1/users/{platform_user_id}/info/", {})
+        user_info = L.context.get_iphone_json(
+            f"api/v1/users/{platform_user_id}/info/", {}
+        )
         user_data = user_info["user"]
         user_data.setdefault("is_private", False)
         user_data.setdefault("full_name", "")
@@ -248,7 +259,9 @@ def _fetch_new_posts(
         for a_idx, (account_id, ig_id, username, max_posts) in enumerate(group):
             if _stop_event.is_set():
                 return
-            total_downloaded += _download_account_fast(L, account_id, ig_id, username, db_path, max_posts=max_posts)
+            total_downloaded += _download_account_fast(
+                L, account_id, ig_id, username, db_path, max_posts=max_posts
+            )
             if a_idx < len(group) - 1:
                 _sleep(_lognormal_delay(30, 90))
         if g_idx < len(groups) - 1:
@@ -277,13 +290,17 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
         dest = STORAGE_BASE / platform_user_id
         dest.mkdir(parents=True, exist_ok=True)
         L.dirname_pattern = str(dest)
-        max_downloads = random.randint(_MIN_DOWNLOADS_PER_ACCOUNT, _MAX_DOWNLOADS_PER_ACCOUNT)
+        max_downloads = random.randint(
+            _MIN_DOWNLOADS_PER_ACCOUNT, _MAX_DOWNLOADS_PER_ACCOUNT
+        )
         logger.info("%s: downloading new media… (max=%d)", username, max_downloads)
 
         downloaded = 0
         type_counts: dict[str, int] = {}
         try:
-            user_info = L.context.get_iphone_json(f"api/v1/users/{platform_user_id}/info/", {})
+            user_info = L.context.get_iphone_json(
+                f"api/v1/users/{platform_user_id}/info/", {}
+            )
             user_data = user_info["user"]
             user_data.setdefault("is_private", False)
             user_data.setdefault("full_name", "")
@@ -328,7 +345,9 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
             mark_account_synced(account_id, db_path)
             logger.info("%s: fully synced", username)
         else:
-            logger.info("%s: downloaded %s", username, _fmt_download_summary(type_counts))
+            logger.info(
+                "%s: downloaded %s", username, _fmt_download_summary(type_counts)
+            )
 
         try:
             index_account(account_id, dest, db_path)
@@ -388,7 +407,11 @@ def _load_next_delay() -> int:
             next_run = datetime.fromisoformat(stored)
             secs = int((next_run - datetime.now()).total_seconds())
             if secs > 60:
-                logger.info("Resuming — next download at %s (%s)", next_run.strftime("%m/%d %H:%M"), _fmt_delay(secs))
+                logger.info(
+                    "Resuming — next download at %s (%s)",
+                    next_run.strftime("%m/%d %H:%M"),
+                    _fmt_delay(secs),
+                )
                 return secs
             logger.info("Resuming — scheduled time passed, running soon")
             return 60
@@ -420,11 +443,19 @@ async def _scheduler_loop() -> None:
                 set_setting("next_run_at", next_run.isoformat(), DB_PATH)
             except Exception:
                 pass
-            logger.info("Next download at %s (%s)", next_run.strftime("%m/%d %H:%M"), _fmt_delay(next_delay))
+            logger.info(
+                "Next download at %s (%s)",
+                next_run.strftime("%m/%d %H:%M"),
+                _fmt_delay(next_delay),
+            )
         except RateLimitException as exc:
             consecutive_rl += 1
             if consecutive_rl >= _RATE_LIMIT_MAX_RETRIES:
-                logger.critical("Rate limited %d times consecutively — scheduler stopped. (%s)", consecutive_rl, exc)
+                logger.critical(
+                    "Rate limited %d times consecutively — scheduler stopped. (%s)",
+                    consecutive_rl,
+                    exc,
+                )
                 return
             next_delay = _backoff_delay(consecutive_rl)
             retry_at = datetime.now() + timedelta(seconds=next_delay)
@@ -432,9 +463,17 @@ async def _scheduler_loop() -> None:
                 set_setting("next_run_at", retry_at.isoformat(), DB_PATH)
             except Exception:
                 pass
-            logger.warning("Rate limited (attempt %d/%d) — retry in %s", consecutive_rl, _RATE_LIMIT_MAX_RETRIES - 1, _fmt_delay(next_delay))
+            logger.warning(
+                "Rate limited (attempt %d/%d) — retry in %s",
+                consecutive_rl,
+                _RATE_LIMIT_MAX_RETRIES - 1,
+                _fmt_delay(next_delay),
+            )
         except _SESSION_INVALIDATED_EXCEPTIONS as exc:
-            logger.critical("Session invalidated — scheduler stopped. Update session ID at /settings. (%s)", exc)
+            logger.critical(
+                "Session invalidated — scheduler stopped. Update session ID at /settings. (%s)",
+                exc,
+            )
             return
         except instaloader.ConnectionException as exc:
             next_delay = _RATE_LIMIT_BACKOFF_BASE
@@ -443,11 +482,17 @@ async def _scheduler_loop() -> None:
                 set_setting("next_run_at", retry_at.isoformat(), DB_PATH)
             except Exception:
                 pass
-            logger.warning("Network error — retry in %s: %s", _fmt_delay(next_delay), exc)
+            logger.warning(
+                "Network error — retry in %s: %s", _fmt_delay(next_delay), exc
+            )
         except Exception as exc:
             consecutive_rl += 1
             if consecutive_rl >= _RATE_LIMIT_MAX_RETRIES:
-                logger.critical("Too many consecutive errors (%d) — scheduler stopped: %s", consecutive_rl, exc)
+                logger.critical(
+                    "Too many consecutive errors (%d) — scheduler stopped: %s",
+                    consecutive_rl,
+                    exc,
+                )
                 return
             next_delay = _backoff_delay(consecutive_rl)
             retry_at = datetime.now() + timedelta(seconds=next_delay)
@@ -455,7 +500,14 @@ async def _scheduler_loop() -> None:
                 set_setting("next_run_at", retry_at.isoformat(), DB_PATH)
             except Exception:
                 pass
-            logger.error("Unexpected error in cycle (attempt %d/%d) — retry in %s: %s", consecutive_rl, _RATE_LIMIT_MAX_RETRIES - 1, _fmt_delay(next_delay), exc, exc_info=True)
+            logger.error(
+                "Unexpected error in cycle (attempt %d/%d) — retry in %s: %s",
+                consecutive_rl,
+                _RATE_LIMIT_MAX_RETRIES - 1,
+                _fmt_delay(next_delay),
+                exc,
+                exc_info=True,
+            )
         finally:
             _cycle_running = False
 
@@ -490,4 +542,8 @@ def get_scheduler_status() -> dict:
         next_run_at = get_setting("next_run_at", DB_PATH)
     except Exception:
         next_run_at = None
-    return {"running": running, "cycle_running": _cycle_running, "next_run_at": next_run_at}
+    return {
+        "running": running,
+        "cycle_running": _cycle_running,
+        "next_run_at": next_run_at,
+    }

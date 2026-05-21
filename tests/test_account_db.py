@@ -1,10 +1,12 @@
 import sqlite3
 from pathlib import Path
 
-import pytest
 
 from api.db import (
-    init_db, get_setting, set_setting, delete_setting,
+    init_db,
+    get_setting,
+    set_setting,
+    delete_setting,
     upsert_following_accounts,
     save_account_profile_pic,
     get_account_profile_pic_path,
@@ -19,7 +21,9 @@ def test_init_db_creates_settings_table(tmp_path):
     db = tmp_path / "test.db"
     init_db(db)
     conn = sqlite3.connect(str(db))
-    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    tables = {
+        r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    }
     conn.close()
     assert "settings" in tables
 
@@ -63,6 +67,7 @@ def test_profile_pic_path_column_exists_after_init(tmp_path):
     db = tmp_path / "test.db"
     init_db(db)
     import sqlite3
+
     conn = sqlite3.connect(str(db))
     cols = {row[1] for row in conn.execute("PRAGMA table_info(accounts)")}
     conn.close()
@@ -73,6 +78,7 @@ def test_bio_columns_exist_after_init(tmp_path):
     db = tmp_path / "test.db"
     init_db(db)
     import sqlite3
+
     conn = sqlite3.connect(str(db))
     cols = {row[1] for row in conn.execute("PRAGMA table_info(accounts)")}
     conn.close()
@@ -105,10 +111,13 @@ def test_get_account_profile_pic_path_returns_none_when_not_downloaded(tmp_path)
 def test_get_accounts_missing_profile_pic_returns_only_those_without_pic(tmp_path):
     db = tmp_path / "test.db"
     init_db(db)
-    upsert_following_accounts([
-        {"username": "alice", "platform_user_id": "111"},
-        {"username": "bob",   "platform_user_id": "222"},
-    ], db)
+    upsert_following_accounts(
+        [
+            {"username": "alice", "platform_user_id": "111"},
+            {"username": "bob", "platform_user_id": "222"},
+        ],
+        db,
+    )
     save_account_profile_pic("111", "111/profile.jpg", db)
     missing = get_accounts_missing_profile_pic(["111", "222"], db)
     assert missing == {"222"}
@@ -131,7 +140,9 @@ def _insert_media(db: Path, account_id: int, shortcode: str) -> None:
     conn.close()
 
 
-def _insert_rating(db: Path, shortcode: str, *, favorited: bool = False, archived: bool = False) -> None:
+def _insert_rating(
+    db: Path, shortcode: str, *, favorited: bool = False, archived: bool = False
+) -> None:
     conn = sqlite3.connect(str(db))
     conn.execute(
         "INSERT INTO ratings (shortcode, favorited_at, archived_at) VALUES (?, ?, ?)",
@@ -150,7 +161,9 @@ def test_get_all_accounts_includes_rating_counts(tmp_path):
     init_db(db)
     upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
     conn = sqlite3.connect(str(db))
-    account_id = conn.execute("SELECT id FROM accounts WHERE username='alice'").fetchone()[0]
+    account_id = conn.execute(
+        "SELECT id FROM accounts WHERE username='alice'"
+    ).fetchone()[0]
     conn.close()
 
     _insert_media(db, account_id, "sc1")
@@ -181,7 +194,9 @@ def test_get_all_accounts_counts_distinct_shortcodes(tmp_path):
     init_db(db)
     upsert_following_accounts([{"username": "carol", "platform_user_id": "333"}], db)
     conn = sqlite3.connect(str(db))
-    account_id = conn.execute("SELECT id FROM accounts WHERE username='carol'").fetchone()[0]
+    account_id = conn.execute(
+        "SELECT id FROM accounts WHERE username='carol'"
+    ).fetchone()[0]
     conn.close()
 
     # Two media rows share the same shortcode (carousel)
@@ -226,7 +241,9 @@ def test_get_account_detail_counts_posts_and_ratings(tmp_path):
     init_db(db)
     upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
     conn = sqlite3.connect(str(db))
-    account_id = conn.execute("SELECT id FROM accounts WHERE username='alice'").fetchone()[0]
+    account_id = conn.execute(
+        "SELECT id FROM accounts WHERE username='alice'"
+    ).fetchone()[0]
     conn.close()
     _insert_media(db, account_id, "sc1")
     _insert_media(db, account_id, "sc2")
@@ -236,7 +253,7 @@ def test_get_account_detail_counts_posts_and_ratings(tmp_path):
 
     result = get_account_detail("alice", db)
     assert result["post_count"] == 3
-    assert result["unrated_count"] == 1   # sc3 has no rating
+    assert result["unrated_count"] == 1  # sc3 has no rating
     assert result["favorited_count"] == 1
     assert result["archived_count"] == 1
 
@@ -259,7 +276,9 @@ def test_get_account_detail_returns_bio_fields(tmp_path):
     assert result["external_url"] == "https://example.com"
 
 
-def _insert_media_with_timestamp(db: Path, account_id: int, shortcode: str, ts: str, filepath: str) -> None:
+def _insert_media_with_timestamp(
+    db: Path, account_id: int, shortcode: str, ts: str, filepath: str
+) -> None:
     conn = sqlite3.connect(str(db))
     conn.execute(
         "INSERT INTO media (account_id, filename, filepath, extension, shortcode, post_timestamp)"
@@ -281,10 +300,16 @@ def test_get_account_posts_returns_posts_for_account(tmp_path):
     init_db(db)
     upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
     conn = sqlite3.connect(str(db))
-    account_id = conn.execute("SELECT id FROM accounts WHERE username='alice'").fetchone()[0]
+    account_id = conn.execute(
+        "SELECT id FROM accounts WHERE username='alice'"
+    ).fetchone()[0]
     conn.close()
-    _insert_media_with_timestamp(db, account_id, "sc1", "2024-01-02T00:00:00Z", "111/sc1.jpg")
-    _insert_media_with_timestamp(db, account_id, "sc2", "2024-01-01T00:00:00Z", "111/sc2.jpg")
+    _insert_media_with_timestamp(
+        db, account_id, "sc1", "2024-01-02T00:00:00Z", "111/sc1.jpg"
+    )
+    _insert_media_with_timestamp(
+        db, account_id, "sc2", "2024-01-01T00:00:00Z", "111/sc2.jpg"
+    )
     posts = get_account_posts("alice", db)
     assert len(posts) == 2
     assert posts[0]["shortcode"] == "sc1"  # newer first
@@ -294,16 +319,25 @@ def test_get_account_posts_returns_posts_for_account(tmp_path):
 def test_get_account_posts_does_not_include_other_accounts(tmp_path):
     db = tmp_path / "test.db"
     init_db(db)
-    upsert_following_accounts([
-        {"username": "alice", "platform_user_id": "111"},
-        {"username": "bob",   "platform_user_id": "222"},
-    ], db)
+    upsert_following_accounts(
+        [
+            {"username": "alice", "platform_user_id": "111"},
+            {"username": "bob", "platform_user_id": "222"},
+        ],
+        db,
+    )
     conn = sqlite3.connect(str(db))
-    alice_id = conn.execute("SELECT id FROM accounts WHERE username='alice'").fetchone()[0]
-    bob_id   = conn.execute("SELECT id FROM accounts WHERE username='bob'").fetchone()[0]
+    alice_id = conn.execute(
+        "SELECT id FROM accounts WHERE username='alice'"
+    ).fetchone()[0]
+    bob_id = conn.execute("SELECT id FROM accounts WHERE username='bob'").fetchone()[0]
     conn.close()
-    _insert_media_with_timestamp(db, alice_id, "sc_alice", "2024-01-01T00:00:00Z", "111/a.jpg")
-    _insert_media_with_timestamp(db, bob_id,   "sc_bob",   "2024-01-01T00:00:00Z", "222/b.jpg")
+    _insert_media_with_timestamp(
+        db, alice_id, "sc_alice", "2024-01-01T00:00:00Z", "111/a.jpg"
+    )
+    _insert_media_with_timestamp(
+        db, bob_id, "sc_bob", "2024-01-01T00:00:00Z", "222/b.jpg"
+    )
     posts = get_account_posts("alice", db)
     assert len(posts) == 1
     assert posts[0]["shortcode"] == "sc_alice"
@@ -314,7 +348,9 @@ def test_get_account_posts_groups_carousel_slides(tmp_path):
     init_db(db)
     upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
     conn = sqlite3.connect(str(db))
-    account_id = conn.execute("SELECT id FROM accounts WHERE username='alice'").fetchone()[0]
+    account_id = conn.execute(
+        "SELECT id FROM accounts WHERE username='alice'"
+    ).fetchone()[0]
     conn.execute(
         "INSERT INTO media (account_id, filename, filepath, extension, shortcode, post_timestamp, carousel_index)"
         " VALUES (?, 'sc1_1.jpg', '111/sc1_1.jpg', 'jpg', 'sc1', '2024-01-01T00:00:00Z', 1)",

@@ -39,6 +39,7 @@ def _make_instaloader() -> instaloader.Instaloader:
     def _quiet_error(msg, repeat_at_end=True):
         if repeat_at_end:
             L.context.error_log.append(msg)
+
     L.context.error = _quiet_error
     return L
 
@@ -55,19 +56,24 @@ def _build_loader() -> instaloader.Instaloader | None:
     if cookies_json:
         for c in json.loads(cookies_json):
             L.context._session.cookies.set(
-                c["name"], c["value"],
+                c["name"],
+                c["value"],
                 domain=c.get("domain", ".instagram.com"),
                 path=c.get("path", "/"),
             )
         username = get_setting("username", DB_PATH)
         if not username:
-            logger.error("Cookies exist but username missing in DB — treating as unconfigured")
+            logger.error(
+                "Cookies exist but username missing in DB — treating as unconfigured"
+            )
             return None
         L.context.username = username
         logger.info("Loaded persisted session for %s (no network call)", username)
         return L
     else:
-        L.context._session.cookies.set("sessionid", session_id, domain=".instagram.com", path="/")
+        L.context._session.cookies.set(
+            "sessionid", session_id, domain=".instagram.com", path="/"
+        )
         username = L.test_login()
         if username:
             L.context.username = username
@@ -82,7 +88,9 @@ def _build_loader() -> instaloader.Instaloader | None:
 def reload_session(new_session_id: str) -> str:
     global _loader
     L = _make_instaloader()
-    L.context._session.cookies.set("sessionid", new_session_id, domain=".instagram.com", path="/")
+    L.context._session.cookies.set(
+        "sessionid", new_session_id, domain=".instagram.com", path="/"
+    )
     username = L.test_login()
     if not username:
         raise ValueError("Authentication failed")

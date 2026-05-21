@@ -12,7 +12,12 @@ from .db import (
     upsert_account,
 )
 from .loader import download_lock
-from .scheduler import RateLimitException, _is_rate_limited, _lognormal_delay, _set_session_headers
+from .scheduler import (
+    RateLimitException,
+    _is_rate_limited,
+    _lognormal_delay,
+    _set_session_headers,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +51,11 @@ def sync_saved_posts(
             type_label = _TYPE_LABELS.get(post.typename, post.typename)
 
             if shortcode_exists(shortcode, db_path):
-                logger.info("sync-saved: [%s] %s — already indexed, stopping", type_label, shortcode)
+                logger.info(
+                    "sync-saved: [%s] %s — already indexed, stopping",
+                    type_label,
+                    shortcode,
+                )
                 break
 
             username = post.owner_username
@@ -59,9 +68,18 @@ def sync_saved_posts(
             dest = storage_base / platform_user_id
             dest.mkdir(parents=True, exist_ok=True)
 
-            before = {f for f in dest.iterdir() if f.is_file() and f.suffix.lower() in MEDIA_EXTS}
+            before = {
+                f
+                for f in dest.iterdir()
+                if f.is_file() and f.suffix.lower() in MEDIA_EXTS
+            }
 
-            logger.info("sync-saved: [%s] %s from @%s — downloading", type_label, shortcode, username)
+            logger.info(
+                "sync-saved: [%s] %s from @%s — downloading",
+                type_label,
+                shortcode,
+                username,
+            )
             try:
                 with download_lock:
                     L.dirname_pattern = str(dest)
@@ -69,16 +87,26 @@ def sync_saved_posts(
             except Exception as exc:
                 if _is_rate_limited(exc):
                     raise RateLimitException(str(exc)) from exc
-                logger.error("sync-saved: [%s] %s — download error: %s", type_label, shortcode, exc)
+                logger.error(
+                    "sync-saved: [%s] %s — download error: %s",
+                    type_label,
+                    shortcode,
+                    exc,
+                )
                 continue
 
-            after = {f for f in dest.iterdir() if f.is_file() and f.suffix.lower() in MEDIA_EXTS}
+            after = {
+                f
+                for f in dest.iterdir()
+                if f.is_file() and f.suffix.lower() in MEDIA_EXTS
+            }
             new_files = after - before
 
             if not new_files:
                 logger.error(
                     "sync-saved: [%s] %s — no media files on disk after download, aborting",
-                    type_label, shortcode,
+                    type_label,
+                    shortcode,
                 )
                 break
 
@@ -87,20 +115,25 @@ def sync_saved_posts(
             except Exception as exc:
                 logger.error(
                     "sync-saved: [%s] %s — indexing failed: %s, aborting",
-                    type_label, shortcode, exc,
+                    type_label,
+                    shortcode,
+                    exc,
                 )
                 break
 
             if not shortcode_exists(shortcode, db_path):
                 logger.error(
                     "sync-saved: [%s] %s — files on disk but not in DB after indexing, aborting",
-                    type_label, shortcode,
+                    type_label,
+                    shortcode,
                 )
                 break
 
             logger.info(
                 "sync-saved: [%s] %s ✓ — %d file(s) saved and indexed",
-                type_label, shortcode, len(new_files),
+                type_label,
+                shortcode,
+                len(new_files),
             )
             saved_shortcodes.append(shortcode)
             time.sleep(_lognormal_delay(2, 5))

@@ -60,6 +60,7 @@ def main() -> None:
         db_path = args.db
     else:
         from api.config import DB_PATH
+
         db_path = DB_PATH
 
     if not args.file.exists():

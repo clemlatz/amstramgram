@@ -15,17 +15,24 @@ async def get_random():
     post = await asyncio.to_thread(get_random_neutral_post, DB_PATH)
     if not post:
         return JSONResponse({"post": None})
-    return JSONResponse({
-        "post": {
-            "account": post["account"],
-            "post_timestamp": post["post_timestamp"],
-            "shortcode": post["shortcode"],
-            "media": [
-                {"url": f"/api/media/{_encode(fp)}", "type": _media_type(ext), "width": w, "height": h}
-                for fp, ext, w, h in post["media"]
-            ],
+    return JSONResponse(
+        {
+            "post": {
+                "account": post["account"],
+                "post_timestamp": post["post_timestamp"],
+                "shortcode": post["shortcode"],
+                "media": [
+                    {
+                        "url": f"/api/media/{_encode(fp)}",
+                        "type": _media_type(ext),
+                        "width": w,
+                        "height": h,
+                    }
+                    for fp, ext, w, h in post["media"]
+                ],
+            }
         }
-    })
+    )
 
 
 @router.get("/random/favorites")
@@ -33,14 +40,21 @@ async def get_random_favorites():
     post = await asyncio.to_thread(get_random_favorite_post, DB_PATH)
     if not post:
         return JSONResponse({"post": None})
-    return JSONResponse({
-        "post": {
-            "account": post["account"],
-            "post_timestamp": post["post_timestamp"],
-            "shortcode": post["shortcode"],
-            "media": [
-                {"url": f"/api/media/{_encode(fp)}", "type": _media_type(ext), "width": w, "height": h}
-                for fp, ext, w, h in post["media"]
-            ],
+    return JSONResponse(
+        {
+            "post": {
+                "account": post["account"],
+                "post_timestamp": post["post_timestamp"],
+                "shortcode": post["shortcode"],
+                "media": [
+                    {
+                        "url": f"/api/media/{_encode(fp)}",
+                        "type": _media_type(ext),
+                        "width": w,
+                        "height": h,
+                    }
+                    for fp, ext, w, h in post["media"]
+                ],
+            }
         }
-    })
+    )

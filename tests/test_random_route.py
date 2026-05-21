@@ -25,7 +25,14 @@ def _insert_media(db, account_id, filepath, extension, shortcode, post_timestamp
     conn.execute(
         "INSERT INTO media (account_id, filename, filepath, extension, shortcode, post_timestamp)"
         " VALUES (?, ?, ?, ?, ?, ?)",
-        (account_id, filepath.split("/")[-1], filepath, extension, shortcode, post_timestamp),
+        (
+            account_id,
+            filepath.split("/")[-1],
+            filepath,
+            extension,
+            shortcode,
+            post_timestamp,
+        ),
     )
     conn.commit()
     conn.close()

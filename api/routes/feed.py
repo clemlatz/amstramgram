@@ -21,21 +21,28 @@ def _media_type(ext: str) -> str:
 @router.get("/feed")
 async def get_feed():
     posts = await asyncio.to_thread(get_recent_posts, DB_PATH)
-    return JSONResponse({
-        "posts": [
-            {
-                "account": p["account"],
-                "account_active": p["account_active"],
-                "caption": p["caption"],
-                "post_timestamp": p["post_timestamp"],
-                "shortcode": p["shortcode"],
-                "archived_at": p["archived_at"],
-                "favorited_at": p["favorited_at"],
-                "media": [
-                    {"url": f"/api/media/{_encode(fp)}", "type": _media_type(ext), "width": w, "height": h}
-                    for fp, ext, w, h in p["media"]
-                ],
-            }
-            for p in posts
-        ]
-    })
+    return JSONResponse(
+        {
+            "posts": [
+                {
+                    "account": p["account"],
+                    "account_active": p["account_active"],
+                    "caption": p["caption"],
+                    "post_timestamp": p["post_timestamp"],
+                    "shortcode": p["shortcode"],
+                    "archived_at": p["archived_at"],
+                    "favorited_at": p["favorited_at"],
+                    "media": [
+                        {
+                            "url": f"/api/media/{_encode(fp)}",
+                            "type": _media_type(ext),
+                            "width": w,
+                            "height": h,
+                        }
+                        for fp, ext, w, h in p["media"]
+                    ],
+                }
+                for p in posts
+            ]
+        }
+    )

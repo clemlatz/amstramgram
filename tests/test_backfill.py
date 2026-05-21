@@ -1,4 +1,5 @@
 """Tests for backfill DB functions and utility functions."""
+
 import math
 import sqlite3
 from pathlib import Path
@@ -18,6 +19,7 @@ from api.scheduler import _lognormal_delay
 
 # --- helpers ---
 
+
 def _insert_account(db: Path, username: str, ig_id: str, active: int = 1) -> int:
     conn = sqlite3.connect(str(db))
     conn.execute(
@@ -30,8 +32,13 @@ def _insert_account(db: Path, username: str, ig_id: str, active: int = 1) -> int
     return row_id
 
 
-def _insert_media(db: Path, account_id: int, filename: str, shortcode: str | None = None,
-                  post_timestamp: str | None = None) -> None:
+def _insert_media(
+    db: Path,
+    account_id: int,
+    filename: str,
+    shortcode: str | None = None,
+    post_timestamp: str | None = None,
+) -> None:
     conn = sqlite3.connect(str(db))
     conn.execute(
         "INSERT INTO media (account_id, filename, filepath, shortcode, post_timestamp)"
@@ -44,13 +51,16 @@ def _insert_media(db: Path, account_id: int, filename: str, shortcode: str | Non
 
 # --- init_backfill_progress ---
 
+
 def test_init_backfill_progress_creates_table(tmp_path):
     db = tmp_path / "test.db"
     init_db(db)
     init_backfill_progress(db)
 
     conn = sqlite3.connect(str(db))
-    tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    tables = {
+        r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    }
     conn.close()
     assert "backfill_progress" in tables
 
@@ -64,11 +74,18 @@ def test_init_backfill_progress_is_idempotent(tmp_path):
 
 # --- get_accounts_with_missing_metadata ---
 
+
 def test_get_accounts_with_missing_metadata_returns_affected_accounts(tmp_path):
     db = tmp_path / "test.db"
     init_db(db)
     account_id = _insert_account(db, "alice", "111")
-    _insert_media(db, account_id, "photo.jpg", shortcode=None, post_timestamp="2024-01-01T10:00:00Z")
+    _insert_media(
+        db,
+        account_id,
+        "photo.jpg",
+        shortcode=None,
+        post_timestamp="2024-01-01T10:00:00Z",
+    )
 
     rows = get_accounts_with_missing_metadata(db)
     assert len(rows) == 1
@@ -99,8 +116,12 @@ def test_get_accounts_with_missing_metadata_each_account_appears_once(tmp_path):
     db = tmp_path / "test.db"
     init_db(db)
     account_id = _insert_account(db, "alice", "111")
-    _insert_media(db, account_id, "a.jpg", shortcode=None, post_timestamp="2024-01-01T10:00:00Z")
-    _insert_media(db, account_id, "b.jpg", shortcode=None, post_timestamp="2024-01-02T10:00:00Z")
+    _insert_media(
+        db, account_id, "a.jpg", shortcode=None, post_timestamp="2024-01-01T10:00:00Z"
+    )
+    _insert_media(
+        db, account_id, "b.jpg", shortcode=None, post_timestamp="2024-01-02T10:00:00Z"
+    )
 
     rows = get_accounts_with_missing_metadata(db)
     assert len(rows) == 1
@@ -108,13 +129,20 @@ def test_get_accounts_with_missing_metadata_each_account_appears_once(tmp_path):
 
 # --- get_null_post_timestamps ---
 
+
 def test_get_null_post_timestamps_returns_timestamps_with_null_shortcode(tmp_path):
     db = tmp_path / "test.db"
     init_db(db)
     account_id = _insert_account(db, "alice", "111")
-    _insert_media(db, account_id, "a.jpg", shortcode=None, post_timestamp="2024-01-01T10:00:00Z")
-    _insert_media(db, account_id, "b.jpg", shortcode=None, post_timestamp="2024-01-02T10:00:00Z")
-    _insert_media(db, account_id, "c.jpg", shortcode="ABC", post_timestamp="2024-01-03T10:00:00Z")
+    _insert_media(
+        db, account_id, "a.jpg", shortcode=None, post_timestamp="2024-01-01T10:00:00Z"
+    )
+    _insert_media(
+        db, account_id, "b.jpg", shortcode=None, post_timestamp="2024-01-02T10:00:00Z"
+    )
+    _insert_media(
+        db, account_id, "c.jpg", shortcode="ABC", post_timestamp="2024-01-03T10:00:00Z"
+    )
 
     ts = get_null_post_timestamps(account_id, db)
     assert ts == {"2024-01-01T10:00:00Z", "2024-01-02T10:00:00Z"}
@@ -132,14 +160,18 @@ def test_get_null_post_timestamps_excludes_null_timestamp(tmp_path):
 
 # --- update_post_metadata ---
 
+
 def test_update_post_metadata_updates_rows_with_null_shortcode(tmp_path):
     db = tmp_path / "test.db"
     init_db(db)
     account_id = _insert_account(db, "alice", "111")
-    _insert_media(db, account_id, "a.jpg", shortcode=None, post_timestamp="2024-01-01T10:00:00Z")
+    _insert_media(
+        db, account_id, "a.jpg", shortcode=None, post_timestamp="2024-01-01T10:00:00Z"
+    )
 
     updated = update_post_metadata(
-        account_id, "2024-01-01T10:00:00Z",
+        account_id,
+        "2024-01-01T10:00:00Z",
         shortcode="SC123",
         post_type="image",
         caption="Hello",
@@ -168,10 +200,14 @@ def test_update_post_metadata_updates_carousel_images(tmp_path):
     _insert_media(db, account_id, "a_2.jpg", shortcode=None, post_timestamp=ts)
 
     updated = update_post_metadata(
-        account_id, ts,
+        account_id,
+        ts,
         shortcode="CAROUSEL1",
         post_type="carousel",
-        caption=None, like_count=None, comment_count=None, location=None,
+        caption=None,
+        like_count=None,
+        comment_count=None,
+        location=None,
         db_path=db,
     )
 
@@ -182,12 +218,23 @@ def test_update_post_metadata_does_not_overwrite_existing_shortcode(tmp_path):
     db = tmp_path / "test.db"
     init_db(db)
     account_id = _insert_account(db, "alice", "111")
-    _insert_media(db, account_id, "a.jpg", shortcode="EXISTING", post_timestamp="2024-01-01T10:00:00Z")
+    _insert_media(
+        db,
+        account_id,
+        "a.jpg",
+        shortcode="EXISTING",
+        post_timestamp="2024-01-01T10:00:00Z",
+    )
 
     updated = update_post_metadata(
-        account_id, "2024-01-01T10:00:00Z",
-        shortcode="NEW", post_type=None, caption=None,
-        like_count=None, comment_count=None, location=None,
+        account_id,
+        "2024-01-01T10:00:00Z",
+        shortcode="NEW",
+        post_type=None,
+        caption=None,
+        like_count=None,
+        comment_count=None,
+        location=None,
         db_path=db,
     )
 
@@ -199,6 +246,7 @@ def test_update_post_metadata_does_not_overwrite_existing_shortcode(tmp_path):
 
 
 # --- get_backfill_cursor / save_backfill_cursor ---
+
 
 def test_get_backfill_cursor_returns_none_when_no_progress(tmp_path):
     db = tmp_path / "test.db"
@@ -233,6 +281,7 @@ def test_save_backfill_cursor_overwrites_on_conflict(tmp_path):
 
 # --- _lognormal_delay ---
 
+
 @pytest.mark.parametrize("low,high", [(3, 8), (5, 15), (180, 480)])
 def test_lognormal_delay_stays_within_clamped_bounds(low, high):
     for _ in range(200):
@@ -251,5 +300,6 @@ def test_lognormal_delay_median_near_geometric_mean():
     samples = [_lognormal_delay(5, 15) for _ in range(500)]
     median = sorted(samples)[len(samples) // 2]
     geometric_mean = math.exp((math.log(5) + math.log(15)) / 2)  # ≈ 8.66
-    assert 4 < median < 15, f"median {median:.2f} unexpectedly far from {geometric_mean:.2f}"
-
+    assert 4 < median < 15, (
+        f"median {median:.2f} unexpectedly far from {geometric_mean:.2f}"
+    )

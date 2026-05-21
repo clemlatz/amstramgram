@@ -30,7 +30,8 @@ async def download_profile_pics_by_id(platform_user_ids: list[str], L) -> None:
         try:
             user_info = await asyncio.to_thread(
                 L.context.get_iphone_json,
-                f"api/v1/users/{platform_user_id}/info/", {},
+                f"api/v1/users/{platform_user_id}/info/",
+                {},
             )
             user = user_info["user"]
             profile_pic_url = user.get("profile_pic_url", "")
@@ -44,7 +45,9 @@ async def download_profile_pics_by_id(platform_user_ids: list[str], L) -> None:
             dest = STORAGE_BASE / platform_user_id
             dest.mkdir(parents=True, exist_ok=True)
             await asyncio.to_thread((dest / "profile.jpg").write_bytes, resp.content)
-            save_account_profile_pic(platform_user_id, f"{platform_user_id}/profile.jpg", DB_PATH)
+            save_account_profile_pic(
+                platform_user_id, f"{platform_user_id}/profile.jpg", DB_PATH
+            )
             logger.info("Downloaded profile pic for @%s", username)
         except Exception as exc:
             logger.error("profile_pic: failed for %s — %s", platform_user_id, exc)
@@ -68,7 +71,9 @@ async def _download_profile_pics_bg(candidates: list[dict], L) -> None:
             dest = STORAGE_BASE / platform_user_id
             dest.mkdir(parents=True, exist_ok=True)
             await asyncio.to_thread((dest / "profile.jpg").write_bytes, resp.content)
-            save_account_profile_pic(platform_user_id, f"{platform_user_id}/profile.jpg", DB_PATH)
+            save_account_profile_pic(
+                platform_user_id, f"{platform_user_id}/profile.jpg", DB_PATH
+            )
             logger.info("Downloaded profile pic for @%s", username)
         except Exception as exc:
             logger.error("profile_pic: failed for %s — %s", username, exc)
@@ -100,10 +105,14 @@ async def sync_following_route():
     if L is None:
         return JSONResponse({"detail": "No session configured"}, status_code=400)
     try:
-        added, candidates = await asyncio.to_thread(_fetch_and_upsert_following, L, DB_PATH)
+        added, candidates = await asyncio.to_thread(
+            _fetch_and_upsert_following, L, DB_PATH
+        )
     except Exception as exc:
         logger.exception("sync-following failed: %s", exc)
-        return JSONResponse({"detail": "Sync failed. Please try again."}, status_code=500)
+        return JSONResponse(
+            {"detail": "Sync failed. Please try again."}, status_code=500
+        )
     if candidates:
         task = asyncio.create_task(_download_profile_pics_bg(candidates, L))
         _bg_tasks.add(task)
@@ -113,7 +122,9 @@ async def sync_following_route():
 
 @router.get("/accounts/{username}/avatar")
 async def get_account_avatar_route(username: str):
-    profile_pic_path = await asyncio.to_thread(get_account_profile_pic_path, username, DB_PATH)
+    profile_pic_path = await asyncio.to_thread(
+        get_account_profile_pic_path, username, DB_PATH
+    )
     if not profile_pic_path:
         raise HTTPException(status_code=404, detail="Avatar not found")
     full_path = (STORAGE_BASE / profile_pic_path).resolve()
@@ -121,8 +132,11 @@ async def get_account_avatar_route(username: str):
         raise HTTPException(status_code=404, detail="Avatar not found")
     if not await asyncio.to_thread(full_path.exists):
         raise HTTPException(status_code=404, detail="Avatar not found")
-    return FileResponse(str(full_path), media_type="image/jpeg",
-                        headers={"Cache-Control": "public, max-age=86400"})
+    return FileResponse(
+        str(full_path),
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 class AccountPatch(BaseModel):
@@ -133,13 +147,17 @@ class AccountPatch(BaseModel):
 @router.patch("/accounts/{username}")
 async def patch_account_route(username: str, body: AccountPatch):
     if body.hidden is not None:
-        updated = await asyncio.to_thread(set_account_hidden, username, body.hidden, DB_PATH)
+        updated = await asyncio.to_thread(
+            set_account_hidden, username, body.hidden, DB_PATH
+        )
         if not updated:
             raise HTTPException(status_code=404, detail="Account not found")
         detail = await asyncio.to_thread(get_account_detail, username, DB_PATH)
         return JSONResponse({"active": detail["active"], "hidden": detail["hidden"]})
     if body.active is not None:
-        updated = await asyncio.to_thread(set_account_active, username, body.active, DB_PATH)
+        updated = await asyncio.to_thread(
+            set_account_active, username, body.active, DB_PATH
+        )
         if not updated:
             raise HTTPException(status_code=404, detail="Account not found")
         return JSONResponse({"active": body.active})
@@ -157,44 +175,57 @@ async def get_account_detail_route(username: str):
 @router.get("/accounts/{username}/posts")
 async def get_account_posts_route(username: str):
     posts = await asyncio.to_thread(get_account_posts, username, DB_PATH)
-    return JSONResponse({
-        "posts": [
-            {
-                "account": p["account"],
-                "account_active": p["account_active"],
-                "caption": p["caption"],
-                "post_timestamp": p["post_timestamp"],
-                "shortcode": p["shortcode"],
-                "archived_at": p["archived_at"],
-                "favorited_at": p["favorited_at"],
-                "media": [
-                    {"url": f"/api/media/{_encode(fp)}", "type": _media_type(ext), "width": w, "height": h}
-                    for fp, ext, w, h in p["media"]
-                ],
-            }
-            for p in posts
-        ]
-    })
+    return JSONResponse(
+        {
+            "posts": [
+                {
+                    "account": p["account"],
+                    "account_active": p["account_active"],
+                    "caption": p["caption"],
+                    "post_timestamp": p["post_timestamp"],
+                    "shortcode": p["shortcode"],
+                    "archived_at": p["archived_at"],
+                    "favorited_at": p["favorited_at"],
+                    "media": [
+                        {
+                            "url": f"/api/media/{_encode(fp)}",
+                            "type": _media_type(ext),
+                            "width": w,
+                            "height": h,
+                        }
+                        for fp, ext, w, h in p["media"]
+                    ],
+                }
+                for p in posts
+            ]
+        }
+    )
 
 
 def _fetch_and_upsert_following(L, db_path: Path) -> tuple[int, list[dict]]:
     logger.info("sync-following: fetching following list")
-    user_info = L.context.get_iphone_json("api/v1/accounts/current_user/", {"edit": "false"})
+    user_info = L.context.get_iphone_json(
+        "api/v1/accounts/current_user/", {"edit": "false"}
+    )
     user_id = user_info["user"]["pk"]
 
     accounts = []
     params: dict = {"count": 200}
     while True:
-        data = L.context.get_iphone_json(f"api/v1/friendships/{user_id}/following/", params)
+        data = L.context.get_iphone_json(
+            f"api/v1/friendships/{user_id}/following/", params
+        )
         for user in data.get("users", []):
-            accounts.append({
-                "username": user["username"],
-                "platform_user_id": str(user["pk"]),
-                "profile_pic_url": user.get("profile_pic_url", ""),
-                "bio": user.get("biography") or "",
-                "full_name": user.get("full_name") or "",
-                "external_url": user.get("external_url") or "",
-            })
+            accounts.append(
+                {
+                    "username": user["username"],
+                    "platform_user_id": str(user["pk"]),
+                    "profile_pic_url": user.get("profile_pic_url", ""),
+                    "bio": user.get("biography") or "",
+                    "full_name": user.get("full_name") or "",
+                    "external_url": user.get("external_url") or "",
+                }
+            )
         next_cursor = data.get("next_max_id")
         if not next_cursor:
             break

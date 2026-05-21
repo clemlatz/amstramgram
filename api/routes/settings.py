@@ -33,14 +33,16 @@ async def get_settings():
     session_id = get_setting("session_id", DB_PATH)
     user_agent = get_setting("user_agent", DB_PATH)
     status = get_scheduler_status()
-    return JSONResponse({
-        "username": username,
-        "session_id": session_id,
-        "user_agent": user_agent,
-        "scheduler_running": status["running"],
-        "cycle_running": status["cycle_running"],
-        "next_run_at": status["next_run_at"],
-    })
+    return JSONResponse(
+        {
+            "username": username,
+            "session_id": session_id,
+            "user_agent": user_agent,
+            "scheduler_running": status["running"],
+            "cycle_running": status["cycle_running"],
+            "next_run_at": status["next_run_at"],
+        }
+    )
 
 
 @router.post("/settings/session")
@@ -81,6 +83,7 @@ async def get_logs_endpoint():
 @router.post("/settings/sync-saved")
 async def sync_saved_posts_endpoint():
     from .accounts import download_profile_pics_by_id
+
     if _sync_saved_lock.locked():
         return JSONResponse({"detail": "Sync already in progress"}, status_code=409)
     L = get_loader()
@@ -88,10 +91,14 @@ async def sync_saved_posts_endpoint():
         return JSONResponse({"detail": "No session configured"}, status_code=400)
     async with _sync_saved_lock:
         try:
-            downloaded, new_ids = await asyncio.to_thread(sync_saved_posts, L, DB_PATH, STORAGE_BASE)
+            downloaded, new_ids = await asyncio.to_thread(
+                sync_saved_posts, L, DB_PATH, STORAGE_BASE
+            )
         except Exception as exc:
             logger.exception("sync-saved failed: %s", exc)
-            return JSONResponse({"detail": "Sync failed. Please try again."}, status_code=500)
+            return JSONResponse(
+                {"detail": "Sync failed. Please try again."}, status_code=500
+            )
     if new_ids:
         task = asyncio.create_task(download_profile_pics_by_id(new_ids, L))
         _bg_tasks.add(task)

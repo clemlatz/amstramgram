@@ -4,7 +4,12 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from api.db import init_db, set_setting, upsert_following_accounts, save_account_profile_pic
+from api.db import (
+    init_db,
+    set_setting,
+    upsert_following_accounts,
+    save_account_profile_pic,
+)
 from api.main import app
 
 
@@ -47,7 +52,10 @@ def test_post_session_returns_username_on_success(client):
 
 def test_post_session_returns_401_on_auth_failure(client):
     tc, _ = client
-    with patch("api.routes.settings.reload_session", side_effect=ValueError("Authentication failed")):
+    with patch(
+        "api.routes.settings.reload_session",
+        side_effect=ValueError("Authentication failed"),
+    ):
         resp = tc.post("/api/settings/session", json={"session_id": "badsid"})
     assert resp.status_code == 401
     assert resp.json()["detail"] == "Authentication failed"
@@ -55,7 +63,10 @@ def test_post_session_returns_401_on_auth_failure(client):
 
 def test_get_settings_includes_scheduler_fields(client):
     tc, _ = client
-    with patch("api.routes.settings.get_scheduler_status", return_value={"running": False, "next_run_at": None}):
+    with patch(
+        "api.routes.settings.get_scheduler_status",
+        return_value={"running": False, "next_run_at": None},
+    ):
         resp = tc.get("/api/settings")
     assert resp.status_code == 200
     data = resp.json()
@@ -65,7 +76,9 @@ def test_get_settings_includes_scheduler_fields(client):
 
 def test_post_scheduler_start_returns_running_true(client):
     tc, _ = client
-    with patch("api.routes.settings.start_scheduler", new_callable=AsyncMock) as mock_start:
+    with patch(
+        "api.routes.settings.start_scheduler", new_callable=AsyncMock
+    ) as mock_start:
         resp = tc.post("/api/settings/scheduler/start")
     assert resp.status_code == 200
     assert resp.json() == {"running": True}
@@ -74,7 +87,9 @@ def test_post_scheduler_start_returns_running_true(client):
 
 def test_post_scheduler_stop_returns_running_false(client):
     tc, _ = client
-    with patch("api.routes.settings.stop_scheduler", new_callable=AsyncMock) as mock_stop:
+    with patch(
+        "api.routes.settings.stop_scheduler", new_callable=AsyncMock
+    ) as mock_stop:
         resp = tc.post("/api/settings/scheduler/stop")
     assert resp.status_code == 200
     assert resp.json() == {"running": False}
@@ -110,7 +125,9 @@ def test_avatar_returns_404_when_pic_not_downloaded(avatar_client):
 def test_avatar_returns_404_when_file_missing_on_disk(avatar_client):
     tc, db, storage = avatar_client
     upsert_following_accounts([{"username": "alice", "platform_user_id": "123"}], db)
-    save_account_profile_pic("123", "123/profile.jpg", db)  # path stored but file never written
+    save_account_profile_pic(
+        "123", "123/profile.jpg", db
+    )  # path stored but file never written
     resp = tc.get("/api/accounts/alice/avatar")
     assert resp.status_code == 404
 
@@ -140,7 +157,9 @@ def account_client(tmp_path):
         yield TestClient(app), db, storage
 
 
-def _insert_account_media(db, account_id: int, shortcode: str, ts: str, filepath: str) -> None:
+def _insert_account_media(
+    db, account_id: int, shortcode: str, ts: str, filepath: str
+) -> None:
     conn = _sqlite3.connect(str(db))
     conn.execute(
         "INSERT INTO media (account_id, filename, filepath, extension, shortcode, post_timestamp)"
@@ -159,7 +178,9 @@ def test_get_account_detail_returns_404_for_unknown(account_client):
 
 def test_get_account_detail_returns_profile(account_client):
     tc, db, _ = account_client
-    upsert_following_accounts([{"username": "alice", "platform_user_id": "111", "bio": "Hi"}], db)
+    upsert_following_accounts(
+        [{"username": "alice", "platform_user_id": "111", "bio": "Hi"}], db
+    )
     resp = tc.get("/api/accounts/alice")
     assert resp.status_code == 200
     data = resp.json()
@@ -182,7 +203,9 @@ def test_get_account_posts_returns_posts(account_client):
     tc, db, _ = account_client
     upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
     conn = _sqlite3.connect(str(db))
-    account_id = conn.execute("SELECT id FROM accounts WHERE username='alice'").fetchone()[0]
+    account_id = conn.execute(
+        "SELECT id FROM accounts WHERE username='alice'"
+    ).fetchone()[0]
     conn.close()
     _insert_account_media(db, account_id, "sc1", "2024-01-01T00:00:00Z", "111/sc1.jpg")
     resp = tc.get("/api/accounts/alice/posts")
