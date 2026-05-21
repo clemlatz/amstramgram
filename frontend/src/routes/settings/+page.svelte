@@ -5,6 +5,9 @@
   let username = $state(data.username);
   let sessionId = $state(data.session_id ?? '');
   let total = $state(data.total ?? 0);
+  let images = $state(data.images ?? 0);
+  let videos = $state(data.videos ?? 0);
+  let unrated = $state(data.unrated ?? 0);
   let diskBytes = $state(data.diskBytes ?? 0);
 
   function formatBytes(bytes) {
@@ -170,8 +173,16 @@
 
   <div class="stats-row">
     <div class="stat">
-      <span class="stat-value">{total.toLocaleString('en')}</span>
-      <span class="stat-label">media</span>
+      <span class="stat-value">{images.toLocaleString('en')}</span>
+      <span class="stat-label">photos</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value">{videos.toLocaleString('en')}</span>
+      <span class="stat-label">videos</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value">{unrated.toLocaleString('en')}</span>
+      <span class="stat-label">unrated</span>
     </div>
     <div class="stat">
       <span class="stat-value">{formatBytes(diskBytes)}</span>

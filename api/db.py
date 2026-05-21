@@ -852,6 +852,16 @@ def get_stats(db_path: Path, storage_base: Path) -> dict:
             WHERE m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
             GROUP BY m.account_id ORDER BY count DESC
         """).fetchall()
+        counts = conn.execute("""
+            SELECT
+                COUNT(CASE WHEN m.extension IN ('jpg', 'jpeg', 'webp', 'png') THEN 1 END) AS images,
+                COUNT(CASE WHEN m.extension = 'mp4' THEN 1 END) AS videos,
+                COUNT(DISTINCT CASE WHEN m.shortcode IS NOT NULL AND r.shortcode IS NULL
+                                    THEN m.shortcode END) AS unrated
+            FROM media m
+            LEFT JOIN ratings r ON r.shortcode = m.shortcode
+            WHERE m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
+        """).fetchone()
     finally:
         conn.close()
 
@@ -871,7 +881,14 @@ def get_stats(db_path: Path, storage_base: Path) -> dict:
     except Exception:
         pass
 
-    return {"accounts": accounts, "total": total, "diskBytes": disk_bytes}
+    return {
+        "accounts": accounts,
+        "total": total,
+        "images": counts["images"],
+        "videos": counts["videos"],
+        "unrated": counts["unrated"],
+        "diskBytes": disk_bytes,
+    }
 
 
 # --- Backfill ---
