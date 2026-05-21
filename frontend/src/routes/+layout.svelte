@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { page, navigating } from '$app/stores';
+  import { audio } from '$lib/audio.svelte.js';
 
   let { children } = $props();
   let serverReachable = $state(true);
@@ -14,10 +15,18 @@
     }
   }
 
+  function handleVisibilityChange() {
+    if (document.hidden) audio.muted = true;
+  }
+
   onMount(() => {
     checkServer();
     window.addEventListener('online', checkServer);
-    return () => window.removeEventListener('online', checkServer);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('online', checkServer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   });
 </script>
 

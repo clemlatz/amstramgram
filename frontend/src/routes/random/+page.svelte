@@ -3,6 +3,7 @@
   import 'swiper/css/pagination';
   import Avatar from '$lib/Avatar.svelte';
   import { formatDate } from '$lib/media.js';
+  import { audio } from '$lib/audio.svelte.js';
 
   const MODE_KEY = 'random-mode';
   const cacheKey = (m) => `random_post_${m}`;
@@ -12,7 +13,6 @@
   let post = $state(data.post);
   let loading = $state(false);
   let visible = $state(true);
-  let muted = $state(true);
   let swiperEl = $state(null);
   let fetchError = $state(data.loadError ?? false);
   let mode = $state(
@@ -58,7 +58,7 @@
 
   function toggleMute(e) {
     e.stopPropagation();
-    muted = !muted;
+    audio.muted = !audio.muted;
   }
 
   function revealFirstFrame(e) {
@@ -135,7 +135,6 @@
       if (!res.ok) throw new Error();
       const { post: next } = await res.json();
       post = next;
-      muted = true;
       if (typeof sessionStorage !== 'undefined') {
         if (next) sessionStorage.setItem(cacheKey(mode), JSON.stringify(next));
         else sessionStorage.removeItem(cacheKey(mode));
@@ -157,7 +156,7 @@
 </script>
 
 {#snippet muteIcon()}
-  {#if muted}
+  {#if audio.muted}
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
       <line x1="23" y1="9" x2="17" y2="15"/>
@@ -200,8 +199,8 @@
                 <div class="swiper-slide">
                   {#if item.type === 'video'}
                     <div class="video-wrapper" style={item.width && item.height ? `aspect-ratio: ${item.width} / ${item.height}` : ''}>
-                      <video src={item.url} loop bind:muted={muted} playsinline autoplay preload="metadata" onloadedmetadata={revealFirstFrame} onclick={togglePlayPause}></video>
-                      <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
+                      <video src={item.url} loop bind:muted={audio.muted} playsinline autoplay preload="metadata" onloadedmetadata={revealFirstFrame} onclick={togglePlayPause}></video>
+                      <button class="mute-btn" onclick={toggleMute} aria-label={audio.muted ? 'Unmute' : 'Mute'}>
                         {@render muteIcon()}
                       </button>
                     </div>
@@ -227,8 +226,8 @@
           </div>
         {:else if post.media[0]?.type === 'video'}
           <div class="video-wrapper" style={post.media[0].width && post.media[0].height ? `aspect-ratio: ${post.media[0].width} / ${post.media[0].height}` : ''}>
-            <video class="post-video" src={post.media[0].url} loop bind:muted={muted} playsinline autoplay preload="metadata" onloadedmetadata={revealFirstFrame} onclick={togglePlayPause}></video>
-            <button class="mute-btn" onclick={toggleMute} aria-label={muted ? 'Unmute' : 'Mute'}>
+            <video class="post-video" src={post.media[0].url} loop bind:muted={audio.muted} playsinline autoplay preload="metadata" onloadedmetadata={revealFirstFrame} onclick={togglePlayPause}></video>
+            <button class="mute-btn" onclick={toggleMute} aria-label={audio.muted ? 'Unmute' : 'Mute'}>
               {@render muteIcon()}
             </button>
           </div>
