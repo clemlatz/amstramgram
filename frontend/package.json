@@ -4,14 +4,23 @@
     "test": "node --test db.test.mjs",
     "dev": "vite dev",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "swiper": "^12.1.4"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@sveltejs/adapter-static": "^3.0.0",
     "@sveltejs/kit": "^2.0.0",
+    "eslint": "^10.4.0",
+    "eslint-plugin-svelte": "^3.17.1",
+    "globals": "^17.6.0",
+    "prettier": "^3.8.3",
+    "prettier-plugin-svelte": "^3.5.2",
     "svelte": "^5.0.0",
     "vite": "^8.0.0",
     "vite-plugin-pwa": "^1.3.0"
