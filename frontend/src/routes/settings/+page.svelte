@@ -49,9 +49,12 @@
     }
   }
 
-  $effect(() => { fetchLogs(); });
+  $effect(() => {
+    fetchLogs();
+  });
 
-  const UA_PLACEHOLDER = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram/274.0.0.0';
+  const UA_PLACEHOLDER =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram/274.0.0.0';
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -136,7 +139,10 @@
       if (res.ok) {
         const json = await res.json();
         schedulerRunning = json.running;
-        if (!schedulerRunning) { nextRunAt = null; cycleRunning = false; }
+        if (!schedulerRunning) {
+          nextRunAt = null;
+          cycleRunning = false;
+        }
       } else {
         schedulerError = true;
       }
@@ -146,7 +152,6 @@
       schedulerLoading = false;
     }
   }
-
 </script>
 
 <div class="page">
@@ -156,7 +161,9 @@
 
   <div class="account-section">
     <span class="field-label">Account</span>
-    <span class="account-value {username ? '' : 'muted'}">{username ? '@' + username : 'Not connected'}</span>
+    <span class="account-value {username ? '' : 'muted'}"
+      >{username ? '@' + username : 'Not connected'}</span
+    >
   </div>
 
   <div class="divider"></div>
@@ -229,7 +236,14 @@
       <div class="scheduler-info">
         <span class="field-label">Scheduler</span>
         {#if schedulerRunning && !cycleRunning && nextRunAt && !isNaN(new Date(nextRunAt).getTime())}
-          <span class="label">Next cycle at {new Date(nextRunAt).toLocaleString('en', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+          <span class="label"
+            >Next cycle at {new Date(nextRunAt).toLocaleString('en', {
+              day: 'numeric',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}</span
+          >
         {:else}
           <span class="label">{schedulerRunning ? 'Running' : 'Stopped'}</span>
         {/if}
@@ -250,7 +264,11 @@
       <p class="error">{syncSavedError}</p>
     {/if}
     {#if syncSavedResult !== null}
-      <p class="saved">{syncSavedResult === 0 ? 'Already up to date.' : `${syncSavedResult} post${syncSavedResult === 1 ? '' : 's'} downloaded.`}</p>
+      <p class="saved">
+        {syncSavedResult === 0
+          ? 'Already up to date.'
+          : `${syncSavedResult} post${syncSavedResult === 1 ? '' : 's'} downloaded.`}
+      </p>
     {/if}
     <button class="btn" type="button" disabled={syncSavedLoading} onclick={syncSavedPosts}>
       {syncSavedLoading ? 'Syncing…' : 'Sync saved posts'}
@@ -262,7 +280,13 @@
   <div class="logs-section">
     <div class="logs-header">
       <span class="field-label">Logs</span>
-      <button class="btn-refresh" type="button" disabled={logsLoading} onclick={fetchLogs} aria-label="Refresh logs">
+      <button
+        class="btn-refresh"
+        type="button"
+        disabled={logsLoading}
+        onclick={fetchLogs}
+        aria-label="Refresh logs"
+      >
         ↻
       </button>
     </div>
@@ -270,13 +294,20 @@
       {#if logs.length === 0}
         <span class="logs-empty">{logsLoading ? 'Loading…' : 'No logs yet.'}</span>
       {:else}
-        {#each logs as entry}
-          <div class="log-entry {entry.includes('[ERROR]') ? 'log-error' : entry.includes('[WARN]') ? 'log-warn' : ''}">{entry}</div>
+        {#each logs as entry, i (i)}
+          <div
+            class="log-entry {entry.includes('[ERROR]')
+              ? 'log-error'
+              : entry.includes('[WARN]')
+                ? 'log-warn'
+                : ''}"
+          >
+            {entry}
+          </div>
         {/each}
       {/if}
     </div>
   </div>
-
 </div>
 
 <style>
@@ -522,5 +553,4 @@
   .log-entry.log-error {
     color: var(--color-error);
   }
-
 </style>

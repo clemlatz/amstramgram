@@ -105,7 +105,7 @@
 
     try {
       await Promise.all([
-        new Promise(r => setTimeout(r, 200)),
+        new Promise((r) => setTimeout(r, 200)),
         fetch('/api/rate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -157,15 +157,29 @@
 
 {#snippet muteIcon()}
   {#if audio.muted}
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-      <line x1="23" y1="9" x2="17" y2="15"/>
-      <line x1="17" y1="9" x2="23" y2="15"/>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+      <line x1="23" y1="9" x2="17" y2="15" />
+      <line x1="17" y1="9" x2="23" y2="15" />
     </svg>
   {:else}
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
     </svg>
   {/if}
 {/snippet}
@@ -188,24 +202,48 @@
           class:active={mode === 'favorites'}
           onclick={() => switchMode(mode === 'favorites' ? 'all' : 'favorites')}
           aria-label={mode === 'favorites' ? 'Switch to all posts' : 'Switch to favorites'}
-        >Favorites</button>
+          >Favorites</button
+        >
       </header>
 
       {#key post.shortcode}
         {#if isCarousel}
           <div class="swiper" bind:this={swiperEl}>
             <div class="swiper-wrapper">
-              {#each post.media as item}
+              {#each post.media as item (item.url)}
                 <div class="swiper-slide">
                   {#if item.type === 'video'}
-                    <div class="video-wrapper" style={item.width && item.height ? `aspect-ratio: ${item.width} / ${item.height}` : ''}>
-                      <video src={item.url} loop bind:muted={audio.muted} playsinline autoplay preload="metadata" onloadedmetadata={revealFirstFrame} onclick={togglePlayPause}></video>
-                      <button class="mute-btn" onclick={toggleMute} aria-label={audio.muted ? 'Unmute' : 'Mute'}>
+                    <div
+                      class="video-wrapper"
+                      style={item.width && item.height
+                        ? `aspect-ratio: ${item.width} / ${item.height}`
+                        : ''}
+                    >
+                      <video
+                        src={item.url}
+                        loop
+                        bind:muted={audio.muted}
+                        playsinline
+                        autoplay
+                        preload="metadata"
+                        onloadedmetadata={revealFirstFrame}
+                        onclick={togglePlayPause}
+                      ></video>
+                      <button
+                        class="mute-btn"
+                        onclick={toggleMute}
+                        aria-label={audio.muted ? 'Unmute' : 'Mute'}
+                      >
                         {@render muteIcon()}
                       </button>
                     </div>
                   {:else}
-                    <div class="media-placeholder" style={item.width && item.height ? `aspect-ratio: ${item.width} / ${item.height}` : ''}>
+                    <div
+                      class="media-placeholder"
+                      style={item.width && item.height
+                        ? `aspect-ratio: ${item.width} / ${item.height}`
+                        : ''}
+                    >
                       <img src={item.url} alt="" loading="lazy" />
                     </div>
                   {/if}
@@ -214,25 +252,63 @@
             </div>
             <div class="swiper-pagination"></div>
             <button class="nav-btn nav-prev" aria-label="Previous">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
                 <polyline points="15 18 9 12 15 6"></polyline>
               </svg>
             </button>
             <button class="nav-btn nav-next" aria-label="Next">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
                 <polyline points="9 18 15 12 9 6"></polyline>
               </svg>
             </button>
           </div>
         {:else if post.media[0]?.type === 'video'}
-          <div class="video-wrapper" style={post.media[0].width && post.media[0].height ? `aspect-ratio: ${post.media[0].width} / ${post.media[0].height}` : ''}>
-            <video class="post-video" src={post.media[0].url} loop bind:muted={audio.muted} playsinline autoplay preload="metadata" onloadedmetadata={revealFirstFrame} onclick={togglePlayPause}></video>
-            <button class="mute-btn" onclick={toggleMute} aria-label={audio.muted ? 'Unmute' : 'Mute'}>
+          <div
+            class="video-wrapper"
+            style={post.media[0].width && post.media[0].height
+              ? `aspect-ratio: ${post.media[0].width} / ${post.media[0].height}`
+              : ''}
+          >
+            <video
+              class="post-video"
+              src={post.media[0].url}
+              loop
+              bind:muted={audio.muted}
+              playsinline
+              autoplay
+              preload="metadata"
+              onloadedmetadata={revealFirstFrame}
+              onclick={togglePlayPause}
+            ></video>
+            <button
+              class="mute-btn"
+              onclick={toggleMute}
+              aria-label={audio.muted ? 'Unmute' : 'Mute'}
+            >
               {@render muteIcon()}
             </button>
           </div>
         {:else}
-          <div class="media-placeholder" style={post.media[0]?.width && post.media[0]?.height ? `aspect-ratio: ${post.media[0].width} / ${post.media[0].height}` : ''}>
+          <div
+            class="media-placeholder"
+            style={post.media[0]?.width && post.media[0]?.height
+              ? `aspect-ratio: ${post.media[0].width} / ${post.media[0].height}`
+              : ''}
+          >
             <img class="post-image" src={post.media[0]?.url} alt="" />
           </div>
         {/if}
@@ -242,29 +318,57 @@
     <div class="actions">
       {#if mode === 'favorites'}
         <button class="btn forget" disabled={loading} onclick={() => rate('archive')}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
           Forget
         </button>
         <button class="btn next" disabled={loading} onclick={skip}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="9 18 15 12 9 6"/>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="9 18 15 12 9 6" />
           </svg>
           Next
         </button>
       {:else}
         <button class="btn forget" disabled={loading} onclick={() => rate('archive')}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
           Forget
         </button>
         <button class="btn remember" disabled={loading} onclick={() => rate('favorite')}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+            />
           </svg>
           Remember
         </button>
@@ -274,9 +378,17 @@
 {:else if fetchError}
   <div class="empty">
     <svg class="empty-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/>
-      <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      <circle cx="12" cy="16" r="1" fill="currentColor"/>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75" />
+      <line
+        x1="12"
+        y1="8"
+        x2="12"
+        y2="12"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+      />
+      <circle cx="12" cy="16" r="1" fill="currentColor" />
     </svg>
     <p class="empty-title">Connection error</p>
     <p class="empty-sub">Couldn't load the next post.</p>
@@ -285,7 +397,13 @@
 {:else if mode === 'favorites'}
   <div class="empty">
     <svg class="empty-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      <path
+        d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
     </svg>
     <p class="empty-title">No favorites yet</p>
     <p class="empty-sub">Posts you remember will appear here.</p>
@@ -294,12 +412,12 @@
 {:else}
   <div class="empty">
     <svg class="empty-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.75"/>
-      <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
-      <circle cx="15.5" cy="8.5" r="1.5" fill="currentColor"/>
-      <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
-      <circle cx="8.5" cy="15.5" r="1.5" fill="currentColor"/>
-      <circle cx="15.5" cy="15.5" r="1.5" fill="currentColor"/>
+      <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.75" />
+      <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+      <circle cx="15.5" cy="8.5" r="1.5" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+      <circle cx="8.5" cy="15.5" r="1.5" fill="currentColor" />
+      <circle cx="15.5" cy="15.5" r="1.5" fill="currentColor" />
     </svg>
     <p class="empty-title">All caught up!</p>
     <p class="empty-sub">Come back later for new posts.</p>
@@ -334,7 +452,9 @@
     color: var(--color-text-muted);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    transition: color 0.15s, border-color 0.15s;
+    transition:
+      color 0.15s,
+      border-color 0.15s;
   }
 
   .mode-chip.active {
@@ -342,7 +462,9 @@
     border-color: var(--color-favorite);
   }
 
-  .next { background: var(--color-action-next, #5a6472); }
+  .next {
+    background: var(--color-action-next, #5a6472);
+  }
 
   .card {
     transition: opacity 0.2s ease;
@@ -511,8 +633,12 @@
     height: 14px;
   }
 
-  .nav-prev { left: 8px; }
-  .nav-next { right: 8px; }
+  .nav-prev {
+    left: 8px;
+  }
+  .nav-next {
+    right: 8px;
+  }
 
   @media (hover: hover) and (pointer: fine) {
     .swiper:hover .nav-btn:not(.swiper-button-disabled) {
@@ -541,7 +667,9 @@
     font-weight: 600;
     color: #fff;
     -webkit-tap-highlight-color: transparent;
-    transition: opacity 0.15s, transform 0.1s;
+    transition:
+      opacity 0.15s,
+      transform 0.1s;
   }
 
   .btn:active {
@@ -561,8 +689,12 @@
     flex-shrink: 0;
   }
 
-  .forget { background: var(--color-action-forget); }
-  .remember { background: var(--color-action-remember); }
+  .forget {
+    background: var(--color-action-forget);
+  }
+  .remember {
+    background: var(--color-action-remember);
+  }
 
   @media (hover: hover) and (pointer: fine) {
     .btn:not(:disabled):hover {

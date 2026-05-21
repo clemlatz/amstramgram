@@ -22,9 +22,7 @@
     const prevFavorited = favorited;
 
     const effectiveAction =
-      (action === 'archive' && archived) || (action === 'favorite' && favorited)
-        ? 'clear'
-        : action;
+      (action === 'archive' && archived) || (action === 'favorite' && favorited) ? 'clear' : action;
 
     if (effectiveAction === 'archive') {
       archived = true;
@@ -103,7 +101,9 @@
 
     const videos = isCarousel
       ? Array.from(swiperEl?.querySelectorAll('video') ?? [])
-      : videoEl ? [videoEl] : [];
+      : videoEl
+        ? [videoEl]
+        : [];
 
     if (videos.length > 0) {
       observer = new IntersectionObserver(
@@ -113,7 +113,7 @@
             entry.isIntersecting ? video.play().catch(() => {}) : video.pause();
           }
         },
-        { threshold: 1.0 },
+        { threshold: 1.0 }
       );
       for (const video of videos) observer.observe(video);
     }
@@ -144,51 +144,112 @@
       aria-pressed={favorited}
       onclick={() => rate('favorite')}
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path
+          d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+        />
       </svg>
     </button>
   </header>
 
-{#snippet playIcon()}
-  <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="32" cy="32" r="32" fill="rgba(15,10,8,0.62)"/>
-    <path d="M23,19 L47,32 L23,45 Z" fill="white" stroke="white" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
-  </svg>
-{/snippet}
+  {#snippet playIcon()}
+    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="32" cy="32" r="32" fill="rgba(15,10,8,0.62)" />
+      <path
+        d="M23,19 L47,32 L23,45 Z"
+        fill="white"
+        stroke="white"
+        stroke-width="4"
+        stroke-linejoin="round"
+        stroke-linecap="round"
+      />
+    </svg>
+  {/snippet}
 
-{#snippet muteIcon()}
-  {#if audio.muted}
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-      <line x1="23" y1="9" x2="17" y2="15"/>
-      <line x1="17" y1="9" x2="23" y2="15"/>
-    </svg>
-  {:else}
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-    </svg>
-  {/if}
-{/snippet}
+  {#snippet muteIcon()}
+    {#if audio.muted}
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+        <line x1="23" y1="9" x2="17" y2="15" />
+        <line x1="17" y1="9" x2="23" y2="15" />
+      </svg>
+    {:else}
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+      </svg>
+    {/if}
+  {/snippet}
 
   {#if isCarousel}
     <div class="swiper" bind:this={swiperEl}>
       <div class="swiper-wrapper">
-        {#each post.media as item, i}
+        {#each post.media as item, i (item.url)}
           <div class="swiper-slide">
             {#if item.type === 'video'}
-              <div class="video-wrapper" style={item.width && item.height ? `aspect-ratio: ${item.width} / ${item.height}` : ''}>
-                <video src={item.url} loop bind:muted={audio.muted} playsinline autoplay={false} preload="metadata" onloadedmetadata={revealFirstFrame} onclick={togglePlayPause} onplay={() => { videoPaused[i] = false }} onpause={() => { videoPaused[i] = true }}></video>
+              <div
+                class="video-wrapper"
+                style={item.width && item.height
+                  ? `aspect-ratio: ${item.width} / ${item.height}`
+                  : ''}
+              >
+                <video
+                  src={item.url}
+                  loop
+                  bind:muted={audio.muted}
+                  playsinline
+                  autoplay={false}
+                  preload="metadata"
+                  onloadedmetadata={revealFirstFrame}
+                  onclick={togglePlayPause}
+                  onplay={() => {
+                    videoPaused[i] = false;
+                  }}
+                  onpause={() => {
+                    videoPaused[i] = true;
+                  }}
+                ></video>
                 {#if videoPaused[i]}
-                  <div class="play-overlay" onclick={toggleVideoFromOverlay}>{@render playIcon()}</div>
+                  <div class="play-overlay" onclick={toggleVideoFromOverlay}>
+                    {@render playIcon()}
+                  </div>
                 {/if}
-                <button class="mute-btn" onclick={toggleMute} aria-label={audio.muted ? 'Unmute' : 'Mute'}>
+                <button
+                  class="mute-btn"
+                  onclick={toggleMute}
+                  aria-label={audio.muted ? 'Unmute' : 'Mute'}
+                >
                   {@render muteIcon()}
                 </button>
               </div>
             {:else}
-              <div class="media-placeholder" style={item.width && item.height ? `aspect-ratio: ${item.width} / ${item.height}` : ''}>
+              <div
+                class="media-placeholder"
+                style={item.width && item.height
+                  ? `aspect-ratio: ${item.width} / ${item.height}`
+                  : ''}
+              >
                 <img src={item.url} alt="" loading="lazy" />
               </div>
             {/if}
@@ -197,19 +258,51 @@
       </div>
       <div class="swiper-pagination"></div>
       <button class="nav-btn nav-prev" aria-label="Previous">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <polyline points="15 18 9 12 15 6"></polyline>
         </svg>
       </button>
       <button class="nav-btn nav-next" aria-label="Next">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <polyline points="9 18 15 12 9 6"></polyline>
         </svg>
       </button>
     </div>
   {:else if post.media[0]?.type === 'video'}
-    <div class="video-wrapper" style={post.media[0].width && post.media[0].height ? `aspect-ratio: ${post.media[0].width} / ${post.media[0].height}` : ''}>
-      <video class="post-video" bind:this={videoEl} src={post.media[0].url} loop bind:muted={audio.muted} playsinline autoplay={false} preload="metadata" onloadedmetadata={revealFirstFrame} onclick={togglePlayPause} onplay={() => paused = false} onpause={() => paused = true}></video>
+    <div
+      class="video-wrapper"
+      style={post.media[0].width && post.media[0].height
+        ? `aspect-ratio: ${post.media[0].width} / ${post.media[0].height}`
+        : ''}
+    >
+      <video
+        class="post-video"
+        bind:this={videoEl}
+        src={post.media[0].url}
+        loop
+        bind:muted={audio.muted}
+        playsinline
+        autoplay={false}
+        preload="metadata"
+        onloadedmetadata={revealFirstFrame}
+        onclick={togglePlayPause}
+        onplay={() => (paused = false)}
+        onpause={() => (paused = true)}
+      ></video>
       {#if paused}
         <div class="play-overlay" onclick={toggleVideoFromOverlay}>{@render playIcon()}</div>
       {/if}
@@ -218,7 +311,12 @@
       </button>
     </div>
   {:else}
-    <div class="media-placeholder" style={post.media[0]?.width && post.media[0]?.height ? `aspect-ratio: ${post.media[0].width} / ${post.media[0].height}` : ''}>
+    <div
+      class="media-placeholder"
+      style={post.media[0]?.width && post.media[0]?.height
+        ? `aspect-ratio: ${post.media[0].width} / ${post.media[0].height}`
+        : ''}
+    >
       <img class="post-image" src={post.media[0]?.url} alt="" loading="lazy" />
     </div>
   {/if}
@@ -262,7 +360,9 @@
     height: 20px;
     fill: none;
     stroke: var(--color-text-muted);
-    transition: fill 0.15s, stroke 0.15s;
+    transition:
+      fill 0.15s,
+      stroke 0.15s;
   }
   .header-fav-btn.active svg {
     fill: var(--color-favorite);
@@ -433,8 +533,12 @@
     width: 14px;
     height: 14px;
   }
-  .nav-prev { left: 8px; }
-  .nav-next { right: 8px; }
+  .nav-prev {
+    left: 8px;
+  }
+  .nav-next {
+    right: 8px;
+  }
   @media (hover: hover) and (pointer: fine) {
     .swiper:hover .nav-btn:not(.swiper-button-disabled) {
       display: flex;
@@ -463,7 +567,9 @@
     height: 22px;
     fill: none;
     stroke: var(--color-text-muted);
-    transition: fill 0.15s, stroke 0.15s;
+    transition:
+      fill 0.15s,
+      stroke 0.15s;
   }
   .action-btn.active svg {
     fill: var(--color-text);

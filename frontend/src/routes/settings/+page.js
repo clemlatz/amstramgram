@@ -1,5 +1,9 @@
 async function safeJson(res, fallback) {
-  try { return await res.json(); } catch { return fallback; }
+  try {
+    return await res.json();
+  } catch {
+    return fallback;
+  }
 }
 
 export async function load({ fetch }) {

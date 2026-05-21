@@ -57,7 +57,7 @@
   {:else}
     <div class="profile-header">
       <div class="profile-top">
-        <Avatar account={profile.username} active={active} size={80} />
+        <Avatar account={profile.username} {active} size={80} />
         <div class="profile-stats">
           <h1 class="profile-username">{profile.username}</h1>
           <p class="profile-counts">
@@ -68,7 +68,9 @@
           </p>
           {#if profile.favorited_count > 0}
             <p class="profile-fav">
-              {Math.round(profile.favorited_count / (profile.favorited_count + profile.archived_count) * 100)}% favorited
+              {Math.round(
+                (profile.favorited_count / (profile.favorited_count + profile.archived_count)) * 100
+              )}% favorited
             </p>
           {/if}
         </div>
@@ -104,18 +106,10 @@
         >
           View on Instagram ↗
         </a>
-        <button
-          class="profile-action-btn"
-          class:inactive={!active}
-          onclick={toggleActive}
-        >
+        <button class="profile-action-btn" class:inactive={!active} onclick={toggleActive}>
           {active ? 'Disable' : 'Enable'}
         </button>
-        <button
-          class="profile-action-btn"
-          class:hidden-btn={hidden}
-          onclick={toggleHidden}
-        >
+        <button class="profile-action-btn" class:hidden-btn={hidden} onclick={toggleHidden}>
           {hidden ? 'Show' : 'Hide'}
         </button>
       </div>
@@ -126,10 +120,12 @@
     {:else}
       <div class="grid">
         {#each posts as post (post.shortcode ?? post.post_timestamp)}
-          {@const thumb = post.media?.find(m => m.type === 'image') ?? post.media?.[0]}
+          {@const thumb = post.media?.find((m) => m.type === 'image') ?? post.media?.[0]}
           <a
             class="grid-cell"
-            href={post.shortcode && !post.shortcode.startsWith('syn_') ? `https://www.instagram.com/p/${post.shortcode}/` : undefined}
+            href={post.shortcode && !post.shortcode.startsWith('syn_')
+              ? `https://www.instagram.com/p/${post.shortcode}/`
+              : undefined}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -139,7 +135,9 @@
                 muted
                 playsinline
                 preload="metadata"
-                onloadedmetadata={(e) => { e.currentTarget.currentTime = 0.001; }}
+                onloadedmetadata={(e) => {
+                  e.currentTarget.currentTime = 0.001;
+                }}
               ></video>
             {:else}
               <img src={thumb?.url} alt="" loading="lazy" />
@@ -147,14 +145,14 @@
             {#if post.media?.length > 1}
               <span class="post-indicator" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="1" y="7" width="13" height="13" rx="2.5" fill="white"/>
-                  <rect x="5" y="3" width="13" height="13" rx="2.5" fill="white" opacity="0.7"/>
+                  <rect x="1" y="7" width="13" height="13" rx="2.5" fill="white" />
+                  <rect x="5" y="3" width="13" height="13" rx="2.5" fill="white" opacity="0.7" />
                 </svg>
               </span>
             {:else if post.media?.[0]?.type === 'video'}
               <span class="post-indicator" aria-hidden="true">
                 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M8 5.5L19 12 8 18.5V5.5Z" fill="white"/>
+                  <path d="M8 5.5L19 12 8 18.5V5.5Z" fill="white" />
                 </svg>
               </span>
             {/if}

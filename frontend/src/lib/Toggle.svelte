@@ -1,5 +1,11 @@
 <script>
-  let { checked = false, disabled = false, onchange = null, label = null, describedby = null } = $props();
+  let {
+    checked = false,
+    disabled = false,
+    onchange = null,
+    label = null,
+    describedby = null,
+  } = $props();
 </script>
 
 <label class="toggle">
@@ -9,7 +15,7 @@
     {disabled}
     aria-label={label}
     aria-describedby={describedby}
-    onchange={onchange}
+    {onchange}
   />
   <span class="track"></span>
 </label>

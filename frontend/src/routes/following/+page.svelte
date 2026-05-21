@@ -30,7 +30,11 @@
     <h1 class="title">Following</h1>
     <div class="sync">
       {#if syncResult !== null}
-        <span class="sync-label">{syncResult === 0 ? 'Already up to date' : `${syncResult} new account${syncResult === 1 ? '' : 's'} added`}</span>
+        <span class="sync-label"
+          >{syncResult === 0
+            ? 'Already up to date'
+            : `${syncResult} new account${syncResult === 1 ? '' : 's'} added`}</span
+        >
       {/if}
       {#if syncError}
         <span class="sync-label error">{syncError}</span>
@@ -45,7 +49,7 @@
     <p class="empty">No accounts yet.</p>
   {:else}
     <ul class="list">
-      {#each data.accounts as account}
+      {#each data.accounts as account (account.username)}
         <li class="row">
           <Avatar account={account.username} active={account.active} />
           <div class="info">
@@ -58,31 +62,53 @@
                 {@const rated = account.favorited_count + account.archived_count}
                 <span class="ratings">
                   ·
-                  {Math.round(account.favorited_count / rated * 100)} %
+                  {Math.round((account.favorited_count / rated) * 100)} %
                 </span>
               {/if}
             </span>
           </div>
           <div class="status-icons" aria-hidden="true">
-            <span class="status-icon" class:on={account.active} title={account.active ? 'Active' : 'Inactive'}>
+            <span
+              class="status-icon"
+              class:on={account.active}
+              title={account.active ? 'Active' : 'Inactive'}
+            >
               <!-- download arrow -->
               <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path fill-rule="evenodd" d="M10 3a1 1 0 0 1 1 1v7.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 1.414-1.414L9 11.586V4a1 1 0 0 1 1-1Z" clip-rule="evenodd" />
+                <path
+                  fill-rule="evenodd"
+                  d="M10 3a1 1 0 0 1 1 1v7.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 0 1 1.414-1.414L9 11.586V4a1 1 0 0 1 1-1Z"
+                  clip-rule="evenodd"
+                />
                 <path d="M3 16a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Z" />
               </svg>
             </span>
-            <span class="status-icon" class:on={!account.hidden} title={account.hidden ? 'Hidden' : 'Visible'}>
+            <span
+              class="status-icon"
+              class:on={!account.hidden}
+              title={account.hidden ? 'Hidden' : 'Visible'}
+            >
               {#if account.hidden}
                 <!-- eye-off -->
                 <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fill-rule="evenodd" d="M3.28 2.22a.75.75 0 0 0-1.06 1.06l14.5 14.5a.75.75 0 1 0 1.06-1.06l-1.745-1.745a10.029 10.029 0 0 0 3.3-4.38 1.651 1.651 0 0 0 0-1.185A10.004 10.004 0 0 0 9.999 3a9.956 9.956 0 0 0-4.744 1.194L3.28 2.22ZM7.752 6.69l1.092 1.092a2.5 2.5 0 0 1 3.374 3.373l1.091 1.092a4 4 0 0 0-5.557-5.557Z" clip-rule="evenodd" />
-                  <path d="M10.748 13.93l2.523 2.524a9.987 9.987 0 0 1-3.27.547c-4.258 0-7.894-2.66-9.337-6.41a1.651 1.651 0 0 1 0-1.186A10.007 10.007 0 0 1 2.839 6.02L6.07 9.252a4 4 0 0 0 4.678 4.678Z" />
+                  <path
+                    fill-rule="evenodd"
+                    d="M3.28 2.22a.75.75 0 0 0-1.06 1.06l14.5 14.5a.75.75 0 1 0 1.06-1.06l-1.745-1.745a10.029 10.029 0 0 0 3.3-4.38 1.651 1.651 0 0 0 0-1.185A10.004 10.004 0 0 0 9.999 3a9.956 9.956 0 0 0-4.744 1.194L3.28 2.22ZM7.752 6.69l1.092 1.092a2.5 2.5 0 0 1 3.374 3.373l1.091 1.092a4 4 0 0 0-5.557-5.557Z"
+                    clip-rule="evenodd"
+                  />
+                  <path
+                    d="M10.748 13.93l2.523 2.524a9.987 9.987 0 0 1-3.27.547c-4.258 0-7.894-2.66-9.337-6.41a1.651 1.651 0 0 1 0-1.186A10.007 10.007 0 0 1 2.839 6.02L6.07 9.252a4 4 0 0 0 4.678 4.678Z"
+                  />
                 </svg>
               {:else}
                 <!-- eye -->
                 <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                   <path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
-                  <path fill-rule="evenodd" d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41Z" clip-rule="evenodd" />
+                  <path
+                    fill-rule="evenodd"
+                    d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41Z"
+                    clip-rule="evenodd"
+                  />
                 </svg>
               {/if}
             </span>
@@ -248,5 +274,4 @@
     width: 20px;
     height: 20px;
   }
-
 </style>
