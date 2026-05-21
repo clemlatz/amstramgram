@@ -359,6 +359,7 @@ def get_random_neutral_post(db_path: Path) -> dict | None:
             LEFT JOIN ratings r ON r.shortcode = m.shortcode
             JOIN accounts a ON a.id = m.account_id
             WHERE r.shortcode IS NULL
+              AND m.shortcode IS NOT NULL
               AND m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
               AND a.hidden = 0
             GROUP BY a.id
