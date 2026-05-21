@@ -43,9 +43,8 @@ def sync_saved_posts(
     saved_shortcodes: list[str] = []
     new_platform_user_ids: list[str] = []
 
-    own_profile = instaloader.Profile.own_profile(L.context)
-
     try:
+        own_profile = instaloader.Profile.own_profile(L.context)
         for post in own_profile.get_saved_posts():
             shortcode = post.shortcode
             type_label = _TYPE_LABELS.get(post.typename, post.typename)

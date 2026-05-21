@@ -10,7 +10,7 @@ from ..db import delete_setting, get_setting, set_setting
 from ..loader import get_loader, reload_session
 from ..logs import get_logs
 from ..saved import sync_saved_posts
-from ..scheduler import get_scheduler_status, start_scheduler, stop_scheduler
+from ..scheduler import RateLimitException, get_scheduler_status, start_scheduler, stop_scheduler
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -94,6 +94,9 @@ async def sync_saved_posts_endpoint():
             downloaded, new_ids = await asyncio.to_thread(
                 sync_saved_posts, L, DB_PATH, STORAGE_BASE
             )
+        except RateLimitException as exc:
+            logger.warning("sync-saved: rate limited — %s", exc)
+            return JSONResponse({"detail": "Rate limited by Instagram. Please wait a few minutes."}, status_code=429)
         except Exception as exc:
             logger.exception("sync-saved failed: %s", exc)
             return JSONResponse(
