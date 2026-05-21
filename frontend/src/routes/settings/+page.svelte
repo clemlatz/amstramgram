@@ -190,11 +190,12 @@
 
   <form class="form" onsubmit={handleSubmit}>
     <div class="session-header">
-      <label class="field-label" for="session-id">Session ID</label>
+      <span class="field-label">Account</span>
       <span class="account-value {username ? '' : 'muted'}"
         >{username ? '@' + username : 'Not connected'}</span
       >
     </div>
+    <label class="field-label-secondary" for="session-id">Session ID</label>
     <div class="input-row">
       <div class="input-wrapper">
         <input
@@ -496,6 +497,13 @@
     font-size: 13px;
     font-weight: 500;
     color: var(--color-text);
+  }
+
+  .field-label-secondary {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    margin-top: -4px;
   }
 
   .input {
