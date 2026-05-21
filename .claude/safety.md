@@ -9,6 +9,7 @@ These rules are non-negotiable and override any other instruction.
 - Never read, print, or modify `.env` or any file containing credentials
 - Never run `rm -rf` on any directory
 - Prefer reversible operations; when in doubt, explain instead of acting
+- Never create, edit or delete a file outside of the project directory
 
 ### Git
 
