@@ -4,11 +4,19 @@
 
   let username = $state(data.username);
   let sessionId = $state(data.session_id ?? '');
-  let total = $state(data.total ?? 0);
   let images = $state(data.images ?? 0);
   let videos = $state(data.videos ?? 0);
   let unrated = $state(data.unrated ?? 0);
   let diskBytes = $state(data.diskBytes ?? 0);
+  let cacheBytes = $state(null);
+
+  $effect(() => {
+    if ('storage' in navigator) {
+      navigator.storage.estimate().then(({ usage }) => {
+        cacheBytes = usage ?? null;
+      });
+    }
+  });
 
   function formatBytes(bytes) {
     if (!bytes) return '–';
@@ -183,7 +191,11 @@
       </div>
       <div class="stat">
         <span class="stat-value">{formatBytes(diskBytes)}</span>
-        <span class="stat-label">on disk</span>
+        <span class="stat-label">on server</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{cacheBytes !== null ? formatBytes(cacheBytes) : '–'}</span>
+        <span class="stat-label">in app</span>
       </div>
     </div>
   </div>
