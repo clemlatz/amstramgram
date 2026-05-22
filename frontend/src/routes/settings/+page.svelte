@@ -194,7 +194,7 @@
         <span class="stat-label">on server</span>
       </div>
       <div class="stat">
-        <span class="stat-value">{cacheBytes !== null ? formatBytes(cacheBytes) : '–'}</span>
+        <span class="stat-value">{cacheBytes !== null ? (cacheBytes > 0 ? formatBytes(cacheBytes) : '0 B') : '–'}</span>
         <span class="stat-label">in app</span>
       </div>
     </div>

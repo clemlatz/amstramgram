@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
       sveltekit(),
       VitePWA({
         registerType: 'autoUpdate',
+        injectRegister: 'auto',
         manifest: false,
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,webmanifest}'],
@@ -18,7 +19,7 @@ export default defineConfig(({ mode }) => {
           navigateFallbackDenylist: [/^\/api\//],
           runtimeCaching: [
             {
-              urlPattern: /^\/api\/media\//,
+              urlPattern: /\/api\/media\//,
               handler: 'CacheFirst',
               options: {
                 cacheName: 'media-cache',
@@ -27,7 +28,7 @@ export default defineConfig(({ mode }) => {
                   maxAgeSeconds: 30 * 24 * 60 * 60,
                 },
                 cacheableResponse: {
-                  statuses: [0, 200],
+                  statuses: [0, 200, 206],
                 },
               },
             },
