@@ -25,9 +25,9 @@ def test_sends_message_when_configured():
         call_args = mock_urlopen.call_args
         url = call_args.args[0]
         data = call_args.kwargs["data"]
-        assert "test-token" in url
+        assert url == "https://api.telegram.org/bottest-token/sendMessage"
         assert b"chat_id=12345" in data
-        assert b"Scheduler+stopped" in data or b"Scheduler%20stopped" in data
+        assert b"Scheduler+stopped" in data
 
 
 def test_swallows_network_error():
