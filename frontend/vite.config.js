@@ -13,26 +13,11 @@ export default defineConfig(({ mode }) => {
         registerType: 'autoUpdate',
         injectRegister: 'auto',
         manifest: false,
-        workbox: {
+        strategies: 'injectManifest',
+        srcDir: 'src',
+        filename: 'sw.js',
+        injectManifest: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,webmanifest}'],
-          navigateFallback: '/index.html',
-          navigateFallbackDenylist: [/^\/api\//],
-          runtimeCaching: [
-            {
-              urlPattern: /\/api\/media\//,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'media-cache',
-                expiration: {
-                  maxEntries: 500,
-                  maxAgeSeconds: 30 * 24 * 60 * 60,
-                },
-                cacheableResponse: {
-                  statuses: [0, 200, 206],
-                },
-              },
-            },
-          ],
         },
       }),
     ],
