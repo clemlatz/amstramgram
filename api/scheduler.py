@@ -22,6 +22,7 @@ from .db import (
     set_setting,
 )
 from .loader import download_lock, get_loader, persist_session_cookies
+from .notifier import send_telegram_alert
 
 logger = logging.getLogger(__name__)
 
@@ -456,6 +457,9 @@ async def _scheduler_loop() -> None:
                     consecutive_rl,
                     exc,
                 )
+                send_telegram_alert(
+                    f"⚠️ Scheduler stopped: rate limited {consecutive_rl} times consecutively."
+                )
                 return
             next_delay = _backoff_delay(consecutive_rl)
             retry_at = datetime.now() + timedelta(seconds=next_delay)
@@ -473,6 +477,9 @@ async def _scheduler_loop() -> None:
             logger.critical(
                 "Session invalidated — scheduler stopped. Update session ID at /settings. (%s)",
                 exc,
+            )
+            send_telegram_alert(
+                f"⚠️ Scheduler stopped: session invalidated ({type(exc).__name__})."
             )
             return
         except instaloader.ConnectionException as exc:
@@ -492,6 +499,9 @@ async def _scheduler_loop() -> None:
                     "Too many consecutive errors (%d) — scheduler stopped: %s",
                     consecutive_rl,
                     exc,
+                )
+                send_telegram_alert(
+                    f"⚠️ Scheduler stopped: {consecutive_rl} consecutive errors — {exc}."
                 )
                 return
             next_delay = _backoff_delay(consecutive_rl)
