@@ -457,8 +457,9 @@ async def _scheduler_loop() -> None:
                     consecutive_rl,
                     exc,
                 )
-                send_telegram_alert(
-                    f"⚠️ Scheduler stopped: rate limited {consecutive_rl} times consecutively."
+                await asyncio.to_thread(
+                    send_telegram_alert,
+                    f"⚠️ Scheduler stopped: rate limited {consecutive_rl} times consecutively.",
                 )
                 return
             next_delay = _backoff_delay(consecutive_rl)
@@ -478,8 +479,9 @@ async def _scheduler_loop() -> None:
                 "Session invalidated — scheduler stopped. Update session ID at /settings. (%s)",
                 exc,
             )
-            send_telegram_alert(
-                f"⚠️ Scheduler stopped: session invalidated ({type(exc).__name__})."
+            await asyncio.to_thread(
+                send_telegram_alert,
+                f"⚠️ Scheduler stopped: session invalidated ({type(exc).__name__}).",
             )
             return
         except instaloader.ConnectionException as exc:
@@ -500,8 +502,9 @@ async def _scheduler_loop() -> None:
                     consecutive_rl,
                     exc,
                 )
-                send_telegram_alert(
-                    f"⚠️ Scheduler stopped: {consecutive_rl} consecutive errors — {exc}."
+                await asyncio.to_thread(
+                    send_telegram_alert,
+                    f"⚠️ Scheduler stopped: {consecutive_rl} consecutive errors — {str(exc)[:100]}.",
                 )
                 return
             next_delay = _backoff_delay(consecutive_rl)
