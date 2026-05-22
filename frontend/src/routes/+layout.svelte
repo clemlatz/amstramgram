@@ -5,7 +5,7 @@
   import { offline } from '$lib/offline.svelte.js';
 
   let { children } = $props();
-  let retryTimer = null;
+  let checkTimer = null;
 
   async function checkServer() {
     try {
@@ -15,10 +15,8 @@
       offline.value = true;
     }
 
-    clearTimeout(retryTimer);
-    if (offline.value) {
-      retryTimer = setTimeout(checkServer, 30_000);
-    }
+    clearTimeout(checkTimer);
+    checkTimer = setTimeout(checkServer, offline.value ? 10_000 : 15_000);
   }
 
   function handleVisibilityChange() {
@@ -28,15 +26,13 @@
   onMount(() => {
     checkServer();
     window.addEventListener('online', checkServer);
-    window.addEventListener('offline', () => {
-      offline.value = true;
-    });
+    window.addEventListener('offline', checkServer);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       window.removeEventListener('online', checkServer);
-      window.removeEventListener('offline', () => {});
+      window.removeEventListener('offline', checkServer);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      clearTimeout(retryTimer);
+      clearTimeout(checkTimer);
     };
   });
 </script>
@@ -75,7 +71,32 @@
 {/if}
 
 <div class="content">
-  {@render children()}
+  {#if offline.value && $page.url.pathname !== '/'}
+    <div class="offline-page">
+      <svg
+        class="offline-page-icon"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <line x1="1" y1="1" x2="23" y2="23" />
+        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+        <path d="M10.71 5.05A16 16 0 0 1 22.56 9" />
+        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+        <line x1="12" y1="20" x2="12.01" y2="20" />
+      </svg>
+      <p class="offline-page-title">Not available offline</p>
+      <p class="offline-page-sub">This page requires a connection.</p>
+    </div>
+  {:else}
+    {@render children()}
+  {/if}
 </div>
 
 <nav class="tab-bar" aria-label="Main navigation">
@@ -392,6 +413,40 @@
     width: 13px;
     height: 13px;
     flex-shrink: 0;
+  }
+
+  .offline-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-height: calc(100dvh - 49px - env(safe-area-inset-bottom, 0px));
+    padding: 32px;
+    text-align: center;
+  }
+
+  @media (min-width: 768px) {
+    .offline-page {
+      min-height: 100dvh;
+    }
+  }
+
+  .offline-page-icon {
+    width: 48px;
+    height: 48px;
+    color: var(--color-empty-icon);
+  }
+
+  .offline-page-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .offline-page-sub {
+    font-size: 14px;
+    color: var(--color-text-muted);
   }
 
   @keyframes pill-in {
