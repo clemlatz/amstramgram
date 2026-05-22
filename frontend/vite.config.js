@@ -16,7 +16,22 @@ export default defineConfig(({ mode }) => {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,webmanifest}'],
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/api\//],
-          runtimeCaching: [],
+          runtimeCaching: [
+            {
+              urlPattern: /^\/api\/media\//,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'media-cache',
+                expiration: {
+                  maxEntries: 500,
+                  maxAgeSeconds: 30 * 24 * 60 * 60,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+          ],
         },
       }),
     ],
