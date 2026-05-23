@@ -868,7 +868,9 @@ def get_stats(db_path: Path, storage_base: Path) -> dict:
                 COUNT(CASE WHEN m.extension IN ('jpg', 'jpeg', 'webp', 'png') THEN 1 END) AS images,
                 COUNT(CASE WHEN m.extension = 'mp4' THEN 1 END) AS videos,
                 COUNT(DISTINCT CASE WHEN m.shortcode IS NOT NULL AND r.shortcode IS NULL
-                                    THEN m.shortcode END) AS unrated
+                                    THEN m.shortcode END) AS unrated,
+                COUNT(DISTINCT CASE WHEN r.favorited_at IS NOT NULL
+                                    THEN m.shortcode END) AS favorites
             FROM media m
             LEFT JOIN ratings r ON r.shortcode = m.shortcode
             WHERE m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
@@ -898,6 +900,7 @@ def get_stats(db_path: Path, storage_base: Path) -> dict:
         "images": counts["images"],
         "videos": counts["videos"],
         "unrated": counts["unrated"],
+        "favorites": counts["favorites"],
         "diskBytes": disk_bytes,
     }
 

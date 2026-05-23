@@ -46,6 +46,30 @@
   let updateLoading = $state(false);
   let updateStatus = $state(null);
 
+  let favoritesTotal = $state(data.favorites ?? 0);
+  let favoritesCached = $state(null);
+
+  async function refreshCachedCount() {
+    if (!('caches' in window)) return;
+    try {
+      const [cache, res] = await Promise.all([
+        caches.open('media-cache'),
+        fetch('/api/favorites/media-urls'),
+      ]);
+      if (!res.ok) return;
+      const { urls } = await res.json();
+      const keys = await cache.keys();
+      const cachedPaths = new Set(keys.map((r) => new URL(r.url).pathname));
+      favoritesCached = urls.filter((url) => cachedPaths.has(url)).length;
+    } catch {
+      // silently ignore
+    }
+  }
+
+  $effect(() => {
+    refreshCachedCount();
+  });
+
   let caching = $state(false);
   let cacheTotal = $state(null);
   let cacheDone = $state(0);
@@ -104,6 +128,7 @@
 
     cacheDoneMsg = `Done — ${urls.length} file${urls.length === 1 ? '' : 's'} cached.`;
     caching = false;
+    await refreshCachedCount();
   }
 
   let logs = $state([]);
@@ -428,7 +453,13 @@
 
   <div class="offline-section">
     <span class="field-label">Offline favorites</span>
-    <span class="label">Download all favorites for offline use</span>
+    <span class="label">
+      {#if favoritesCached !== null}
+        {favoritesCached} / {favoritesTotal} cached
+      {:else}
+        {favoritesTotal} total
+      {/if}
+    </span>
     {#if cacheError}
       <p class="error">{cacheError}</p>
     {/if}
@@ -538,7 +569,8 @@
 
   .stats-row {
     display: flex;
-    gap: 32px;
+    gap: 12px 20px;
+    flex-wrap: wrap;
   }
 
   .stat {
@@ -553,6 +585,7 @@
     color: var(--color-text);
     letter-spacing: -0.5px;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
   .stat-label {
