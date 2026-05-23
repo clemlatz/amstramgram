@@ -162,23 +162,18 @@ def record_saved_seen(shortcode: str, db_path: Path) -> None:
 def upsert_account(
     username: str, platform_user_id: str, db_path: Path
 ) -> tuple[int, bool]:
-    """Insert account if not exists, ensure active=1. Returns (account_id, is_new)."""
+    """Insert account if not exists. Returns (account_id, is_new). Never changes active state."""
     conn = _conn(db_path)
     try:
         existing = conn.execute(
-            "SELECT id, active FROM accounts WHERE platform_user_id = ?",
+            "SELECT id FROM accounts WHERE platform_user_id = ?",
             (platform_user_id,),
         ).fetchone()
         if existing:
-            if not existing["active"]:
-                conn.execute(
-                    "UPDATE accounts SET active = 1 WHERE id = ?", (existing["id"],)
-                )
-                conn.commit()
             return existing["id"], False
         try:
             cur = conn.execute(
-                "INSERT INTO accounts (username, platform_user_id, active) VALUES (?, ?, 1)",
+                "INSERT INTO accounts (username, platform_user_id, active) VALUES (?, ?, 0)",
                 (username, platform_user_id),
             )
             conn.commit()
