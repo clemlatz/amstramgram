@@ -127,6 +127,7 @@
       const batch = urls.slice(i, i + BATCH);
       await Promise.allSettled(
         batch.map(async (url) => {
+          if (cache && (await cache.match(url))) return;
           const response = await fetch(url);
           if (cache && response.ok) {
             await cache.put(url, response);
