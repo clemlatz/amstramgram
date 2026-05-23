@@ -46,7 +46,6 @@
   let updateLoading = $state(false);
   let updateStatus = $state(null);
 
-  let favoritesTotal = $state(data.favorites ?? 0);
   let favoritesCached = $state(null);
   let mediaTotal = $state(null);
 
@@ -75,7 +74,6 @@
   let caching = $state(false);
   let cacheTotal = $state(null);
   let cacheDone = $state(0);
-  let cacheDoneMsg = $state(null);
   let cacheError = $state(null);
 
   async function checkForUpdates() {
@@ -99,7 +97,6 @@
     caching = true;
     cacheTotal = null;
     cacheDone = 0;
-    cacheDoneMsg = null;
     cacheError = null;
 
     let urls;
@@ -116,7 +113,6 @@
     }
 
     if (urls.length === 0) {
-      cacheDoneMsg = 'No favorites to cache.';
       caching = false;
       return;
     }
@@ -147,7 +143,6 @@
       // non-fatal: media files are cached, metadata caching failed
     }
 
-    cacheDoneMsg = `Done — ${urls.length} file${urls.length === 1 ? '' : 's'} cached.`;
     caching = false;
     await refreshCachedCount();
   }
@@ -475,27 +470,20 @@
   <div class="offline-section">
     <span class="field-label">Offline favorites</span>
     <span class="label">
-      {#if favoritesCached !== null && mediaTotal !== null}
+      {#if caching && cacheTotal !== null}
+        {cacheDone} / {cacheTotal} files cached
+      {:else if favoritesCached !== null && mediaTotal !== null}
         {favoritesCached} / {mediaTotal} files cached
-      {:else}
-        {favoritesTotal} favorites
       {/if}
     </span>
     {#if cacheError}
       <p class="error">{cacheError}</p>
     {/if}
-    {#if cacheDoneMsg}
-      <p class="saved">{cacheDoneMsg}</p>
-    {/if}
-    {#if caching || cacheDoneMsg}
+    {#if caching}
       <progress class="cache-progress" value={cacheDone} max={cacheTotal ?? 1}></progress>
     {/if}
     <button class="btn" type="button" disabled={caching} onclick={cacheAllFavorites}>
-      {caching
-        ? cacheTotal !== null
-          ? `Caching… ${cacheDone} / ${cacheTotal}`
-          : 'Loading…'
-        : 'Cache all'}
+      {caching ? 'Caching…' : 'Cache all'}
     </button>
   </div>
 
