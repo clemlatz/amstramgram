@@ -137,6 +137,16 @@
       cacheDone = Math.min(i + BATCH, urls.length);
     }
 
+    try {
+      const metaRes = await fetch('/api/favorites/posts');
+      if (metaRes.ok) {
+        const { posts } = await metaRes.json();
+        localStorage.setItem('offline-favorites-posts', JSON.stringify(posts));
+      }
+    } catch {
+      // non-fatal: media files are cached, metadata caching failed
+    }
+
     cacheDoneMsg = `Done — ${urls.length} file${urls.length === 1 ? '' : 's'} cached.`;
     caching = false;
     await refreshCachedCount();

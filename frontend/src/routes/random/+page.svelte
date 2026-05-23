@@ -45,7 +45,7 @@
             sessionStorage.removeItem(cacheKey('favorites'));
         }
       } else {
-        post = null;
+        loadNext();
       }
     });
   });
@@ -159,6 +159,36 @@
   }
 
   async function loadNext() {
+    if (offline.value && mode === 'favorites') {
+      try {
+        const stored =
+          typeof localStorage !== 'undefined'
+            ? localStorage.getItem('offline-favorites-posts')
+            : null;
+        if (stored) {
+          const posts = JSON.parse(stored);
+          if (posts.length > 0) {
+            const next = posts[Math.floor(Math.random() * posts.length)];
+            post = next;
+            if (typeof sessionStorage !== 'undefined') {
+              sessionStorage.setItem(cacheKey(mode), JSON.stringify(next));
+            }
+            fetchError = false;
+            visible = true;
+            loading = false;
+            return;
+          }
+        }
+      } catch {
+        // fall through to error state
+      }
+      post = null;
+      fetchError = true;
+      visible = true;
+      loading = false;
+      return;
+    }
+
     try {
       const endpoint = mode === 'favorites' ? '/api/random/favorites' : '/api/random';
       const res = await fetch(endpoint);
