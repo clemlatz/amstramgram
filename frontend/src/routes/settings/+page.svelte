@@ -43,6 +43,26 @@
   let syncSavedResult = $state(null);
   let syncSavedError = $state(null);
 
+  let updateLoading = $state(false);
+  let updateStatus = $state(null);
+
+  async function checkForUpdates() {
+    updateLoading = true;
+    updateStatus = null;
+    try {
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration) {
+          await registration.update();
+        }
+      }
+      window.location.reload();
+    } catch {
+      updateStatus = 'error';
+      updateLoading = false;
+    }
+  }
+
   let logs = $state([]);
   let logsLoading = $state(false);
 
@@ -194,7 +214,9 @@
         <span class="stat-label">on server</span>
       </div>
       <div class="stat">
-        <span class="stat-value">{cacheBytes !== null ? (cacheBytes > 0 ? formatBytes(cacheBytes) : '0 B') : '–'}</span>
+        <span class="stat-value"
+          >{cacheBytes !== null ? (cacheBytes > 0 ? formatBytes(cacheBytes) : '0 B') : '–'}</span
+        >
         <span class="stat-label">in app</span>
       </div>
     </div>
@@ -344,6 +366,18 @@
     {/if}
     <button class="btn" type="button" disabled={syncSavedLoading} onclick={syncSavedPosts}>
       {syncSavedLoading ? 'Syncing…' : 'Sync saved posts'}
+    </button>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="app-section">
+    <span class="field-label">App</span>
+    {#if updateStatus === 'error'}
+      <p class="error">Update failed. Please refresh manually.</p>
+    {/if}
+    <button class="btn" type="button" disabled={updateLoading} onclick={checkForUpdates}>
+      {updateLoading ? 'Updating…' : 'Check for updates'}
     </button>
   </div>
 
@@ -596,7 +630,8 @@
 
   .stats-section,
   .scheduler-section,
-  .sync-saved-section {
+  .sync-saved-section,
+  .app-section {
     display: flex;
     flex-direction: column;
     gap: 8px;

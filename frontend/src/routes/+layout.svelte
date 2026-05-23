@@ -23,6 +23,18 @@
     if (document.hidden) audio.muted = true;
   }
 
+  async function reloadApp() {
+    try {
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration) await registration.update();
+      }
+    } catch {
+      // ignore — reload regardless
+    }
+    window.location.reload();
+  }
+
   onMount(() => {
     checkServer();
     window.addEventListener('online', checkServer);
@@ -93,6 +105,7 @@
       </svg>
       <p class="offline-page-title">Not available offline</p>
       <p class="offline-page-sub">This page requires a connection.</p>
+      <button class="reload-btn" onclick={reloadApp}>Reload app</button>
     </div>
   {:else}
     {@render children()}
@@ -447,6 +460,24 @@
   .offline-page-sub {
     font-size: 14px;
     color: var(--color-text-muted);
+  }
+
+  .reload-btn {
+    margin-top: 4px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    color: var(--color-bg);
+    background: var(--color-text);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .reload-btn:active {
+    opacity: 0.7;
   }
 
   @keyframes pill-in {
