@@ -4,7 +4,12 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from ..config import DB_PATH
-from ..db import get_random_neutral_post, get_random_favorite_post, get_all_favorite_media_filepaths
+from ..db import (
+    get_random_neutral_post,
+    get_random_favorite_post,
+    get_all_favorite_media_filepaths,
+    get_all_favorite_posts,
+)
 from .feed import _encode, _media_type
 
 router = APIRouter()
@@ -56,6 +61,32 @@ async def get_random_favorites():
                     for fp, ext, w, h in post["media"]
                 ],
             }
+        }
+    )
+
+
+@router.get("/favorites/posts")
+async def get_favorites_posts():
+    posts = await asyncio.to_thread(get_all_favorite_posts, DB_PATH)
+    return JSONResponse(
+        {
+            "posts": [
+                {
+                    "account": p["account"],
+                    "post_timestamp": p["post_timestamp"],
+                    "shortcode": p["shortcode"],
+                    "media": [
+                        {
+                            "url": f"/api/media/{_encode(fp)}",
+                            "type": _media_type(ext),
+                            "width": w,
+                            "height": h,
+                        }
+                        for fp, ext, w, h in p["media"]
+                    ],
+                }
+                for p in posts
+            ]
         }
     )
 

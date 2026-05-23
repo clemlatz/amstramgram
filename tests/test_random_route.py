@@ -4,7 +4,12 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from api.db import get_all_favorite_media_filepaths, init_db, upsert_rating
+from api.db import (
+    get_all_favorite_media_filepaths,
+    get_all_favorite_posts,
+    init_db,
+    upsert_rating,
+)
 from api.main import app
 
 
@@ -138,3 +143,69 @@ def test_favorites_media_urls_returns_encoded_urls(client):
     assert len(data["urls"]) == 2
     for url in data["urls"]:
         assert url.startswith("/api/media/")
+
+
+def test_get_all_favorite_posts_returns_empty_when_no_favorites(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    assert get_all_favorite_posts(db) == []
+
+
+def test_get_all_favorite_posts_returns_favorited_posts(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    acc = _insert_account(db, "alice", "111")
+    _insert_media(db, acc, "111/img1.jpg", "jpg", "SC001", "2026-01-01T10:00:00Z")
+    _insert_media(db, acc, "111/img2.jpg", "jpg", "SC002", "2026-01-02T10:00:00Z")
+    upsert_rating("SC001", "favorite", db)
+    upsert_rating("SC002", "archive", db)
+
+    posts = get_all_favorite_posts(db)
+    assert len(posts) == 1
+    assert posts[0]["shortcode"] == "SC001"
+    assert posts[0]["account"] == "alice"
+    assert len(posts[0]["media"]) == 1
+
+
+def test_get_all_favorite_posts_groups_carousel_slides(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    acc = _insert_account(db, "alice", "111")
+    _insert_media(db, acc, "111/img1.jpg", "jpg", "SC001", "2026-01-01T10:00:00Z")
+    _insert_media(db, acc, "111/img2.jpg", "jpg", "SC001", "2026-01-01T10:00:00Z")
+    _insert_media(db, acc, "111/img3.jpg", "jpg", "SC002", "2026-01-02T10:00:00Z")
+    upsert_rating("SC001", "favorite", db)
+    upsert_rating("SC002", "favorite", db)
+
+    posts = get_all_favorite_posts(db)
+    sc001 = next(p for p in posts if p["shortcode"] == "SC001")
+    sc002 = next(p for p in posts if p["shortcode"] == "SC002")
+    assert len(sc001["media"]) == 2
+    assert len(sc002["media"]) == 1
+
+
+def test_favorites_posts_endpoint_returns_all_favorites(client):
+    tc, db = client
+    acc = _insert_account(db, "alice", "111")
+    _insert_media(db, acc, "111/img1.jpg", "jpg", "SC001", "2026-01-01T10:00:00Z")
+    _insert_media(db, acc, "111/img2.jpg", "jpg", "SC001", "2026-01-01T10:00:00Z")
+    _insert_media(db, acc, "111/img3.jpg", "jpg", "SC002", "2026-01-02T10:00:00Z")
+    upsert_rating("SC001", "favorite", db)
+    upsert_rating("SC002", "favorite", db)
+
+    res = tc.get("/api/favorites/posts")
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data["posts"]) == 2
+    sc001 = next(p for p in data["posts"] if p["shortcode"] == "SC001")
+    assert sc001["account"] == "alice"
+    assert len(sc001["media"]) == 2
+    assert sc001["media"][0]["url"].startswith("/api/media/")
+    assert sc001["media"][0]["type"] == "image"
+
+
+def test_favorites_posts_endpoint_returns_empty_when_no_favorites(client):
+    tc, _ = client
+    res = tc.get("/api/favorites/posts")
+    assert res.status_code == 200
+    assert res.json() == {"posts": []}
