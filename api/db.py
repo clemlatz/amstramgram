@@ -538,6 +538,22 @@ def get_random_favorite_post(db_path: Path) -> dict | None:
     }
 
 
+def get_all_favorite_media_filepaths(db_path: Path) -> list[str]:
+    conn = _conn(db_path, read_only=True)
+    try:
+        rows = conn.execute("""
+            SELECT m.filepath
+            FROM media m
+            JOIN ratings r ON r.shortcode = m.shortcode
+            WHERE r.favorited_at IS NOT NULL
+              AND m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
+            ORDER BY m.id ASC
+        """).fetchall()
+        return [r["filepath"] for r in rows]
+    finally:
+        conn.close()
+
+
 def get_recent_posts(db_path: Path) -> list[dict]:
     conn = _conn(db_path, read_only=True)
     try:

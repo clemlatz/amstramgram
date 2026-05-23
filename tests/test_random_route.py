@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from api.db import init_db, upsert_rating
+from api.db import get_all_favorite_media_filepaths, init_db, upsert_rating
 from api.main import app
 
 
@@ -74,3 +74,40 @@ def test_get_random_favorites_excludes_unrated_posts(client):
     res = tc.get("/api/random/favorites")
     assert res.status_code == 200
     assert res.json() == {"post": None}
+
+
+def test_get_all_favorite_media_filepaths_returns_favorited_only(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    acc = _insert_account(db, "alice", "111")
+    _insert_media(db, acc, "111/img1.jpg", "jpg", "SC001", "2026-01-01T10:00:00Z")
+    _insert_media(db, acc, "111/img2.jpg", "jpg", "SC002", "2026-01-02T10:00:00Z")
+    _insert_media(db, acc, "111/img3.jpg", "jpg", "SC003", "2026-01-03T10:00:00Z")
+    upsert_rating("SC001", "favorite", db)
+    upsert_rating("SC002", "archive", db)
+
+    paths = get_all_favorite_media_filepaths(db)
+    assert paths == ["111/img1.jpg"]
+
+
+def test_get_all_favorite_media_filepaths_includes_carousel(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    acc = _insert_account(db, "alice", "111")
+    _insert_media(db, acc, "111/img1.jpg", "jpg", "SC001", "2026-01-01T10:00:00Z")
+    _insert_media(db, acc, "111/img2.jpg", "jpg", "SC001", "2026-01-01T10:00:00Z")
+    upsert_rating("SC001", "favorite", db)
+
+    paths = get_all_favorite_media_filepaths(db)
+    assert sorted(paths) == ["111/img1.jpg", "111/img2.jpg"]
+
+
+def test_get_all_favorite_media_filepaths_excludes_unsupported_extensions(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    acc = _insert_account(db, "alice", "111")
+    _insert_media(db, acc, "111/doc.pdf", "pdf", "SC001", "2026-01-01T10:00:00Z")
+    upsert_rating("SC001", "favorite", db)
+
+    paths = get_all_favorite_media_filepaths(db)
+    assert paths == []
