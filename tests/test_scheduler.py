@@ -95,7 +95,7 @@ def test_fetch_new_posts_synced_accounts_get_unlimited_max_posts(tmp_path):
     ]
 
     with patch("api.scheduler._download_account_fast", return_value=0) as mock_dl:
-        with patch("time.sleep"):
+        with patch("api.scheduler._sleep"):
             _fetch_new_posts(MagicMock(), active_accounts, db)
 
     calls_by_username = {
@@ -129,7 +129,7 @@ def test_fetch_new_posts_calls_download_for_all_accounts(tmp_path):
     ]
 
     with patch("api.scheduler._download_account_fast", return_value=0) as mock_dl:
-        with patch("time.sleep"):
+        with patch("api.scheduler._sleep"):
             _fetch_new_posts(MagicMock(), active_accounts, db)
 
     called_usernames = {c.args[3] for c in mock_dl.call_args_list}
@@ -214,7 +214,7 @@ def test_fetch_old_posts_selects_max_3_accounts(tmp_path):
             with patch("api.scheduler.mark_account_synced"):
                 with patch("api.scheduler.index_account", return_value=0):
                     with patch("api.scheduler.STORAGE_BASE", tmp_path):
-                        with patch("time.sleep"):
+                        with patch("api.scheduler._sleep"):
                             L = MagicMock()
                             profile = MagicMock()
                             profile.get_posts.return_value = []

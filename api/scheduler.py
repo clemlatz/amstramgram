@@ -69,7 +69,7 @@ def _sleep(seconds: int, reason: str = "") -> None:
             else until.strftime("%m/%d %H:%M:%S")
         )
         logger.info("Waiting until %s%s", until_str, label)
-    time.sleep(seconds)
+    _stop_event.wait(timeout=seconds)
 
 
 class RateLimitException(Exception):
@@ -313,6 +313,8 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
                 continue
             profile = instaloader.Profile.from_iphone_struct(L.context, user_data)
             for post in profile.get_posts():
+                if _stop_event.is_set():
+                    return
                 if downloaded >= max_downloads:
                     break
                 if _post_has_video(post):
@@ -457,6 +459,7 @@ async def _scheduler_loop() -> None:
                     consecutive_rl,
                     exc,
                 )
+                set_setting("scheduler_enabled", "false", DB_PATH)
                 await asyncio.to_thread(
                     send_telegram_alert,
                     f"⚠️ Scheduler stopped: rate limited {consecutive_rl} times consecutively.",
@@ -479,6 +482,7 @@ async def _scheduler_loop() -> None:
                 "Session invalidated — scheduler stopped. Update session ID at /settings. (%s)",
                 exc,
             )
+            set_setting("scheduler_enabled", "false", DB_PATH)
             await asyncio.to_thread(
                 send_telegram_alert,
                 f"⚠️ Scheduler stopped: session invalidated ({type(exc).__name__}).",
@@ -502,6 +506,7 @@ async def _scheduler_loop() -> None:
                     consecutive_rl,
                     exc,
                 )
+                set_setting("scheduler_enabled", "false", DB_PATH)
                 await asyncio.to_thread(
                     send_telegram_alert,
                     f"⚠️ Scheduler stopped: {consecutive_rl} consecutive errors — {str(exc)[:100]}.",
