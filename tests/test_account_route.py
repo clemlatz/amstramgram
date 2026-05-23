@@ -65,7 +65,7 @@ def test_get_settings_includes_scheduler_fields(client):
     tc, _ = client
     with patch(
         "api.routes.settings.get_scheduler_status",
-        return_value={"running": False, "next_run_at": None},
+        return_value={"running": False, "cycle_running": False, "next_run_at": None},
     ):
         resp = tc.get("/api/settings")
     assert resp.status_code == 200
