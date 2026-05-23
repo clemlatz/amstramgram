@@ -46,6 +46,12 @@
   let updateLoading = $state(false);
   let updateStatus = $state(null);
 
+  let caching = $state(false);
+  let cacheTotal = $state(null);
+  let cacheDone = $state(0);
+  let cacheDoneMsg = $state(null);
+  let cacheError = $state(null);
+
   async function checkForUpdates() {
     updateLoading = true;
     updateStatus = null;
@@ -61,6 +67,43 @@
       updateStatus = 'error';
       updateLoading = false;
     }
+  }
+
+  async function cacheAllFavorites() {
+    caching = true;
+    cacheTotal = null;
+    cacheDone = 0;
+    cacheDoneMsg = null;
+    cacheError = null;
+
+    let urls;
+    try {
+      const res = await fetch('/api/favorites/media-urls');
+      if (!res.ok) throw new Error();
+      const json = await res.json();
+      urls = json.urls;
+      cacheTotal = json.total;
+    } catch {
+      cacheError = 'Could not load favorites list.';
+      caching = false;
+      return;
+    }
+
+    if (urls.length === 0) {
+      cacheDoneMsg = 'No favorites to cache.';
+      caching = false;
+      return;
+    }
+
+    const BATCH = 3;
+    for (let i = 0; i < urls.length; i += BATCH) {
+      const batch = urls.slice(i, i + BATCH);
+      await Promise.allSettled(batch.map((url) => fetch(url)));
+      cacheDone = Math.min(i + BATCH, urls.length);
+    }
+
+    cacheDoneMsg = `Done — ${urls.length} file${urls.length === 1 ? '' : 's'} cached.`;
+    caching = false;
   }
 
   let logs = $state([]);
@@ -378,6 +421,33 @@
     {/if}
     <button class="btn" type="button" disabled={updateLoading} onclick={checkForUpdates}>
       {updateLoading ? 'Updating…' : 'Check for updates'}
+    </button>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="offline-section">
+    <span class="field-label">Offline favorites</span>
+    <span class="label">Download all favorites for offline use</span>
+    {#if cacheError}
+      <p class="error">{cacheError}</p>
+    {/if}
+    {#if cacheDoneMsg}
+      <p class="saved">{cacheDoneMsg}</p>
+    {/if}
+    {#if caching || cacheDoneMsg}
+      <progress
+        class="cache-progress"
+        value={cacheDone}
+        max={cacheTotal ?? 1}
+      ></progress>
+    {/if}
+    <button class="btn" type="button" disabled={caching} onclick={cacheAllFavorites}>
+      {caching
+        ? cacheTotal !== null
+          ? `Caching… ${cacheDone} / ${cacheTotal}`
+          : 'Loading…'
+        : 'Cache all'}
     </button>
   </div>
 
@@ -711,5 +781,37 @@
 
   .log-entry.log-error {
     color: var(--color-error);
+  }
+
+  .offline-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .cache-progress {
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    appearance: none;
+    border: none;
+    background: var(--color-border);
+    overflow: hidden;
+  }
+
+  .cache-progress::-webkit-progress-bar {
+    background: var(--color-border);
+    border-radius: 2px;
+  }
+
+  .cache-progress::-webkit-progress-value {
+    background: var(--color-text);
+    border-radius: 2px;
+    transition: width 0.2s ease;
+  }
+
+  .cache-progress::-moz-progress-bar {
+    background: var(--color-text);
+    border-radius: 2px;
   }
 </style>
