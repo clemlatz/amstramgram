@@ -7,7 +7,6 @@ import {
 import { NavigationRoute, registerRoute } from 'workbox-routing';
 import { CacheFirst } from 'workbox-strategies';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
-import { ExpirationPlugin } from 'workbox-expiration';
 
 self.skipWaiting();
 clientsClaim();
@@ -23,10 +22,7 @@ registerRoute(
   /\/api\/media\//,
   new CacheFirst({
     cacheName: 'media-cache',
-    plugins: [
-      new ExpirationPlugin({ maxEntries: 500, maxAgeSeconds: 30 * 24 * 60 * 60 }),
-      new CacheableResponsePlugin({ statuses: [0, 200, 206] }),
-    ],
+    plugins: [new CacheableResponsePlugin({ statuses: [0, 200, 206] })],
   }),
   'GET'
 );
