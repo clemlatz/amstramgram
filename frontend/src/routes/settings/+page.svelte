@@ -48,6 +48,7 @@
 
   let favoritesTotal = $state(data.favorites ?? 0);
   let favoritesCached = $state(null);
+  let mediaTotal = $state(null);
 
   async function refreshCachedCount() {
     if (!('caches' in window)) return;
@@ -58,6 +59,7 @@
       ]);
       if (!res.ok) return;
       const { urls } = await res.json();
+      mediaTotal = urls.length;
       const keys = await cache.keys();
       const cachedPaths = new Set(keys.map((r) => new URL(r.url).pathname));
       favoritesCached = urls.filter((url) => cachedPaths.has(url)).length;
@@ -119,10 +121,18 @@
       return;
     }
 
+    const cache = 'caches' in window ? await caches.open('media-cache') : null;
     const BATCH = 3;
     for (let i = 0; i < urls.length; i += BATCH) {
       const batch = urls.slice(i, i + BATCH);
-      await Promise.allSettled(batch.map((url) => fetch(url)));
+      await Promise.allSettled(
+        batch.map(async (url) => {
+          const response = await fetch(url);
+          if (cache && response.ok) {
+            await cache.put(url, response);
+          }
+        })
+      );
       cacheDone = Math.min(i + BATCH, urls.length);
     }
 
@@ -454,10 +464,10 @@
   <div class="offline-section">
     <span class="field-label">Offline favorites</span>
     <span class="label">
-      {#if favoritesCached !== null}
-        {favoritesCached} / {favoritesTotal} cached
+      {#if favoritesCached !== null && mediaTotal !== null}
+        {favoritesCached} / {mediaTotal} files cached
       {:else}
-        {favoritesTotal} total
+        {favoritesTotal} favorites
       {/if}
     </span>
     {#if cacheError}
@@ -467,11 +477,7 @@
       <p class="saved">{cacheDoneMsg}</p>
     {/if}
     {#if caching || cacheDoneMsg}
-      <progress
-        class="cache-progress"
-        value={cacheDone}
-        max={cacheTotal ?? 1}
-      ></progress>
+      <progress class="cache-progress" value={cacheDone} max={cacheTotal ?? 1}></progress>
     {/if}
     <button class="btn" type="button" disabled={caching} onclick={cacheAllFavorites}>
       {caching
