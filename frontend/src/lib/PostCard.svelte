@@ -42,6 +42,11 @@
         body: JSON.stringify({ shortcode: post.shortcode, action: effectiveAction }),
       });
       if (!res.ok) throw new Error('rate failed');
+      if (effectiveAction === 'favorite') {
+        for (const item of post.media ?? []) {
+          if (item.url) fetch(item.url).catch(() => {});
+        }
+      }
     } catch {
       archived = prevArchived;
       favorited = prevFavorited;
