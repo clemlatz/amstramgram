@@ -47,21 +47,21 @@
   let updateStatus = $state(null);
 
   let favoritesCached = $state(null);
-  let mediaTotal = $state(null);
+  let postsTotal = $state(null);
 
   async function refreshCachedCount() {
     if (!('caches' in window)) return;
     try {
       const [cache, res] = await Promise.all([
         caches.open('media-cache'),
-        fetch('/api/favorites/media-urls'),
+        fetch('/api/favorites/posts'),
       ]);
       if (!res.ok) return;
-      const { urls } = await res.json();
-      mediaTotal = urls.length;
+      const { posts } = await res.json();
+      postsTotal = posts.length;
       const keys = await cache.keys();
       const cachedPaths = new Set(keys.map((r) => new URL(r.url).pathname));
-      favoritesCached = urls.filter((url) => cachedPaths.has(url)).length;
+      favoritesCached = posts.filter((p) => p.media.every((m) => cachedPaths.has(m.url))).length;
     } catch {
       // silently ignore
     }
@@ -99,48 +99,40 @@
     cacheDone = 0;
     cacheError = null;
 
-    let urls;
+    let posts;
     try {
-      const res = await fetch('/api/favorites/media-urls');
+      const res = await fetch('/api/favorites/posts');
       if (!res.ok) throw new Error();
-      const json = await res.json();
-      urls = json.urls;
-      cacheTotal = json.total;
+      const { posts: p } = await res.json();
+      posts = p;
+      cacheTotal = posts.length;
     } catch {
       cacheError = 'Could not load favorites list.';
       caching = false;
       return;
     }
 
-    if (urls.length === 0) {
+    if (posts.length === 0) {
       caching = false;
       return;
     }
 
+    localStorage.setItem('offline-favorites-posts', JSON.stringify(posts));
+
     const cache = 'caches' in window ? await caches.open('media-cache') : null;
     const BATCH = 3;
-    for (let i = 0; i < urls.length; i += BATCH) {
-      const batch = urls.slice(i, i + BATCH);
-      await Promise.allSettled(
-        batch.map(async (url) => {
-          if (cache && (await cache.match(url))) return;
-          const response = await fetch(url);
-          if (cache && response.ok) {
-            await cache.put(url, response);
-          }
-        })
-      );
-      cacheDone = Math.min(i + BATCH, urls.length);
-    }
-
-    try {
-      const metaRes = await fetch('/api/favorites/posts');
-      if (metaRes.ok) {
-        const { posts } = await metaRes.json();
-        localStorage.setItem('offline-favorites-posts', JSON.stringify(posts));
+    for (const post of posts) {
+      const mediaUrls = post.media.map((m) => m.url);
+      for (let i = 0; i < mediaUrls.length; i += BATCH) {
+        await Promise.allSettled(
+          mediaUrls.slice(i, i + BATCH).map(async (url) => {
+            if (cache && (await cache.match(url))) return;
+            const response = await fetch(url);
+            if (cache && response.ok) await cache.put(url, response);
+          })
+        );
       }
-    } catch {
-      // non-fatal: media files are cached, metadata caching failed
+      cacheDone++;
     }
 
     caching = false;
@@ -471,9 +463,9 @@
     <span class="field-label">Offline favorites</span>
     <span class="label">
       {#if caching && cacheTotal !== null}
-        {cacheDone} / {cacheTotal} files cached
-      {:else if favoritesCached !== null && mediaTotal !== null}
-        {favoritesCached} / {mediaTotal} files cached
+        {cacheDone} / {cacheTotal} posts
+      {:else if favoritesCached !== null && postsTotal !== null}
+        {favoritesCached} / {postsTotal} posts
       {/if}
     </span>
     {#if cacheError}
