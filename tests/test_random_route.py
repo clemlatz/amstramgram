@@ -111,3 +111,30 @@ def test_get_all_favorite_media_filepaths_excludes_unsupported_extensions(tmp_pa
 
     paths = get_all_favorite_media_filepaths(db)
     assert paths == []
+
+
+def test_favorites_media_urls_returns_empty_when_no_favorites(client):
+    tc, _ = client
+    res = tc.get("/api/favorites/media-urls")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["urls"] == []
+    assert data["total"] == 0
+
+
+def test_favorites_media_urls_returns_encoded_urls(client):
+    tc, db = client
+    acc = _insert_account(db, "alice", "111")
+    _insert_media(db, acc, "111/img1.jpg", "jpg", "SC001", "2026-01-01T10:00:00Z")
+    _insert_media(db, acc, "111/img2.jpg", "jpg", "SC001", "2026-01-01T10:00:00Z")
+    _insert_media(db, acc, "111/img3.jpg", "jpg", "SC002", "2026-01-02T10:00:00Z")
+    upsert_rating("SC001", "favorite", db)
+    # SC002 unrated
+
+    res = tc.get("/api/favorites/media-urls")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total"] == 2
+    assert len(data["urls"]) == 2
+    for url in data["urls"]:
+        assert url.startswith("/api/media/")

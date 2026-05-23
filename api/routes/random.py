@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from ..config import DB_PATH
-from ..db import get_random_neutral_post, get_random_favorite_post
+from ..db import get_random_neutral_post, get_random_favorite_post, get_all_favorite_media_filepaths
 from .feed import _encode, _media_type
 
 router = APIRouter()
@@ -58,3 +58,10 @@ async def get_random_favorites():
             }
         }
     )
+
+
+@router.get("/favorites/media-urls")
+async def get_favorites_media_urls():
+    filepaths = await asyncio.to_thread(get_all_favorite_media_filepaths, DB_PATH)
+    urls = [f"/api/media/{_encode(fp)}" for fp in filepaths]
+    return JSONResponse({"urls": urls, "total": len(urls)})
