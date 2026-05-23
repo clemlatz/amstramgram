@@ -83,7 +83,7 @@
 {/if}
 
 <div class="content">
-  {#if offline.value && $page.url.pathname !== '/'}
+  {#if offline.value && $page.url.pathname !== '/' && $page.url.pathname !== '/random'}
     <div class="offline-page">
       <svg
         class="offline-page-icon"

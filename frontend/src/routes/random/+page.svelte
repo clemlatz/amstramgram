@@ -1,9 +1,11 @@
 <script>
   import 'swiper/css';
   import 'swiper/css/pagination';
+  import { untrack } from 'svelte';
   import Avatar from '$lib/Avatar.svelte';
   import { formatDate } from '$lib/media.js';
   import { audio } from '$lib/audio.svelte.js';
+  import { offline } from '$lib/offline.svelte.js';
 
   const MODE_KEY = 'random-mode';
   const cacheKey = (m) => `random_post_${m}`;
@@ -20,6 +22,33 @@
   );
 
   const isCarousel = $derived(post?.media?.length > 1);
+
+  $effect(() => {
+    if (!offline.value) return;
+    untrack(() => {
+      if (mode === 'favorites') return;
+      if (post && typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(cacheKey(mode), JSON.stringify(post));
+      }
+      mode = 'favorites';
+      if (typeof localStorage !== 'undefined') localStorage.setItem(MODE_KEY, 'favorites');
+      const cached =
+        typeof sessionStorage !== 'undefined'
+          ? sessionStorage.getItem(cacheKey('favorites'))
+          : null;
+      if (cached) {
+        try {
+          post = JSON.parse(cached);
+          fetchError = false;
+        } catch {
+          if (typeof sessionStorage !== 'undefined')
+            sessionStorage.removeItem(cacheKey('favorites'));
+        }
+      } else {
+        post = null;
+      }
+    });
+  });
 
   $effect(() => {
     if (!swiperEl) return;
@@ -67,6 +96,7 @@
 
   async function switchMode(newMode) {
     if (newMode === mode) return;
+    if (offline.value && newMode !== 'favorites') return;
 
     if (post && typeof sessionStorage !== 'undefined') {
       sessionStorage.setItem(cacheKey(mode), JSON.stringify(post));
@@ -200,6 +230,7 @@
         <button
           class="mode-chip"
           class:active={mode === 'favorites'}
+          disabled={offline.value}
           onclick={() => switchMode(mode === 'favorites' ? 'all' : 'favorites')}
           aria-label={mode === 'favorites' ? 'Switch to all posts' : 'Switch to favorites'}
           >Favorites</button
@@ -317,7 +348,11 @@
 
     <div class="actions">
       {#if mode === 'favorites'}
-        <button class="btn forget" disabled={loading} onclick={() => rate('archive')}>
+        <button
+          class="btn forget"
+          disabled={loading || offline.value}
+          onclick={() => rate('archive')}
+        >
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -330,7 +365,7 @@
           </svg>
           Forget
         </button>
-        <button class="btn next" disabled={loading} onclick={skip}>
+        <button class="btn next" disabled={loading || offline.value} onclick={skip}>
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -344,7 +379,11 @@
           Next
         </button>
       {:else}
-        <button class="btn forget" disabled={loading} onclick={() => rate('archive')}>
+        <button
+          class="btn forget"
+          disabled={loading || offline.value}
+          onclick={() => rate('archive')}
+        >
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -357,7 +396,11 @@
           </svg>
           Forget
         </button>
-        <button class="btn remember" disabled={loading} onclick={() => rate('favorite')}>
+        <button
+          class="btn remember"
+          disabled={loading || offline.value}
+          onclick={() => rate('favorite')}
+        >
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -390,9 +433,14 @@
       />
       <circle cx="12" cy="16" r="1" fill="currentColor" />
     </svg>
-    <p class="empty-title">Connection error</p>
-    <p class="empty-sub">Couldn't load the next post.</p>
-    <button class="retry-btn" onclick={retryFetch}>Try again</button>
+    {#if offline.value}
+      <p class="empty-title">You're offline</p>
+      <p class="empty-sub">No cached favorites to show.</p>
+    {:else}
+      <p class="empty-title">Connection error</p>
+      <p class="empty-sub">Couldn't load the next post.</p>
+      <button class="retry-btn" onclick={retryFetch}>Try again</button>
+    {/if}
   </div>
 {:else if mode === 'favorites'}
   <div class="empty">
@@ -405,9 +453,14 @@
         stroke-linejoin="round"
       />
     </svg>
-    <p class="empty-title">No favorites yet</p>
-    <p class="empty-sub">Posts you remember will appear here.</p>
-    <button class="retry-btn" onclick={() => switchMode('all')}>Browse all posts</button>
+    {#if offline.value}
+      <p class="empty-title">You're offline</p>
+      <p class="empty-sub">No cached favorites to show.</p>
+    {:else}
+      <p class="empty-title">No favorites yet</p>
+      <p class="empty-sub">Posts you remember will appear here.</p>
+      <button class="retry-btn" onclick={() => switchMode('all')}>Browse all posts</button>
+    {/if}
   </div>
 {:else}
   <div class="empty">
