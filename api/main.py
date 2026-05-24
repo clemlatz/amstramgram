@@ -6,9 +6,9 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 
-from .config import DB_PATH, ENABLE_ACCESS_LOG
+from .config import DB_PATH, ENABLE_ACCESS_LOG, LOG_PATH
 from .db import get_setting, init_db
-from .logs import AppLogHandler
+from .logs import AppLogHandler, init_log_buffer
 from .routes import accounts, feed, media, random, rate, settings, stats
 from .scheduler import start_scheduler
 
@@ -30,6 +30,7 @@ _FRONTEND = Path("frontend/build")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db(DB_PATH)
+    init_log_buffer(LOG_PATH)
     if get_setting("scheduler_enabled", DB_PATH) == "true":
         await start_scheduler()
     yield
