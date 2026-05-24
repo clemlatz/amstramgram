@@ -1,5 +1,6 @@
 import asyncio
 import base64
+from typing import Literal
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
@@ -19,8 +20,8 @@ def _media_type(ext: str) -> str:
 
 
 @router.get("/feed")
-async def get_feed():
-    posts = await asyncio.to_thread(get_recent_posts, DB_PATH)
+async def get_feed(sort: Literal["post_timestamp", "downloaded_at"] = "post_timestamp"):
+    posts = await asyncio.to_thread(get_recent_posts, DB_PATH, sort)
     return JSONResponse(
         {
             "posts": [

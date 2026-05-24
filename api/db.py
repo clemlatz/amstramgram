@@ -588,18 +588,19 @@ def get_all_favorite_media_filepaths(db_path: Path) -> list[str]:
         conn.close()
 
 
-def get_recent_posts(db_path: Path) -> list[dict]:
+def get_recent_posts(db_path: Path, sort: str = "post_timestamp") -> list[dict]:
+    order_col = "m.downloaded_at" if sort == "downloaded_at" else "m.post_timestamp"
     conn = _conn(db_path, read_only=True)
     try:
-        rows = conn.execute("""
-            SELECT m.filepath, m.extension, m.post_timestamp, m.caption, m.shortcode,
+        rows = conn.execute(f"""
+            SELECT m.filepath, m.extension, m.post_timestamp, m.downloaded_at, m.caption, m.shortcode,
                    m.width, m.height, r.archived_at, r.favorited_at, a.username AS account, a.active AS account_active
             FROM media m
             JOIN accounts a ON a.id = m.account_id
             LEFT JOIN ratings r ON r.shortcode = m.shortcode
             WHERE m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
               AND a.hidden = 0
-            ORDER BY m.post_timestamp DESC, m.carousel_index ASC
+            ORDER BY {order_col} DESC, m.carousel_index ASC
         """).fetchall()
     finally:
         conn.close()
