@@ -124,10 +124,8 @@
           <a
             class="grid-cell"
             href={post.shortcode && !post.shortcode.startsWith('syn_')
-              ? `https://www.instagram.com/p/${post.shortcode}/`
+              ? `/accounts/${profile.username}/${post.shortcode}`
               : undefined}
-            target="_blank"
-            rel="noopener noreferrer"
           >
             {#if thumb?.type === 'video'}
               <video
