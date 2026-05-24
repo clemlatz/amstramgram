@@ -22,15 +22,22 @@ wait initial_delay (5–30 min, log-normal, at startup)
 
 On first startup, a random initial delay of **5–30 minutes** (log-normal) is applied before the first cycle. This avoids predictable startup patterns.
 
-After a successful cycle, the next run is scheduled **6–9 hours later** (log-normal). Combined with the 07:00–23:00 active window, this results in approximately **3 cycles per day**.
+If the scheduler is restarted and a `next_run_at` timestamp is stored in the database, the remaining delay is restored instead of generating a new random one. If the scheduled time has already passed, the next cycle starts after a short 60-second delay.
+
+After a successful cycle, the next run is scheduled **6–9 hours later** (log-normal) and persisted to the database as `next_run_at`. Combined with the 07:00–23:00 active window, this results in approximately **3 cycles per day**.
 
 ### Error handling in the loop
 
 | Error type | Behaviour |
 |---|---|
-| `RateLimitException` | Exponential backoff: `30min × 2^(n-1)`, capped at 3 hours. Counter resets on the next successful cycle. |
-| `LoginRequiredException` / `AbortDownloadException` | Session is invalidated. Scheduler stops permanently — `INSTAGRAM_SESSION_ID` must be refreshed. |
-| Any other exception | Retry after 30 minutes (flat). |
+| `RateLimitException` | Exponential backoff: `30min × 2^(n-1)`, capped at 3 hours. After **3 consecutive** rate-limit errors, scheduler stops permanently and sends a Telegram alert. Counter resets on the next successful cycle. |
+| `LoginRequiredException` / `AbortDownloadException` / `BadCredentialsException` / `TwoFactorAuthRequiredException` | Session is invalidated. Scheduler stops permanently — `INSTAGRAM_SESSION_ID` must be refreshed. Sends a Telegram alert. |
+| `ConnectionException` | Network error. Flat retry after **30 minutes**. |
+| Any other exception | Exponential backoff: `30min × 2^(n-1)`, capped at 3 hours. After **3 consecutive** unexpected errors, scheduler stops permanently and sends a Telegram alert. Counter resets on the next successful cycle. |
+
+### Telegram alerts
+
+When the scheduler stops permanently (rate limit exhausted, session invalidated, or too many consecutive errors), a Telegram alert is sent via `send_telegram_alert`.
 
 ## One cycle (`_run_cycle`)
 
@@ -74,12 +81,13 @@ A random subset of **15–30 accounts** is selected each cycle, shuffled, then s
 For each account, `_download_account_fast` is called:
 
 1. Fetches the profile via the Instagram iPhone API (`/api/v1/users/{id}/info/`).
-2. Iterates the profile's posts in reverse chronological order.
-3. **Fully synced accounts** (`fully_synced = 1`): stops as soon as `download_post` returns `False` (file already exists — the known frontier has been reached).
-4. **Unsynced accounts** (`fully_synced = 0`): fetches at most `_MAX_RECENT_UNSYNCED` (15) posts so their latest content appears in the feed quickly, while `fetch_old_posts` handles the full historical backfill.
-5. Indexes newly downloaded files (see [Indexing](#indexing)).
+2. Checks `friendship_status.following` — if the account is no longer followed, it is deactivated and skipped.
+3. Iterates the profile's posts in reverse chronological order. **Video posts are skipped** (`_post_has_video`).
+4. **Fully synced accounts** (`fully_synced = 1`): stops as soon as `download_post` returns `False` (file already exists — the known frontier has been reached).
+5. **Unsynced accounts** (`fully_synced = 0`): fetches at most `_MAX_RECENT_UNSYNCED` (15) posts so their latest content appears in the feed quickly, while `fetch_old_posts` handles the full historical backfill.
+6. Indexes newly downloaded files (see [Indexing](#indexing)).
 
-A **404 response** (account deleted or made private) deactivates the account (`active = 0`) and skips it.
+A **404 response** (account deleted or made private) deactivates the account (`active = 0`) and skips it. A `PrivateProfileNotFollowedException` also deactivates the account.
 
 ## `fetch_old_posts`
 
@@ -87,12 +95,12 @@ Targets accounts where `fully_synced = 0` (accounts that have never had a comple
 
 - Skipped entirely if the current time is **22:00 or later** (to avoid late-night load).
 - At most **3 accounts** are processed per cycle, chosen randomly from the full unsynced list.
-- Per account, at most **60–140 posts** are downloaded (random, log-normal between `_MIN_DOWNLOADS_PER_ACCOUNT` and `_MAX_DOWNLOADS_PER_ACCOUNT`).
+- Per account, at most **60–140 posts** are downloaded (random, log-normal between `_MIN_DOWNLOADS_PER_ACCOUNT` and `_MAX_DOWNLOADS_PER_ACCOUNT`). **Video posts are skipped.**
 - A **90–180 second** log-normal sleep is inserted between accounts.
 - When an account returns **0 new downloads** in a cycle, it is marked `fully_synced = 1` — historical backfill is complete.
 - Newly downloaded files are indexed after each account (see [Indexing](#indexing)).
 
-A **404 response** deactivates the account, same as `fetch_new_posts`.
+A **404 response** deactivates the account, same as `fetch_new_posts`. A `PrivateProfileNotFollowedException` also deactivates the account.
 
 ## Indexing
 
@@ -124,8 +132,9 @@ This is a no-op once all accounts have been migrated.
 | `_MAX_RECENT_UNSYNCED` | 15 | `fetch_new_posts` — max recent posts fetched per unsynced account |
 | `_MIN_ACCOUNTS_PER_CYCLE` | 15 | `fetch_new_posts` — min accounts selected per cycle |
 | `_MAX_ACCOUNTS_PER_CYCLE` | 30 | `fetch_new_posts` — max accounts selected per cycle |
-| `_RATE_LIMIT_BACKOFF_BASE` | 1800 s (30 min) | Rate-limit and unexpected-error retry base |
+| `_RATE_LIMIT_BACKOFF_BASE` | 1800 s (30 min) | Rate-limit and unexpected-error retry base; also used for `ConnectionException` |
 | `_RATE_LIMIT_BACKOFF_MAX` | 10800 s (3 h) | Cap on exponential rate-limit backoff |
+| `_RATE_LIMIT_MAX_RETRIES` | 3 | Max consecutive rate-limit or unexpected errors before the scheduler stops |
 | Initial startup delay | 5–30 min (log-normal) | First cycle cooldown at startup |
 | Inter-cycle delay | 6–9 h (log-normal) | Successful cycle cooldown (~3 cycles/day) |
 | `fetch_new_posts` intra-account delay | 2–5 s (log-normal) | Between each downloaded post |
