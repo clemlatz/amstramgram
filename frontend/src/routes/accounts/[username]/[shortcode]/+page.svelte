@@ -27,7 +27,7 @@
   const isCarousel = $derived((post?.media?.length ?? 0) > 1);
 
   $effect(() => {
-    const _ = post?.shortcode;
+    void post?.shortcode;
     rating = post?.favorited_at ? 'favorite' : post?.archived_at ? 'archive' : null;
   });
 
@@ -48,7 +48,9 @@
             prevEl: swiperEl.querySelector('.nav-prev'),
           },
         });
-      } catch {}
+      } catch {
+        // swiper unavailable
+      }
     })();
     return () => {
       destroyed = true;
@@ -81,7 +83,33 @@
         body: JSON.stringify({ shortcode: post.shortcode, action: effectiveAction }),
       });
       rating = effectiveAction === 'clear' ? null : action;
-    } catch {}
+
+      if (typeof localStorage !== 'undefined') {
+        const cacheKey = `cache_account_${username}_v1`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            const data = JSON.parse(cached);
+            if (Array.isArray(data?.posts)) {
+              const idx = data.posts.findIndex((p) => p.shortcode === post.shortcode);
+              if (idx !== -1) {
+                const now = new Date().toISOString();
+                data.posts[idx] = {
+                  ...data.posts[idx],
+                  favorited_at: effectiveAction === 'favorite' ? now : null,
+                  archived_at: effectiveAction === 'archive' ? now : null,
+                };
+                localStorage.setItem(cacheKey, JSON.stringify(data));
+              }
+            }
+          } catch {
+            // cache update failed, ignored
+          }
+        }
+      }
+    } catch {
+      // rating request failed
+    }
     ratingLoading = false;
   }
 </script>
