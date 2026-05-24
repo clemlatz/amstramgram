@@ -9,6 +9,8 @@
 
   const MODE_KEY = 'random-mode';
   const cacheKey = (m) => `random_post_${m}`;
+  const MODES = ['all', 'favorites', 'cached'];
+  const MODE_LABELS = { all: 'All', favorites: 'Favorites', cached: 'Cached' };
 
   let { data } = $props();
 
@@ -26,23 +28,20 @@
   $effect(() => {
     if (!offline.value) return;
     untrack(() => {
-      if (mode === 'favorites') return;
+      if (mode === 'cached') return;
       if (post && typeof sessionStorage !== 'undefined') {
         sessionStorage.setItem(cacheKey(mode), JSON.stringify(post));
       }
-      mode = 'favorites';
-      if (typeof localStorage !== 'undefined') localStorage.setItem(MODE_KEY, 'favorites');
+      mode = 'cached';
+      if (typeof localStorage !== 'undefined') localStorage.setItem(MODE_KEY, 'cached');
       const cached =
-        typeof sessionStorage !== 'undefined'
-          ? sessionStorage.getItem(cacheKey('favorites'))
-          : null;
+        typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(cacheKey('cached')) : null;
       if (cached) {
         try {
           post = JSON.parse(cached);
           fetchError = false;
         } catch {
-          if (typeof sessionStorage !== 'undefined')
-            sessionStorage.removeItem(cacheKey('favorites'));
+          if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(cacheKey('cached'));
         }
       } else {
         loadNext();
@@ -94,15 +93,14 @@
     e.currentTarget.currentTime = 0.001;
   }
 
-  async function switchMode(newMode) {
-    if (newMode === mode) return;
-    if (offline.value && newMode !== 'favorites') return;
+  async function switchMode() {
+    if (offline.value) return;
 
     if (post && typeof sessionStorage !== 'undefined') {
       sessionStorage.setItem(cacheKey(mode), JSON.stringify(post));
     }
 
-    mode = newMode;
+    mode = MODES[(MODES.indexOf(mode) + 1) % MODES.length];
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(MODE_KEY, mode);
     }
@@ -159,7 +157,7 @@
   }
 
   async function loadNext() {
-    if (offline.value && mode === 'favorites') {
+    if (mode === 'cached') {
       try {
         const stored =
           typeof localStorage !== 'undefined'
@@ -167,11 +165,18 @@
             : null;
         if (stored) {
           const posts = JSON.parse(stored);
-          if (posts.length > 0) {
-            const next = posts[Math.floor(Math.random() * posts.length)];
+          let available = posts;
+          if ('caches' in window) {
+            const cache = await caches.open('media-cache');
+            const keys = await cache.keys();
+            const cachedPaths = new Set(keys.map((r) => new URL(r.url).pathname));
+            available = posts.filter((p) => p.media.every((m) => cachedPaths.has(m.url)));
+          }
+          if (available.length > 0) {
+            const next = available[Math.floor(Math.random() * available.length)];
             post = next;
             if (typeof sessionStorage !== 'undefined') {
-              sessionStorage.setItem(cacheKey(mode), JSON.stringify(next));
+              sessionStorage.setItem(cacheKey('cached'), JSON.stringify(next));
             }
             fetchError = false;
             visible = true;
@@ -259,11 +264,11 @@
         </div>
         <button
           class="mode-chip"
-          class:active={mode === 'favorites'}
+          class:favorites={mode === 'favorites'}
+          class:cached={mode === 'cached'}
           disabled={offline.value}
-          onclick={() => switchMode(mode === 'favorites' ? 'all' : 'favorites')}
-          aria-label={mode === 'favorites' ? 'Switch to all posts' : 'Switch to favorites'}
-          >Favorites</button
+          onclick={switchMode}
+          aria-label="Switch mode">{MODE_LABELS[mode]}</button
         >
       </header>
 
@@ -377,7 +382,21 @@
     </article>
 
     <div class="actions">
-      {#if mode === 'favorites'}
+      {#if mode === 'cached'}
+        <button class="btn next" disabled={loading} onclick={skip}>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+          Next
+        </button>
+      {:else if mode === 'favorites'}
         <button
           class="btn forget"
           disabled={loading || offline.value}
@@ -465,11 +484,33 @@
     </svg>
     {#if offline.value}
       <p class="empty-title">You're offline</p>
-      <p class="empty-sub">No cached favorites to show.</p>
+      <p class="empty-sub">No cached posts available.</p>
     {:else}
       <p class="empty-title">Connection error</p>
       <p class="empty-sub">Couldn't load the next post.</p>
       <button class="retry-btn" onclick={retryFetch}>Try again</button>
+    {/if}
+  </div>
+{:else if mode === 'cached'}
+  <div class="empty">
+    <svg class="empty-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.75" />
+      <polyline
+        points="8 12 11 15 16 9"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        fill="none"
+      />
+    </svg>
+    {#if offline.value}
+      <p class="empty-title">You're offline</p>
+      <p class="empty-sub">No cached posts available.</p>
+    {:else}
+      <p class="empty-title">No cached posts</p>
+      <p class="empty-sub">Cache your favorites in Settings to browse offline.</p>
+      <a class="retry-btn" href="/settings">Go to Settings</a>
     {/if}
   </div>
 {:else if mode === 'favorites'}
@@ -483,14 +524,18 @@
         stroke-linejoin="round"
       />
     </svg>
-    {#if offline.value}
-      <p class="empty-title">You're offline</p>
-      <p class="empty-sub">No cached favorites to show.</p>
-    {:else}
-      <p class="empty-title">No favorites yet</p>
-      <p class="empty-sub">Posts you remember will appear here.</p>
-      <button class="retry-btn" onclick={() => switchMode('all')}>Browse all posts</button>
-    {/if}
+    <p class="empty-title">No favorites yet</p>
+    <p class="empty-sub">Posts you remember will appear here.</p>
+    <button
+      class="retry-btn"
+      onclick={async () => {
+        mode = 'all';
+        if (typeof localStorage !== 'undefined') localStorage.setItem(MODE_KEY, 'all');
+        post = null;
+        loading = true;
+        await loadNext();
+      }}>Browse all posts</button
+    >
   </div>
 {:else}
   <div class="empty">
@@ -540,9 +585,14 @@
       border-color 0.15s;
   }
 
-  .mode-chip.active {
+  .mode-chip.favorites {
     color: var(--color-favorite);
     border-color: var(--color-favorite);
+  }
+
+  .mode-chip.cached {
+    color: var(--color-cached, #3b82f6);
+    border-color: var(--color-cached, #3b82f6);
   }
 
   .next {
@@ -826,6 +876,11 @@
     cursor: pointer;
     transition: opacity 0.15s;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  a.retry-btn {
+    display: inline-block;
+    text-decoration: none;
   }
 
   .retry-btn:active {

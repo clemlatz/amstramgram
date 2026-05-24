@@ -1,8 +1,29 @@
 const MODE_KEY = 'random-mode';
 
+async function pickCachedPost() {
+  const stored =
+    typeof localStorage !== 'undefined' ? localStorage.getItem('offline-favorites-posts') : null;
+  if (!stored) return null;
+  let posts;
+  try {
+    posts = JSON.parse(stored);
+  } catch {
+    return null;
+  }
+  if (!posts.length) return null;
+  let available = posts;
+  if ('caches' in window) {
+    const cache = await caches.open('media-cache');
+    const keys = await cache.keys();
+    const cachedPaths = new Set(keys.map((r) => new URL(r.url).pathname));
+    available = posts.filter((p) => p.media.every((m) => cachedPaths.has(m.url)));
+  }
+  if (!available.length) return null;
+  return available[Math.floor(Math.random() * available.length)];
+}
+
 export async function load({ fetch }) {
   const mode = (typeof localStorage !== 'undefined' && localStorage.getItem(MODE_KEY)) || 'all';
-  const endpoint = mode === 'favorites' ? '/api/random/favorites' : '/api/random';
   const storageKey = `random_post_${mode}`;
 
   if (typeof sessionStorage !== 'undefined') {
@@ -16,7 +37,20 @@ export async function load({ fetch }) {
     }
   }
 
+  if (mode === 'cached') {
+    try {
+      const post = await pickCachedPost();
+      if (post && typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(storageKey, JSON.stringify(post));
+      }
+      return { post: post ?? null };
+    } catch {
+      return { post: null, loadError: true };
+    }
+  }
+
   try {
+    const endpoint = mode === 'favorites' ? '/api/random/favorites' : '/api/random';
     const res = await fetch(endpoint);
     if (!res.ok) return { post: null, loadError: true };
     const { post } = await res.json();
