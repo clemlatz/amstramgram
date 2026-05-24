@@ -94,6 +94,11 @@ def _is_not_found(exc: Exception) -> bool:
     return "404" in str(exc)
 
 
+def _is_stale_graphql_query(exc: Exception) -> bool:
+    msg = str(exc)
+    return "invalid request" in msg.lower() and "graphql/query" in msg
+
+
 def _fmt_download_summary(type_counts: dict[str, int]) -> str:
     parts = []
     for key in ("image", "carousel", "video", "media"):
@@ -202,6 +207,12 @@ def _download_account_fast(
     except (instaloader.LoginRequiredException, instaloader.AbortDownloadException):
         raise
     except instaloader.QueryReturnedBadRequestException as exc:
+        if _is_stale_graphql_query(exc):
+            logger.error(
+                "%s: Instaloader GraphQL query outdated — run: pip install --upgrade instaloader",
+                username,
+            )
+            return fetched
         logger.warning("%s: rate-limit via %s — %s", username, type(exc).__name__, exc)
         raise RateLimitException(str(exc)) from exc
     except instaloader.PrivateProfileNotFollowedException:
@@ -331,6 +342,12 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
         except (instaloader.LoginRequiredException, instaloader.AbortDownloadException):
             raise
         except instaloader.QueryReturnedBadRequestException as exc:
+            if _is_stale_graphql_query(exc):
+                logger.error(
+                    "%s: Instaloader GraphQL query outdated — run: pip install --upgrade instaloader",
+                    username,
+                )
+                continue
             logger.warning("%s: rate-limit via %s — %s", username, type(exc).__name__, exc)
             raise RateLimitException(str(exc)) from exc
         except instaloader.PrivateProfileNotFollowedException:
