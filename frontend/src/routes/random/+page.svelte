@@ -596,7 +596,9 @@
   }
 
   .next {
-    background: var(--color-action-next, #5a6472);
+    border: 1.5px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text);
   }
 
   .card {
@@ -790,15 +792,14 @@
     flex: 1;
     height: 56px;
     border-radius: 12px;
-    border: none;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
-    color: #fff;
+    font-family: inherit;
     -webkit-tap-highlight-color: transparent;
     transition:
       opacity 0.15s,
@@ -811,22 +812,27 @@
   }
 
   .btn:disabled {
-    opacity: 0.6;
+    opacity: 0.4;
     cursor: default;
     transform: none;
   }
 
   .btn svg {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     flex-shrink: 0;
   }
 
   .forget {
-    background: var(--color-action-forget);
+    border: 1.5px solid var(--color-action-forget);
+    background: transparent;
+    color: var(--color-action-forget);
   }
+
   .remember {
-    background: var(--color-action-remember);
+    border: 1.5px solid var(--color-action-remember);
+    background: transparent;
+    color: var(--color-action-remember);
   }
 
   @media (hover: hover) and (pointer: fine) {
