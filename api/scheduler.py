@@ -493,10 +493,11 @@ async def _scheduler_loop() -> None:
             except Exception:
                 pass
             logger.warning(
-                "Rate limited (attempt %d/%d) — retry in %s",
+                "Rate limited (attempt %d/%d) — retry in %s (next at %s)",
                 consecutive_rl,
                 _RATE_LIMIT_MAX_RETRIES - 1,
                 _fmt_delay(next_delay),
+                retry_at.strftime("%H:%M"),
             )
         except _SESSION_INVALIDATED_EXCEPTIONS as exc:
             logger.critical(
