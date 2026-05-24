@@ -99,6 +99,14 @@ def _is_stale_graphql_query(exc: Exception) -> bool:
     return "invalid request" in msg.lower() and "graphql/query" in msg
 
 
+def _is_logged_out(exc: Exception) -> bool:
+    return "user_has_logged_out" in str(exc)
+
+
+class SessionExpiredException(Exception):
+    pass
+
+
 def _fmt_download_summary(type_counts: dict[str, int]) -> str:
     parts = []
     for key in ("image", "carousel", "video", "media"):
@@ -220,6 +228,8 @@ def _download_account_fast(
         deactivate_account(account_id, db_path)
         return fetched
     except Exception as exc:
+        if _is_logged_out(exc):
+            raise SessionExpiredException(str(exc)) from exc
         if _is_rate_limited(exc):
             logger.warning("%s: rate-limit via %s — %s", username, type(exc).__name__, exc)
             raise RateLimitException(str(exc)) from exc
@@ -355,6 +365,8 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
             deactivate_account(account_id, db_path)
             continue
         except Exception as exc:
+            if _is_logged_out(exc):
+                raise SessionExpiredException(str(exc)) from exc
             if _is_rate_limited(exc):
                 logger.warning("%s: rate-limit via %s — %s", username, type(exc).__name__, exc)
                 raise RateLimitException(str(exc)) from exc
@@ -388,6 +400,7 @@ _SESSION_INVALIDATED_EXCEPTIONS = (
     instaloader.AbortDownloadException,
     instaloader.BadCredentialsException,
     instaloader.TwoFactorAuthRequiredException,
+    SessionExpiredException,
 )
 
 
