@@ -202,6 +202,7 @@ def _download_account_fast(
     except (instaloader.LoginRequiredException, instaloader.AbortDownloadException):
         raise
     except instaloader.QueryReturnedBadRequestException as exc:
+        logger.warning("%s: rate-limit via %s — %s", username, type(exc).__name__, exc)
         raise RateLimitException(str(exc)) from exc
     except instaloader.PrivateProfileNotFollowedException:
         logger.warning("%s: private profile, not followed — deactivating", username)
@@ -209,6 +210,7 @@ def _download_account_fast(
         return fetched
     except Exception as exc:
         if _is_rate_limited(exc):
+            logger.warning("%s: rate-limit via %s — %s", username, type(exc).__name__, exc)
             raise RateLimitException(str(exc)) from exc
         if _is_not_found(exc):
             logger.warning("%s: account not found (404) — deactivating", username)
@@ -329,6 +331,7 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
         except (instaloader.LoginRequiredException, instaloader.AbortDownloadException):
             raise
         except instaloader.QueryReturnedBadRequestException as exc:
+            logger.warning("%s: rate-limit via %s — %s", username, type(exc).__name__, exc)
             raise RateLimitException(str(exc)) from exc
         except instaloader.PrivateProfileNotFollowedException:
             logger.warning("%s: private profile, not followed — deactivating", username)
@@ -336,6 +339,7 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
             continue
         except Exception as exc:
             if _is_rate_limited(exc):
+                logger.warning("%s: rate-limit via %s — %s", username, type(exc).__name__, exc)
                 raise RateLimitException(str(exc)) from exc
             if _is_not_found(exc):
                 logger.warning("%s: account not found (404) — deactivating", username)
