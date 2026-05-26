@@ -229,7 +229,7 @@
       const res = await fetch('/api/settings/sync-saved', { method: 'POST' });
       if (res.ok) {
         const json = await res.json();
-        syncSavedResult = json.downloaded;
+        syncSavedResult = json.synced;
       } else {
         syncSavedError = 'Sync failed. Please try again.';
       }
@@ -386,7 +386,7 @@
         <p class="error">{uaError}</p>
       {/if}
       {#if uaSaved}
-        <p class="saved">Saved — applies on next download cycle.</p>
+        <p class="saved">Saved — applies on next sync cycle.</p>
       {/if}
       <div class="btn-row">
         <button class="btn" type="submit" disabled={uaLoading || !userAgent.trim()}>
@@ -429,7 +429,7 @@
 
   <div class="sync-saved-section">
     <span class="field-label">Saved posts</span>
-    <span class="label">Download posts you saved on Instagram</span>
+    <span class="label">Sync posts you saved on Instagram</span>
     {#if syncSavedError}
       <p class="error">{syncSavedError}</p>
     {/if}
@@ -437,7 +437,7 @@
       <p class="saved">
         {syncSavedResult === 0
           ? 'Already up to date.'
-          : `${syncSavedResult} post${syncSavedResult === 1 ? '' : 's'} downloaded.`}
+          : `${syncSavedResult} post${syncSavedResult === 1 ? '' : 's'} synced.`}
       </p>
     {/if}
     <button class="btn" type="button" disabled={syncSavedLoading} onclick={syncSavedPosts}>

@@ -11,7 +11,7 @@ from .db import (
     shortcode_exists,
     upsert_account,
 )
-from .loader import download_lock
+from .loader import sync_lock
 from .scheduler import (
     RateLimitException,
     _is_rate_limited,
@@ -31,10 +31,10 @@ _TYPE_LABELS = {
 def sync_saved_posts(
     L: instaloader.Instaloader, db_path: Path, storage_base: Path
 ) -> tuple[int, list[str]]:
-    """Download saved posts, stopping at the first already-indexed shortcode.
+    """Sync saved posts from Instagram, stopping at the first already-indexed shortcode.
 
-    Verifies each download on disk and in DB after each post; aborts if a post fails to land.
-    Returns (downloaded_count, new_account_platform_user_ids).
+    Verifies each synced post on disk and in DB; aborts if a post fails to land.
+    Returns (synced_count, new_account_platform_user_ids).
     Raises RateLimitException, LoginRequiredException, or AbortDownloadException on hard failures.
     """
     _set_session_headers(L)
@@ -80,7 +80,7 @@ def sync_saved_posts(
                 username,
             )
             try:
-                with download_lock:
+                with sync_lock:
                     L.dirname_pattern = str(dest)
                     L.download_post(post, target=username)
             except Exception as exc:
@@ -155,5 +155,5 @@ def sync_saved_posts(
 
     L.download_videos = False
     mark_as_saved_posts(saved_shortcodes, db_path)
-    logger.info("sync-saved: done — %d post(s) downloaded", len(saved_shortcodes))
+    logger.info("sync-saved: done — %d post(s) synced", len(saved_shortcodes))
     return len(saved_shortcodes), new_platform_user_ids

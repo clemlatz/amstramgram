@@ -25,7 +25,7 @@ from ..loader import get_loader
 logger = logging.getLogger(__name__)
 
 
-async def download_profile_pics_by_id(platform_user_ids: list[str], L) -> None:
+async def sync_profile_pics_by_id(platform_user_ids: list[str], L) -> None:
     for platform_user_id in platform_user_ids:
         try:
             user_info = await asyncio.to_thread(
@@ -48,20 +48,20 @@ async def download_profile_pics_by_id(platform_user_ids: list[str], L) -> None:
             save_account_profile_pic(
                 platform_user_id, f"{platform_user_id}/profile.jpg", DB_PATH
             )
-            logger.info("Downloaded profile pic for @%s", username)
+            logger.info("Synced profile pic for @%s", username)
         except Exception as exc:
             logger.error("profile_pic: failed for %s — %s", platform_user_id, exc)
         await asyncio.sleep(random.uniform(1, 2))
 
 
-async def _download_profile_pics_bg(candidates: list[dict], L) -> None:
+async def _sync_profile_pics_bg(candidates: list[dict], L) -> None:
     for account in candidates:
         username = account["username"]
         platform_user_id = account["platform_user_id"]
         profile_pic_url = account.get("profile_pic_url", "")
         if not profile_pic_url:
             continue
-        logger.info("profile_pic: downloading for %s", username)
+        logger.info("profile_pic: syncing for %s", username)
         try:
             # L.context._session is a requests.Session (Instaloader internal API)
             resp = await asyncio.to_thread(
@@ -74,7 +74,7 @@ async def _download_profile_pics_bg(candidates: list[dict], L) -> None:
             save_account_profile_pic(
                 platform_user_id, f"{platform_user_id}/profile.jpg", DB_PATH
             )
-            logger.info("Downloaded profile pic for @%s", username)
+            logger.info("Synced profile pic for @%s", username)
         except Exception as exc:
             logger.error("profile_pic: failed for %s — %s", username, exc)
         await asyncio.sleep(random.uniform(1, 2))
@@ -114,7 +114,7 @@ async def sync_following_route():
             {"detail": "Sync failed. Please try again."}, status_code=500
         )
     if candidates:
-        task = asyncio.create_task(_download_profile_pics_bg(candidates, L))
+        task = asyncio.create_task(_sync_profile_pics_bg(candidates, L))
         _bg_tasks.add(task)
         task.add_done_callback(_bg_tasks.discard)
     return JSONResponse({"added": added})

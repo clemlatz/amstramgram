@@ -82,7 +82,7 @@ async def get_logs_endpoint():
 
 @router.post("/settings/sync-saved")
 async def sync_saved_posts_endpoint():
-    from .accounts import download_profile_pics_by_id
+    from .accounts import sync_profile_pics_by_id
 
     if _sync_saved_lock.locked():
         return JSONResponse({"detail": "Sync already in progress"}, status_code=409)
@@ -91,7 +91,7 @@ async def sync_saved_posts_endpoint():
         return JSONResponse({"detail": "No session configured"}, status_code=400)
     async with _sync_saved_lock:
         try:
-            downloaded, new_ids = await asyncio.to_thread(
+            synced, new_ids = await asyncio.to_thread(
                 sync_saved_posts, L, DB_PATH, STORAGE_BASE
             )
         except RateLimitException as exc:
@@ -103,7 +103,7 @@ async def sync_saved_posts_endpoint():
                 {"detail": "Sync failed. Please try again."}, status_code=500
             )
     if new_ids:
-        task = asyncio.create_task(download_profile_pics_by_id(new_ids, L))
+        task = asyncio.create_task(sync_profile_pics_by_id(new_ids, L))
         _bg_tasks.add(task)
         task.add_done_callback(_bg_tasks.discard)
-    return JSONResponse({"downloaded": downloaded})
+    return JSONResponse({"synced": synced})

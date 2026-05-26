@@ -50,7 +50,7 @@ def init_db(db_path: Path) -> None:
                 filepath        TEXT NOT NULL UNIQUE,
                 extension       TEXT,
                 post_timestamp  TEXT,
-                downloaded_at   TEXT NOT NULL DEFAULT (datetime('now')),
+                synced_at       TEXT NOT NULL DEFAULT (datetime('now')),
                 file_size       INTEGER,
                 width           INTEGER,
                 height          INTEGER,
@@ -102,6 +102,9 @@ def init_db(db_path: Path) -> None:
                 "ALTER TABLE media ADD COLUMN is_saved_post INTEGER NOT NULL DEFAULT 0"
             )
             conn.commit()
+        if "downloaded_at" in media_cols and "synced_at" not in media_cols:
+            conn.execute("ALTER TABLE media RENAME COLUMN downloaded_at TO synced_at")
+            conn.commit()
     finally:
         conn.close()
 
@@ -132,7 +135,7 @@ def shortcode_exists(shortcode: str, db_path: Path) -> bool:
 
 
 def get_all_shortcodes_set(db_path: Path) -> set[str]:
-    """Return all known shortcodes: downloaded media + saved-but-skipped entries."""
+    """Return all known shortcodes: synced media + saved-but-skipped entries."""
     conn = _conn(db_path, read_only=True)
     try:
         media = {
@@ -589,11 +592,11 @@ def get_all_favorite_media_filepaths(db_path: Path) -> list[str]:
 
 
 def get_recent_posts(db_path: Path, sort: str = "post_timestamp") -> list[dict]:
-    order_col = "m.downloaded_at" if sort == "downloaded_at" else "m.post_timestamp"
+    order_col = "m.synced_at" if sort == "synced_at" else "m.post_timestamp"
     conn = _conn(db_path, read_only=True)
     try:
         rows = conn.execute(f"""
-            SELECT m.filepath, m.extension, m.post_timestamp, m.downloaded_at, m.caption, m.shortcode,
+            SELECT m.filepath, m.extension, m.post_timestamp, m.synced_at, m.caption, m.shortcode,
                    m.width, m.height, r.archived_at, r.favorited_at, a.username AS account, a.active AS account_active
             FROM media m
             JOIN accounts a ON a.id = m.account_id

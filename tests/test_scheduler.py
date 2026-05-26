@@ -94,7 +94,7 @@ def test_fetch_new_posts_synced_accounts_get_unlimited_max_posts(tmp_path):
         (2, "222", "bob", 0),  # unsynced — max_posts=_MAX_RECENT_UNSYNCED
     ]
 
-    with patch("api.scheduler._download_account_fast", return_value=0) as mock_dl:
+    with patch("api.scheduler._sync_account_fast", return_value=0) as mock_dl:
         with patch("api.scheduler._sleep"):
             _fetch_new_posts(MagicMock(), active_accounts, db)
 
@@ -111,14 +111,14 @@ def test_fetch_new_posts_unsynced_only_still_runs(tmp_path):
     db = tmp_path / "test.db"
     active_accounts = [(1, "111", "alice", 0)]  # unsynced — included with cap
 
-    with patch("api.scheduler._download_account_fast", return_value=0) as mock_dl:
+    with patch("api.scheduler._sync_account_fast", return_value=0) as mock_dl:
         _fetch_new_posts(MagicMock(), active_accounts, db)
 
     mock_dl.assert_called_once()
     assert mock_dl.call_args.kwargs.get("max_posts") == _MAX_RECENT_UNSYNCED
 
 
-def test_fetch_new_posts_calls_download_for_all_accounts(tmp_path):
+def test_fetch_new_posts_calls_sync_for_all_accounts(tmp_path):
     from api.scheduler import _fetch_new_posts
 
     db = tmp_path / "test.db"
@@ -128,7 +128,7 @@ def test_fetch_new_posts_calls_download_for_all_accounts(tmp_path):
         (3, "333", "carol", 0),  # unsynced — included with max_posts cap
     ]
 
-    with patch("api.scheduler._download_account_fast", return_value=0) as mock_dl:
+    with patch("api.scheduler._sync_account_fast", return_value=0) as mock_dl:
         with patch("api.scheduler._sleep"):
             _fetch_new_posts(MagicMock(), active_accounts, db)
 
@@ -136,8 +136,8 @@ def test_fetch_new_posts_calls_download_for_all_accounts(tmp_path):
     assert called_usernames == {"alice", "bob", "carol"}
 
 
-def test_download_account_fast_stops_on_existing_post(tmp_path):
-    from api.scheduler import _download_account_fast
+def test_sync_account_fast_stops_on_existing_post(tmp_path):
+    from api.scheduler import _sync_account_fast
 
     (tmp_path / "111").mkdir()
     L = MagicMock()
@@ -157,7 +157,7 @@ def test_download_account_fast_stops_on_existing_post(tmp_path):
         with patch("api.scheduler.STORAGE_BASE", tmp_path):
             with patch("api.scheduler.index_account", return_value=0):
                 with patch("time.sleep"):
-                    _download_account_fast(L, 1, "111", "alice", tmp_path / "test.db")
+                    _sync_account_fast(L, 1, "111", "alice", tmp_path / "test.db")
 
     assert L.download_post.call_count == 2
 
@@ -233,7 +233,7 @@ def test_fetch_new_posts_stops_when_stop_event_set(tmp_path):
     sched._stop_event.set()
     try:
         active_accounts = [(1, "111", "alice", 1)]
-        with patch("api.scheduler._download_account_fast") as mock_dl:
+        with patch("api.scheduler._sync_account_fast") as mock_dl:
             _fetch_new_posts(MagicMock(), active_accounts, tmp_path / "test.db")
         mock_dl.assert_not_called()
     finally:
@@ -259,9 +259,9 @@ def test_fetch_old_posts_stops_when_stop_event_set(tmp_path):
         sched._stop_event.clear()
 
 
-def test_download_account_fast_stops_when_stop_event_set(tmp_path):
+def test_sync_account_fast_stops_when_stop_event_set(tmp_path):
     from api import scheduler as sched
-    from api.scheduler import _download_account_fast
+    from api.scheduler import _sync_account_fast
 
     (tmp_path / "111").mkdir()
     sched._stop_event.set()
@@ -273,7 +273,7 @@ def test_download_account_fast_stops_when_stop_event_set(tmp_path):
         with patch("instaloader.Profile.from_iphone_struct", return_value=profile):
             with patch("api.scheduler.STORAGE_BASE", tmp_path):
                 with patch("api.scheduler.index_account", return_value=0):
-                    _download_account_fast(L, 1, "111", "alice", tmp_path / "test.db")
+                    _sync_account_fast(L, 1, "111", "alice", tmp_path / "test.db")
         L.download_post.assert_not_called()
     finally:
         sched._stop_event.clear()

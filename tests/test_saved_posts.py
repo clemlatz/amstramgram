@@ -35,7 +35,7 @@ def _run_sync(tmp_path, posts, *, shortcode_exists=False, download_side_effect=N
         patch("api.saved.instaloader.Profile.own_profile", return_value=profile),
         patch("api.saved._set_session_headers"),
         patch("api.saved.upsert_account", return_value=(1, False)),
-        patch("api.saved.download_lock"),
+        patch("api.saved.sync_lock"),
         patch("api.saved.index_account") as mock_index,
         patch("api.saved.shortcode_exists", **se_kwargs),
         patch("api.saved.mark_as_saved_posts"),
@@ -48,7 +48,7 @@ def _run_sync(tmp_path, posts, *, shortcode_exists=False, download_side_effect=N
     return count, new_ids, L, mock_index
 
 
-def test_sync_counts_downloaded_post(tmp_path):
+def test_sync_counts_synced_post(tmp_path):
     storage = tmp_path / "storage"
 
     def fake_download(p, target):
@@ -70,7 +70,7 @@ def test_sync_counts_downloaded_post(tmp_path):
 
 
 def test_sync_stops_at_already_indexed_post(tmp_path):
-    # First post already in DB → stop before downloading anything
+    # First post already in DB → stop before syncing anything
     count, _, L, mock_index = _run_sync(
         tmp_path,
         [_make_post("KNOWN01"), _make_post("NEXT01")],
@@ -82,8 +82,8 @@ def test_sync_stops_at_already_indexed_post(tmp_path):
     mock_index.assert_not_called()
 
 
-def test_sync_aborts_when_download_produces_no_files(tmp_path):
-    # Download produces no files and shortcode not in DB → abort after first post
+def test_sync_aborts_when_sync_produces_no_files(tmp_path):
+    # Sync produces no files and shortcode not in DB → abort after first post
     count, _, L, mock_index = _run_sync(
         tmp_path,
         [_make_post("BAD001"), _make_post("NEXT01")],

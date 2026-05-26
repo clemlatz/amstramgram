@@ -45,10 +45,10 @@
       </button>
       <button
         class="sort-btn"
-        class:active={sort === 'downloaded_at'}
-        onclick={() => setSort('downloaded_at')}
+        class:active={sort === 'synced_at'}
+        onclick={() => setSort('synced_at')}
       >
-        Downloaded
+        Synced
       </button>
     </div>
   </div>
@@ -65,7 +65,7 @@
         <path d="M9 22V12h6v10" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" />
       </svg>
       <p class="empty-title">Nothing here yet</p>
-      <p class="empty-sub">Start the scheduler to download posts from accounts you follow.</p>
+      <p class="empty-sub">Start the scheduler to sync posts from accounts you follow.</p>
     </div>
   {:else}
     <div class="feed" class:loading>

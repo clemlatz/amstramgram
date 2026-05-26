@@ -21,7 +21,7 @@ from .db import (
     migrate_done_files,
     set_setting,
 )
-from .loader import download_lock, get_loader, persist_session_cookies
+from .loader import sync_lock, get_loader, persist_session_cookies
 from .notifier import send_telegram_alert
 
 logger = logging.getLogger(__name__)
@@ -32,8 +32,8 @@ _TYPE_LABELS = {
     "GraphVideo": "video",
 }
 
-_MIN_DOWNLOADS_PER_ACCOUNT = 60
-_MAX_DOWNLOADS_PER_ACCOUNT = 140
+_MIN_SYNCS_PER_ACCOUNT = 60
+_MAX_SYNCS_PER_ACCOUNT = 140
 _RATE_LIMIT_BACKOFF_BASE = 1800  # 30 min
 _RATE_LIMIT_BACKOFF_MAX = 10800  # 3 h
 _RATE_LIMIT_MAX_RETRIES = 3
@@ -107,7 +107,7 @@ class SessionExpiredException(Exception):
     pass
 
 
-def _fmt_download_summary(type_counts: dict[str, int]) -> str:
+def _fmt_sync_summary(type_counts: dict[str, int]) -> str:
     parts = []
     for key in ("image", "carousel", "video", "media"):
         n = type_counts.get(key, 0)
@@ -166,7 +166,7 @@ async def _wait_until_window() -> None:
     await asyncio.sleep(delay)
 
 
-def _download_account_fast(
+def _sync_account_fast(
     L: instaloader.Instaloader,
     account_id: int,
     platform_user_id: str,
@@ -178,7 +178,7 @@ def _download_account_fast(
     dest.mkdir(parents=True, exist_ok=True)
     L.dirname_pattern = str(dest)
     suffix = f" (max={max_posts})" if max_posts is not None else ""
-    logger.info("%s: downloading new media…%s", username, suffix)
+    logger.info("%s: syncing new media…%s", username, suffix)
     fetched = 0
     type_counts: dict[str, int] = {}
     try:
@@ -202,12 +202,12 @@ def _download_account_fast(
                 continue
             if max_posts is not None and fetched >= max_posts:
                 break
-            with download_lock:
+            with sync_lock:
                 L.dirname_pattern = str(dest)
-                downloaded = L.download_post(post, target=username)
-            if not downloaded and max_posts is None:
+                did_sync = L.download_post(post, target=username)
+            if not did_sync and max_posts is None:
                 break
-            if downloaded:
+            if did_sync:
                 type_label = _TYPE_LABELS.get(post.typename, "media")
                 type_counts[type_label] = type_counts.get(type_label, 0) + 1
                 fetched += 1
@@ -237,9 +237,9 @@ def _download_account_fast(
             logger.warning("%s: account not found (404) — deactivating", username)
             deactivate_account(account_id, db_path)
             return fetched
-        logger.error("%s: download failed — %s", username, exc)
+        logger.error("%s: sync failed — %s", username, exc)
     if fetched:
-        logger.info("%s: downloaded %s", username, _fmt_download_summary(type_counts))
+        logger.info("%s: synced %s", username, _fmt_sync_summary(type_counts))
     else:
         logger.info("%s: up to date", username)
     try:
@@ -278,19 +278,19 @@ def _fetch_new_posts(
         groups.append(to_check[i : i + size])
         i += size
 
-    total_downloaded = 0
+    total_synced = 0
     for g_idx, group in enumerate(groups):
         for a_idx, (account_id, ig_id, username, max_posts) in enumerate(group):
             if _stop_event.is_set():
                 return
-            total_downloaded += _download_account_fast(
+            total_synced += _sync_account_fast(
                 L, account_id, ig_id, username, db_path, max_posts=max_posts
             )
             if a_idx < len(group) - 1:
                 _sleep(_lognormal_delay(30, 90))
         if g_idx < len(groups) - 1:
             _sleep(_lognormal_delay(300, 600), "between groups")
-    logger.info("fetch_new_posts: done — %d downloaded", total_downloaded)
+    logger.info("fetch_new_posts: done — %d synced", total_synced)
 
 
 def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
@@ -307,19 +307,19 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
     candidates = unsynced[:3]
     logger.info("fetch_old_posts: catching up %d account(s)…", len(candidates))
 
-    total_downloaded = 0
+    total_synced = 0
     for i, (account_id, platform_user_id, username) in enumerate(candidates):
         if _stop_event.is_set():
             return
         dest = STORAGE_BASE / platform_user_id
         dest.mkdir(parents=True, exist_ok=True)
         L.dirname_pattern = str(dest)
-        max_downloads = random.randint(
-            _MIN_DOWNLOADS_PER_ACCOUNT, _MAX_DOWNLOADS_PER_ACCOUNT
+        max_syncs = random.randint(
+            _MIN_SYNCS_PER_ACCOUNT, _MAX_SYNCS_PER_ACCOUNT
         )
-        logger.info("%s: downloading new media… (max=%d)", username, max_downloads)
+        logger.info("%s: syncing new media… (max=%d)", username, max_syncs)
 
-        downloaded = 0
+        synced = 0
         type_counts: dict[str, int] = {}
         try:
             user_info = L.context.get_iphone_json(
@@ -338,17 +338,17 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
             for post in profile.get_posts():
                 if _stop_event.is_set():
                     return
-                if downloaded >= max_downloads:
+                if synced >= max_syncs:
                     break
                 if _post_has_video(post):
                     continue
-                with download_lock:
+                with sync_lock:
                     L.dirname_pattern = str(dest)
-                    did_download = L.download_post(post, target=username)
-                if did_download:
+                    did_sync = L.download_post(post, target=username)
+                if did_sync:
                     type_label = _TYPE_LABELS.get(post.typename, "media")
                     type_counts[type_label] = type_counts.get(type_label, 0) + 1
-                    downloaded += 1
+                    synced += 1
         except (instaloader.LoginRequiredException, instaloader.AbortDownloadException):
             raise
         except instaloader.QueryReturnedBadRequestException as exc:
@@ -376,13 +376,13 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
                 continue
             logger.error("%s: catchup failed — %s", username, exc)
 
-        total_downloaded += downloaded
-        if downloaded == 0:
+        total_synced += synced
+        if synced == 0:
             mark_account_synced(account_id, db_path)
             logger.info("%s: fully synced", username)
         else:
             logger.info(
-                "%s: downloaded %s", username, _fmt_download_summary(type_counts)
+                "%s: synced %s", username, _fmt_sync_summary(type_counts)
             )
 
         try:
@@ -392,7 +392,7 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
 
         if i < len(candidates) - 1:
             _sleep(_lognormal_delay(90, 180))
-    logger.info("fetch_old_posts: done — %d downloaded", total_downloaded)
+    logger.info("fetch_old_posts: done — %d synced", total_synced)
 
 
 _SESSION_INVALIDATED_EXCEPTIONS = (
@@ -406,7 +406,7 @@ _SESSION_INVALIDATED_EXCEPTIONS = (
 
 def _run_cycle() -> None:
     if DRY_RUN:
-        logger.info("DRY_RUN — skipping downloads")
+        logger.info("DRY_RUN — skipping sync")
         return
 
     init_db(DB_PATH)
@@ -429,7 +429,7 @@ def _run_cycle() -> None:
     _fetch_old_posts(L, DB_PATH)
 
     persist_session_cookies()
-    logger.info("Download cycle complete")
+    logger.info("Sync cycle complete")
 
 
 def _load_next_delay() -> int:
@@ -445,7 +445,7 @@ def _load_next_delay() -> int:
             secs = int((next_run - datetime.now()).total_seconds())
             if secs > 60:
                 logger.info(
-                    "Resuming — next download at %s (%s)",
+                    "Resuming — next sync at %s (%s)",
                     next_run.strftime("%m/%d %H:%M"),
                     _fmt_delay(secs),
                 )
@@ -467,7 +467,7 @@ async def _scheduler_loop() -> None:
     while True:
         await asyncio.sleep(next_delay)
         await _wait_until_window()
-        logger.info("Starting download cycle")
+        logger.info("Starting sync cycle")
 
         global _cycle_running
         _cycle_running = True
@@ -481,7 +481,7 @@ async def _scheduler_loop() -> None:
             except Exception:
                 pass
             logger.info(
-                "Next download at %s (%s)",
+                "Next sync at %s (%s)",
                 next_run.strftime("%m/%d %H:%M"),
                 _fmt_delay(next_delay),
             )
