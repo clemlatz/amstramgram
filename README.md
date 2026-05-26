@@ -55,7 +55,7 @@ cp .env.example .env   # adjust storage paths if needed
 make start
 ```
 
-The backend starts a background scheduler that downloads accounts stored in the database and exposes the API on `http://localhost:8000`.
+The backend starts a background scheduler that syncs media from followed accounts and exposes the API on `http://localhost:8000`.
 
 **Terminal 2 — SvelteKit**
 
@@ -85,5 +85,5 @@ The image is built in two stages: Node 22 compiles the SvelteKit SPA, then Pytho
 | `PORT` | `8000` | Backend port (dev only) |
 | `DB_PATH` | `/storage/amstragram/amstramgram.db` | SQLite database path |
 | `STORAGE_BASE` | `/storage/amstramgram` | Media storage root |
-| `DRY_RUN` | `false` | Skip all downloads (for testing) |
+| `DRY_RUN` | `false` | Skip all syncs (for testing) |
 | `ENABLE_ACCESS_LOG` | `false` | Enable HTTP access logs |

@@ -26,7 +26,7 @@ amstramgram/
 | `config.py` | Environment variables |
 | `db.py` | SQLite queries (feed, random, rate, stats, settings, indexing) |
 | `loader.py` | Instaloader instance, session management |
-| `scheduler.py` | Background download loop (start/stop via `/api/settings`) |
+| `scheduler.py` | Background sync loop (start/stop via `/api/settings`) |
 | `routes/` | HTTP handlers (see API routes below) |
 
 ### API routes
@@ -81,17 +81,24 @@ cd frontend && npm run build   # → frontend/build/ (served by FastAPI in produ
 | `PORT` | `8000` | FastAPI backend port (dev only) |
 | `DB_PATH` | `/storage/amstragram/amstramgram.db` | SQLite database path |
 | `STORAGE_BASE` | `/storage/amstramgram` | Media storage root directory |
-| `DRY_RUN` | `false` | Skip all downloads (for testing) |
+| `DRY_RUN` | `false` | Skip all syncs (for testing) |
 | `ENABLE_ACCESS_LOG` | `false` | Enable HTTP access logs |
 
 > The session ID is stored in the database and managed via the `/settings` page.
 
-## Incremental download mechanism
+## Incremental sync mechanism
 
 - `.done` sentinel file in each account's storage folder
-- Without `.done` → full download
+- Without `.done` → full sync
 - With `.done` → `fast_update=True` (stops at the first already-known post)
 - Random 10–60 min delay between each cycle
+
+## Naming conventions
+
+| Concept | Canonical term | Examples |
+|---|---|---|
+| Instagram → server (scheduler) | **sync** | `synced_at`, `_sync_account_fast`, `sync_lock` |
+| Server → user device (explicit) | **download** | button "Download", `/api/download` endpoint |
 
 ## Language
 
