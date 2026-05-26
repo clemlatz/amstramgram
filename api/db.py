@@ -2,6 +2,7 @@ import json
 import logging
 import lzma
 import re
+import shutil
 import sqlite3
 from pathlib import Path
 
@@ -323,6 +324,124 @@ def _parse_json_sidecar(json_path: Path) -> dict:
         comment_count=comment_count,
         location=(node.get("location") or {}).get("name"),
     )
+
+
+_EMPTY_GRAMOIRE: dict = dict(
+    shortcode=None,
+    post_type=None,
+    carousel_index=None,
+    post_timestamp=None,
+    caption=None,
+    like_count=None,
+    comment_count=None,
+    location=None,
+    author_username=None,
+    author_id=None,
+)
+
+
+def _parse_gramoire_sidecar(json_path: Path) -> dict:
+    try:
+        raw = json.loads(json_path.read_text())
+    except Exception:
+        return _EMPTY_GRAMOIRE.copy()
+
+    media = raw.get("media", {})
+    kind = media.get("kind")
+    carousel_total = media.get("carouselTotal", 1)
+
+    if carousel_total and carousel_total > 1:
+        post_type = "carousel"
+    elif kind == "video":
+        post_type = "video"
+    elif kind == "image":
+        post_type = "image"
+    else:
+        post_type = None
+
+    author = raw.get("author", {})
+    timestamp = raw.get("timestamp", {})
+
+    return dict(
+        shortcode=media.get("shortcode"),
+        post_type=post_type,
+        carousel_index=media.get("index"),
+        post_timestamp=timestamp.get("iso"),
+        caption=raw.get("caption"),
+        like_count=None,
+        comment_count=None,
+        location=None,
+        author_username=author.get("username"),
+        author_id=author.get("id"),
+    )
+
+
+def import_gramoire_file(
+    media_path: Path,
+    json_path: Path,
+    storage_base: Path,
+    db_path: Path,
+) -> str:
+    """Import one Gramoire media+sidecar pair. Returns 'imported' or 'duplicate'."""
+    meta = _parse_gramoire_sidecar(json_path)
+    if not meta["author_id"] or not meta["author_username"]:
+        raise ValueError(f"Missing author in {json_path}")
+
+    account_id, _ = upsert_account(meta["author_username"], meta["author_id"], db_path)
+
+    if meta["shortcode"] and shortcode_exists(meta["shortcode"], db_path):
+        return "duplicate"
+
+    dest_dir = storage_base / meta["author_id"]
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / media_path.name
+
+    shutil.move(str(media_path), dest)
+
+    file_size = dest.stat().st_size
+    width = height = None
+    if dest.suffix.lower() in {".jpg", ".jpeg", ".webp", ".png"}:
+        try:
+            from PIL import Image
+
+            with Image.open(dest) as img:
+                width, height = img.size
+        except Exception:
+            pass
+
+    filepath = str(dest.relative_to(storage_base))
+
+    conn = _conn(db_path)
+    try:
+        conn.execute(
+            """INSERT OR IGNORE INTO media
+                (account_id, filename, filepath, extension, post_timestamp,
+                 file_size, width, height, shortcode, post_type, carousel_index,
+                 caption, like_count, comment_count, location)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                account_id,
+                dest.name,
+                filepath,
+                dest.suffix[1:].lower(),
+                meta["post_timestamp"],
+                file_size,
+                width,
+                height,
+                meta["shortcode"],
+                meta["post_type"],
+                meta["carousel_index"],
+                meta["caption"],
+                meta["like_count"],
+                meta["comment_count"],
+                meta["location"],
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return "imported"
 
 
 def index_account(account_id: int, dest_dir: Path, db_path: Path) -> int:
