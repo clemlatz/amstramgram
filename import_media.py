@@ -50,8 +50,9 @@ def run_import(db_path: Path, storage_base: Path, dry_run: bool) -> None:
             duplicates += 1
         else:
             print(f"  Imported:  {media.name}")
-            json_path.unlink(missing_ok=True)
             imported += 1
+        json_path.unlink(missing_ok=True)
+        media.unlink(missing_ok=True)
 
     parts = []
     if imported:

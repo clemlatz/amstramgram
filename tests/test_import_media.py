@@ -265,3 +265,5 @@ def test_cli_reports_duplicate(tmp_path):
 
     result = _run_script(["--db", str(db), "--storage", str(storage)])
     assert "1 duplicate" in result.stdout
+    assert not (imports_dir / "ABC123_1.jpg").exists()
+    assert not (imports_dir / "ABC123_1.json").exists()
