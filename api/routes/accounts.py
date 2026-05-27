@@ -213,7 +213,7 @@ async def get_account_preview_route(username: str):
         "media": [
             {
                 "url": f"/api/media/{_encode(item['filepath'])}",
-                "type": "video" if item["extension"] == "mp4" else "image",
+                "type": _media_type(item["extension"]),
             }
             for item in items
         ]
