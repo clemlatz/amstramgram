@@ -255,7 +255,7 @@ def _fetch_new_posts(
     L: instaloader.Instaloader,
     active_accounts: list[tuple[int, str, str, int]],
     db_path: Path,
-) -> None:
+) -> dict[str, int]:
     # Synced accounts: stop at the first already-known post (unlimited fast_update).
     # Unsynced accounts: fetch only the N most recent posts so the feed stays fresh
     # while _fetch_old_posts handles the historical backfill separately.
@@ -269,7 +269,7 @@ def _fetch_new_posts(
 
     if not to_check:
         logger.info("fetch_new_posts: no accounts to check")
-        return
+        return {}
 
     logger.info("fetch_new_posts: checking %d account(s)… (cap=%d)", len(to_check), cap)
 
@@ -280,39 +280,45 @@ def _fetch_new_posts(
         groups.append(to_check[i : i + size])
         i += size
 
+    account_counts: dict[str, int] = {}
     total_synced = 0
     for g_idx, group in enumerate(groups):
         for a_idx, (account_id, ig_id, username, max_posts) in enumerate(group):
             if _stop_event.is_set():
-                return
-            total_synced += _sync_account_fast(
+                return account_counts
+            count = _sync_account_fast(
                 L, account_id, ig_id, username, db_path, max_posts=max_posts
             )
+            if count:
+                account_counts[username] = account_counts.get(username, 0) + count
+            total_synced += count
             if a_idx < len(group) - 1:
                 _sleep(_lognormal_delay(30, 90))
         if g_idx < len(groups) - 1:
             _sleep(_lognormal_delay(300, 600), "between groups")
     logger.info("fetch_new_posts: done — %d synced", total_synced)
+    return account_counts
 
 
-def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
+def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> dict[str, int]:
     if datetime.now().hour >= 22:
         logger.info("fetch_old_posts: skipped (after 22:00)")
-        return
+        return {}
 
     unsynced = get_unsynced_accounts(db_path)
     if not unsynced:
         logger.info("fetch_old_posts: all accounts synced")
-        return
+        return {}
 
     random.shuffle(unsynced)
     candidates = unsynced[:3]
     logger.info("fetch_old_posts: catching up %d account(s)…", len(candidates))
 
+    account_counts: dict[str, int] = {}
     total_synced = 0
     for i, (account_id, platform_user_id, username) in enumerate(candidates):
         if _stop_event.is_set():
-            return
+            return account_counts
         dest = MEDIA_BASE / platform_user_id
         dest.mkdir(parents=True, exist_ok=True)
         L.dirname_pattern = str(dest)
@@ -337,7 +343,7 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
             profile = instaloader.Profile.from_iphone_struct(L.context, user_data)
             for post in profile.get_posts():
                 if _stop_event.is_set():
-                    return
+                    return account_counts
                 if synced >= max_syncs:
                     break
                 if _post_has_video(post):
@@ -381,6 +387,8 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
             logger.error("%s: catchup failed — %s", username, exc)
 
         total_synced += synced
+        if synced:
+            account_counts[username] = account_counts.get(username, 0) + synced
         if synced == 0:
             mark_account_synced(account_id, db_path)
             logger.info("%s: fully synced", username)
@@ -395,6 +403,7 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
         if i < len(candidates) - 1:
             _sleep(_lognormal_delay(90, 180))
     logger.info("fetch_old_posts: done — %d synced", total_synced)
+    return account_counts
 
 
 _SESSION_INVALIDATED_EXCEPTIONS = (
@@ -406,32 +415,37 @@ _SESSION_INVALIDATED_EXCEPTIONS = (
 )
 
 
-def _run_cycle() -> None:
+def _run_cycle() -> dict[str, int]:
     if DRY_RUN:
         logger.info("DRY_RUN — skipping sync")
-        return
+        return {}
 
     init_db(DB_PATH)
     migrate_done_files(DB_PATH, MEDIA_BASE)
     L = get_loader()
     if L is None:
         logger.warning("No session configured — skipping cycle")
-        return
+        return {}
     if not L.context.username:
         logger.warning("No authenticated user — skipping cycle")
-        return
+        return {}
     _set_session_headers(L)
 
     active_accounts = get_active_accounts(DB_PATH)
     if not active_accounts:
         logger.info("No active accounts — skipping cycle")
-        return
+        return {}
 
-    _fetch_new_posts(L, active_accounts, DB_PATH)
-    _fetch_old_posts(L, DB_PATH)
+    new_counts = _fetch_new_posts(L, active_accounts, DB_PATH)
+    old_counts = _fetch_old_posts(L, DB_PATH)
+
+    account_counts: dict[str, int] = dict(new_counts)
+    for username, count in old_counts.items():
+        account_counts[username] = account_counts.get(username, 0) + count
 
     persist_session_cookies()
     logger.info("Sync cycle complete")
+    return account_counts
 
 
 def _load_next_delay() -> int:
@@ -470,11 +484,21 @@ async def _scheduler_loop() -> None:
         await asyncio.sleep(next_delay)
         await _wait_until_window()
         logger.info("Starting sync cycle")
+        await asyncio.to_thread(send_telegram_alert, "🔄 Sync cycle starting…")
 
         global _cycle_running
         _cycle_running = True
         try:
-            await asyncio.to_thread(_run_cycle)
+            account_counts = await asyncio.to_thread(_run_cycle)
+            total = sum(account_counts.values())
+            if total:
+                lines = [f"✅ Sync complete — {total} post{'s' if total > 1 else ''} downloaded"]
+                for username, count in sorted(account_counts.items(), key=lambda x: -x[1]):
+                    lines.append(f"  @{username}: {count}")
+                msg = "\n".join(lines)
+            else:
+                msg = "✅ Sync complete — nothing new"
+            await asyncio.to_thread(send_telegram_alert, msg)
             consecutive_rl = 0
             next_delay = _lognormal_delay(6 * 3600, 9 * 3600)
             next_run = datetime.now() + timedelta(seconds=next_delay)
