@@ -781,7 +781,7 @@ def get_all_accounts(db_path: Path) -> list[dict]:
                 a.username,
                 a.active,
                 a.hidden,
-                COUNT(DISTINCT m.id) AS count,
+                COUNT(DISTINCT m.shortcode) AS count,
                 COUNT(DISTINCT CASE WHEN r.favorited_at IS NOT NULL THEN m.shortcode END) AS favorited_count,
                 COUNT(DISTINCT CASE WHEN r.archived_at  IS NOT NULL THEN m.shortcode END) AS archived_count
             FROM accounts a
@@ -817,7 +817,7 @@ def get_account_detail(username: str, db_path: Path) -> dict | None:
                 a.external_url,
                 a.active,
                 a.hidden,
-                COUNT(DISTINCT m.id) AS post_count,
+                COUNT(DISTINCT m.shortcode) AS post_count,
                 COUNT(DISTINCT CASE WHEN m.shortcode IS NOT NULL AND r.shortcode IS NULL
                                     THEN m.shortcode END) AS unrated_count,
                 COUNT(DISTINCT CASE WHEN r.favorited_at IS NOT NULL
