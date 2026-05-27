@@ -929,6 +929,34 @@ def get_account_posts(username: str, db_path: Path) -> list[dict]:
     return list(posts.values())
 
 
+def get_account_preview_media(username: str, count: int, db_path: Path) -> list[dict]:
+    conn = _conn(db_path, read_only=True)
+    try:
+        rows = conn.execute(
+            """
+            SELECT m.filepath, m.extension
+            FROM media m
+            JOIN accounts a ON a.id = m.account_id
+            LEFT JOIN ratings r ON r.shortcode = m.shortcode
+            WHERE a.username = ?
+              AND m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
+              AND (m.carousel_index IS NULL OR m.carousel_index = 1)
+            ORDER BY
+              CASE
+                WHEN r.favorited_at IS NOT NULL THEN 0
+                WHEN r.archived_at  IS NOT NULL THEN 1
+                ELSE 2
+              END,
+              RANDOM()
+            LIMIT ?
+            """,
+            (username, count),
+        ).fetchall()
+        return [{"filepath": r["filepath"], "extension": r["extension"]} for r in rows]
+    finally:
+        conn.close()
+
+
 def upsert_following_accounts(
     accounts: list[dict], db_path: Path
 ) -> tuple[int, list[str]]:
