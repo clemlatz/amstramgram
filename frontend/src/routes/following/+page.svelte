@@ -52,7 +52,7 @@
       openPreviews = new Set([...openPreviews].filter((u) => u !== username));
       return;
     }
-    openPreviews = new Set([...openPreviews, username]);
+    openPreviews = new Set([username]);
     if (previewCache[username] || previewLoading.has(username)) return;
     previewLoading = new Set([...previewLoading, username]);
     try {
@@ -102,7 +102,11 @@
               ontoggle={() => toggleFollow(account.username, account.active)}
             />
             <div class="info">
-              <a class="username" id="account-{account.username}" href="/accounts/{account.username}">
+              <a
+                class="username"
+                id="account-{account.username}"
+                href="/accounts/{account.username}"
+              >
                 {account.username}
               </a>
               <span class="count">
@@ -166,18 +170,20 @@
           {#if openPreviews.has(account.username)}
             <div class="preview-strip">
               {#if previewLoading.has(account.username)}
-                {#each Array(5) as _}
+                {#each [0, 1, 2, 3, 4] as i (i)}
                   <div class="preview-thumb skeleton"></div>
                 {/each}
               {:else if previewCache[account.username]?.length}
-                {#each previewCache[account.username] as item}
+                {#each previewCache[account.username] as item (item.url)}
                   <a href="/accounts/{account.username}" class="preview-thumb">
                     {#if item.type === 'image'}
                       <img src={item.url} alt="" loading="lazy" />
                     {:else}
                       <div class="preview-video">
                         <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                          <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                          <path
+                            d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"
+                          />
                         </svg>
                       </div>
                     {/if}
@@ -381,8 +387,9 @@
 
   .preview-strip {
     display: flex;
+    justify-content: center;
     gap: 4px;
-    padding: 0 16px 10px 64px; /* 16px row padding + 36px avatar + 12px gap */
+    padding: 0 16px 10px 16px;
     overflow-x: auto;
     scrollbar-width: none;
   }
@@ -393,8 +400,8 @@
 
   .preview-thumb {
     flex-shrink: 0;
-    width: 64px;
-    height: 64px;
+    width: 96px;
+    height: 128px;
     border-radius: 4px;
     overflow: hidden;
     background: var(--color-border);
@@ -429,8 +436,13 @@
   }
 
   @keyframes skeleton-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.3;
+    }
   }
 
   .preview-empty {
