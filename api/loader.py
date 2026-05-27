@@ -4,7 +4,7 @@ import threading
 
 import instaloader
 
-from .config import DB_PATH, STORAGE_BASE
+from .config import DB_PATH, MEDIA_BASE
 from .db import _conn, get_setting, set_setting
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ def get_loader() -> instaloader.Instaloader | None:
 
 def _make_instaloader() -> instaloader.Instaloader:
     L = instaloader.Instaloader(
-        dirname_pattern=str(STORAGE_BASE / "{target}"),
+        dirname_pattern=str(MEDIA_BASE / "{target}"),
         download_pictures=True,
         download_videos=False,
         download_video_thumbnails=False,

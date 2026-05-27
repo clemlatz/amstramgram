@@ -392,7 +392,7 @@ def import_gramoire_file(
     if meta["shortcode"] and shortcode_exists(meta["shortcode"], db_path):
         return "duplicate"
 
-    dest_dir = storage_base / meta["author_id"]
+    dest_dir = storage_base / "media" / meta["author_id"]
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / media_path.name
 
@@ -444,7 +444,9 @@ def import_gramoire_file(
     return "imported"
 
 
-def index_account(account_id: int, dest_dir: Path, db_path: Path) -> int:
+def index_account(
+    account_id: int, dest_dir: Path, db_path: Path, storage_base: Path | None = None
+) -> int:
     media_files = [
         f for f in dest_dir.iterdir() if f.is_file() and f.suffix.lower() in MEDIA_EXTS
     ]
@@ -460,9 +462,8 @@ def index_account(account_id: int, dest_dir: Path, db_path: Path) -> int:
     finally:
         conn.close()
 
-    new_files = [
-        f for f in media_files if str(f.relative_to(dest_dir.parent)) not in known
-    ]
+    _base = storage_base if storage_base is not None else dest_dir.parent
+    new_files = [f for f in media_files if str(f.relative_to(_base)) not in known]
     if not new_files:
         return 0
 
@@ -489,7 +490,7 @@ def index_account(account_id: int, dest_dir: Path, db_path: Path) -> int:
                 (
                     account_id,
                     f.name,
-                    str(f.relative_to(dest_dir.parent)),
+                    str(f.relative_to(_base)),
                     f.suffix[1:].lower(),
                     post_timestamp,
                     file_size,

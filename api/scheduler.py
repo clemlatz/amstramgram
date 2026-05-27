@@ -9,7 +9,7 @@ from pathlib import Path
 
 import instaloader
 
-from .config import DB_PATH, DRY_RUN, STORAGE_BASE
+from .config import DB_PATH, DRY_RUN, MEDIA_BASE, STORAGE_BASE
 from .db import (
     deactivate_account,
     get_active_accounts,
@@ -174,7 +174,7 @@ def _sync_account_fast(
     db_path: Path,
     max_posts: int | None = None,
 ) -> int:
-    dest = STORAGE_BASE / platform_user_id
+    dest = MEDIA_BASE / platform_user_id
     dest.mkdir(parents=True, exist_ok=True)
     L.dirname_pattern = str(dest)
     suffix = f" (max={max_posts})" if max_posts is not None else ""
@@ -231,7 +231,9 @@ def _sync_account_fast(
         if _is_logged_out(exc):
             raise SessionExpiredException(str(exc)) from exc
         if _is_rate_limited(exc):
-            logger.warning("%s: rate-limit via %s — %s", username, type(exc).__name__, exc)
+            logger.warning(
+                "%s: rate-limit via %s — %s", username, type(exc).__name__, exc
+            )
             raise RateLimitException(str(exc)) from exc
         if _is_not_found(exc):
             logger.warning("%s: account not found (404) — deactivating", username)
@@ -243,7 +245,7 @@ def _sync_account_fast(
     else:
         logger.info("%s: up to date", username)
     try:
-        index_account(account_id, dest, db_path)
+        index_account(account_id, dest, db_path, STORAGE_BASE)
     except Exception as exc:
         logger.error("%s: indexing failed — %s", username, exc)
     return fetched
@@ -311,12 +313,10 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
     for i, (account_id, platform_user_id, username) in enumerate(candidates):
         if _stop_event.is_set():
             return
-        dest = STORAGE_BASE / platform_user_id
+        dest = MEDIA_BASE / platform_user_id
         dest.mkdir(parents=True, exist_ok=True)
         L.dirname_pattern = str(dest)
-        max_syncs = random.randint(
-            _MIN_SYNCS_PER_ACCOUNT, _MAX_SYNCS_PER_ACCOUNT
-        )
+        max_syncs = random.randint(_MIN_SYNCS_PER_ACCOUNT, _MAX_SYNCS_PER_ACCOUNT)
         logger.info("%s: syncing new media… (max=%d)", username, max_syncs)
 
         synced = 0
@@ -358,7 +358,9 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
                     username,
                 )
                 continue
-            logger.warning("%s: rate-limit via %s — %s", username, type(exc).__name__, exc)
+            logger.warning(
+                "%s: rate-limit via %s — %s", username, type(exc).__name__, exc
+            )
             raise RateLimitException(str(exc)) from exc
         except instaloader.PrivateProfileNotFollowedException:
             logger.warning("%s: private profile, not followed — deactivating", username)
@@ -368,7 +370,9 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
             if _is_logged_out(exc):
                 raise SessionExpiredException(str(exc)) from exc
             if _is_rate_limited(exc):
-                logger.warning("%s: rate-limit via %s — %s", username, type(exc).__name__, exc)
+                logger.warning(
+                    "%s: rate-limit via %s — %s", username, type(exc).__name__, exc
+                )
                 raise RateLimitException(str(exc)) from exc
             if _is_not_found(exc):
                 logger.warning("%s: account not found (404) — deactivating", username)
@@ -381,12 +385,10 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> None:
             mark_account_synced(account_id, db_path)
             logger.info("%s: fully synced", username)
         else:
-            logger.info(
-                "%s: synced %s", username, _fmt_sync_summary(type_counts)
-            )
+            logger.info("%s: synced %s", username, _fmt_sync_summary(type_counts))
 
         try:
-            index_account(account_id, dest, db_path)
+            index_account(account_id, dest, db_path, STORAGE_BASE)
         except Exception as exc:
             logger.error("%s: indexing failed — %s", username, exc)
 
@@ -410,7 +412,7 @@ def _run_cycle() -> None:
         return
 
     init_db(DB_PATH)
-    migrate_done_files(DB_PATH, STORAGE_BASE)
+    migrate_done_files(DB_PATH, MEDIA_BASE)
     L = get_loader()
     if L is None:
         logger.warning("No session configured — skipping cycle")

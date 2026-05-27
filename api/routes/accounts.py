@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
-from ..config import DB_PATH, STORAGE_BASE
+from ..config import DB_PATH, MEDIA_BASE, STORAGE_BASE
 from ..db import (
     get_account_detail,
     get_account_posts,
@@ -42,11 +42,11 @@ async def sync_profile_pics_by_id(platform_user_ids: list[str], L) -> None:
                 L.context._session.get, profile_pic_url, timeout=15
             )
             resp.raise_for_status()
-            dest = STORAGE_BASE / platform_user_id
+            dest = MEDIA_BASE / platform_user_id
             dest.mkdir(parents=True, exist_ok=True)
             await asyncio.to_thread((dest / "profile.jpg").write_bytes, resp.content)
             save_account_profile_pic(
-                platform_user_id, f"{platform_user_id}/profile.jpg", DB_PATH
+                platform_user_id, f"media/{platform_user_id}/profile.jpg", DB_PATH
             )
             logger.info("Synced profile pic for @%s", username)
         except Exception as exc:
@@ -68,11 +68,11 @@ async def _sync_profile_pics_bg(candidates: list[dict], L) -> None:
                 L.context._session.get, profile_pic_url, timeout=15
             )
             resp.raise_for_status()
-            dest = STORAGE_BASE / platform_user_id
+            dest = MEDIA_BASE / platform_user_id
             dest.mkdir(parents=True, exist_ok=True)
             await asyncio.to_thread((dest / "profile.jpg").write_bytes, resp.content)
             save_account_profile_pic(
-                platform_user_id, f"{platform_user_id}/profile.jpg", DB_PATH
+                platform_user_id, f"media/{platform_user_id}/profile.jpg", DB_PATH
             )
             logger.info("Synced profile pic for @%s", username)
         except Exception as exc:

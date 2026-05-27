@@ -1,11 +1,9 @@
 import json
-import shutil
 import sqlite3
 import subprocess
 import sys
 from pathlib import Path
 
-import pytest
 
 from api.db import (
     _parse_gramoire_sidecar,
@@ -119,7 +117,7 @@ def test_import_gramoire_file_moves_and_inserts(tmp_path):
 
     assert result == "imported"
     assert not media.exists()
-    dest = storage / "999" / "ABC123_1.jpg"
+    dest = storage / "media" / "999" / "ABC123_1.jpg"
     assert dest.exists()
     assert shortcode_exists("ABC123", db)
 

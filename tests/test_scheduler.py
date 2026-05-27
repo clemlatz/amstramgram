@@ -154,7 +154,7 @@ def test_sync_account_fast_stops_on_existing_post(tmp_path):
     L.download_post.side_effect = [True, False]
 
     with patch("instaloader.Profile.from_iphone_struct", return_value=profile):
-        with patch("api.scheduler.STORAGE_BASE", tmp_path):
+        with patch("api.scheduler.MEDIA_BASE", tmp_path):
             with patch("api.scheduler.index_account", return_value=0):
                 with patch("time.sleep"):
                     _sync_account_fast(L, 1, "111", "alice", tmp_path / "test.db")
@@ -186,7 +186,7 @@ def test_fetch_old_posts_marks_synced_when_no_new_posts(tmp_path):
         ):
             with patch("api.scheduler.mark_account_synced") as mock_mark:
                 with patch("api.scheduler.index_account", return_value=0):
-                    with patch("api.scheduler.STORAGE_BASE", tmp_path):
+                    with patch("api.scheduler.MEDIA_BASE", tmp_path):
                         L = MagicMock()
                         L.context.get_iphone_json.return_value = {"user": {}}
                         profile = MagicMock()
@@ -213,7 +213,7 @@ def test_fetch_old_posts_selects_max_3_accounts(tmp_path):
         with patch("api.scheduler.get_unsynced_accounts", return_value=unsynced):
             with patch("api.scheduler.mark_account_synced"):
                 with patch("api.scheduler.index_account", return_value=0):
-                    with patch("api.scheduler.STORAGE_BASE", tmp_path):
+                    with patch("api.scheduler.MEDIA_BASE", tmp_path):
                         with patch("api.scheduler._sleep"):
                             L = MagicMock()
                             profile = MagicMock()
@@ -271,7 +271,7 @@ def test_sync_account_fast_stops_when_stop_event_set(tmp_path):
         profile = MagicMock()
         profile.get_posts.return_value = [MagicMock()]
         with patch("instaloader.Profile.from_iphone_struct", return_value=profile):
-            with patch("api.scheduler.STORAGE_BASE", tmp_path):
+            with patch("api.scheduler.MEDIA_BASE", tmp_path):
                 with patch("api.scheduler.index_account", return_value=0):
                     _sync_account_fast(L, 1, "111", "alice", tmp_path / "test.db")
         L.download_post.assert_not_called()
