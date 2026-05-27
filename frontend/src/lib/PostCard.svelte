@@ -12,8 +12,24 @@
 
   let archived = $state(!!post.archived_at);
   let favorited = $state(!!post.favorited_at);
+  let accountActive = $state(post.account_active ?? true);
   let paused = $state(true);
   let videoPaused = $state(post.media?.map(() => true) ?? []);
+
+  async function toggleFollow() {
+    const newActive = !accountActive;
+    accountActive = newActive;
+    try {
+      const res = await fetch(`/api/accounts/${post.account}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: newActive }),
+      });
+      if (!res.ok) throw new Error('failed');
+    } catch {
+      accountActive = !newActive;
+    }
+  }
 
   async function rate(action) {
     if (!post.shortcode) return;
@@ -133,7 +149,7 @@
 
 <article class="post">
   <header class="post-header">
-    <Avatar account={post.account} active={post.account_active ?? true} />
+    <Avatar account={post.account} active={accountActive} ontoggle={toggleFollow} />
     <div class="post-meta">
       <div class="post-account">
         <a href="/accounts/{post.account}">

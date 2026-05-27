@@ -1,12 +1,18 @@
 <script>
   import { avatarColor, hideAvatarImage } from '$lib/media.js';
-  let { account, active = true, size = 36 } = $props();
+  let { account, active = true, size = 36, ontoggle = null } = $props();
 </script>
 
-<div
+<svelte:element
+  this={ontoggle ? 'button' : 'div'}
   class="avatar-ring"
   class:inactive={!active}
+  class:clickable={!!ontoggle}
   style="--size: {size}px; --font-size: {Math.round(size * 0.36)}px"
+  onclick={ontoggle ?? undefined}
+  aria-label={ontoggle ? `${active ? 'Deactivate' : 'Activate'} ${account}` : undefined}
+  aria-pressed={ontoggle ? active : undefined}
+  type={ontoggle ? 'button' : undefined}
 >
   <div class="avatar-inner" style="background: {avatarColor(account)}">
     <img
@@ -17,7 +23,7 @@
     />
     {(account?.[0] ?? '').toUpperCase()}
   </div>
-</div>
+</svelte:element>
 
 <style>
   .avatar-ring {
@@ -27,6 +33,13 @@
     padding: 2px;
     background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
     flex-shrink: 0;
+    border: none;
+  }
+
+  button.avatar-ring.clickable {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 
   .avatar-ring.inactive {

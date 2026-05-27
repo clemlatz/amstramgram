@@ -2,6 +2,25 @@
   import Avatar from '$lib/Avatar.svelte';
   let { data } = $props();
 
+  let accounts = $state(data.accounts);
+
+  async function toggleFollow(username, currentActive) {
+    const newActive = !currentActive;
+    const idx = accounts.findIndex((a) => a.username === username);
+    if (idx === -1) return;
+    accounts[idx] = { ...accounts[idx], active: newActive };
+    try {
+      const res = await fetch(`/api/accounts/${username}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: newActive }),
+      });
+      if (!res.ok) throw new Error('failed');
+    } catch {
+      accounts[idx] = { ...accounts[idx], active: currentActive };
+    }
+  }
+
   let syncLoading = $state(false);
   let syncResult = $state(null);
   let syncError = $state(null);
@@ -45,13 +64,17 @@
     </div>
   </div>
 
-  {#if data.accounts.length === 0}
+  {#if accounts.length === 0}
     <p class="empty">No accounts yet.</p>
   {:else}
     <ul class="list">
-      {#each data.accounts as account (account.username)}
+      {#each accounts as account (account.username)}
         <li class="row">
-          <Avatar account={account.username} active={account.active} />
+          <Avatar
+            account={account.username}
+            active={account.active}
+            ontoggle={() => toggleFollow(account.username, account.active)}
+          />
           <div class="info">
             <a class="username" id="account-{account.username}" href="/accounts/{account.username}">
               {account.username}
