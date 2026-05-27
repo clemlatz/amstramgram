@@ -215,3 +215,97 @@ def test_get_account_posts_returns_posts(account_client):
     assert posts[0]["shortcode"] == "sc1"
     assert posts[0]["media"][0]["url"].startswith("/api/media/")
     assert posts[0]["media"][0]["type"] == "image"
+
+
+def _insert_preview_media(
+    db,
+    account_id: int,
+    shortcode: str,
+    filepath: str,
+    extension: str = "jpg",
+    carousel_index: int | None = None,
+    *,
+    favorited: bool = False,
+    archived: bool = False,
+) -> None:
+    import sqlite3 as _sq
+    conn = _sq.connect(str(db))
+    conn.execute(
+        "INSERT INTO media (account_id, filename, filepath, extension, shortcode, carousel_index)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        (account_id, f"{shortcode}.{extension}", filepath, extension, shortcode, carousel_index),
+    )
+    if favorited or archived:
+        conn.execute(
+            "INSERT INTO ratings (shortcode, favorited_at, archived_at) VALUES (?, ?, ?)",
+            (
+                shortcode,
+                "2024-01-01T00:00:00" if favorited else None,
+                "2024-01-01T00:00:00" if archived else None,
+            ),
+        )
+    conn.commit()
+    conn.close()
+
+
+def test_preview_returns_empty_list_for_account_with_no_posts(account_client):
+    tc, db, _ = account_client
+    upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
+    resp = tc.get("/api/accounts/alice/preview")
+    assert resp.status_code == 200
+    assert resp.json() == {"media": []}
+
+
+def test_preview_returns_404_for_unknown_account(account_client):
+    tc, db, _ = account_client
+    resp = tc.get("/api/accounts/nobody/preview")
+    assert resp.status_code == 404
+
+
+def test_preview_returns_media_urls(account_client):
+    tc, db, _ = account_client
+    upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
+    import sqlite3 as _sq
+    conn = _sq.connect(str(db))
+    account_id = conn.execute(
+        "SELECT id FROM accounts WHERE username='alice'"
+    ).fetchone()[0]
+    conn.close()
+    _insert_preview_media(db, account_id, "sc1", "media/111/sc1.jpg")
+    resp = tc.get("/api/accounts/alice/preview")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["media"]) == 1
+    assert data["media"][0]["url"].startswith("/api/media/")
+    assert data["media"][0]["type"] == "image"
+
+
+def test_preview_labels_video_type(account_client):
+    tc, db, _ = account_client
+    upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
+    import sqlite3 as _sq
+    conn = _sq.connect(str(db))
+    account_id = conn.execute(
+        "SELECT id FROM accounts WHERE username='alice'"
+    ).fetchone()[0]
+    conn.close()
+    _insert_preview_media(db, account_id, "sc1", "media/111/sc1.mp4", extension="mp4")
+    resp = tc.get("/api/accounts/alice/preview")
+    assert resp.status_code == 200
+    assert resp.json()["media"][0]["type"] == "video"
+
+
+def test_preview_returns_at_most_5_items(account_client):
+    tc, db, _ = account_client
+    upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
+    import sqlite3 as _sq
+    conn = _sq.connect(str(db))
+    account_id = conn.execute(
+        "SELECT id FROM accounts WHERE username='alice'"
+    ).fetchone()[0]
+    conn.close()
+    for i in range(8):
+        _insert_preview_media(db, account_id, f"sc{i}", f"media/111/sc{i}.jpg")
+    resp = tc.get("/api/accounts/alice/preview")
+    assert resp.status_code == 200
+    assert len(resp.json()["media"]) == 5

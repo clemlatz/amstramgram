@@ -12,6 +12,7 @@ from ..config import DB_PATH, MEDIA_BASE, STORAGE_BASE
 from ..db import (
     get_account_detail,
     get_account_posts,
+    get_account_preview_media,
     get_account_profile_pic_path,
     get_accounts_missing_profile_pic,
     get_all_accounts,
@@ -200,6 +201,23 @@ async def get_account_posts_route(username: str):
             ]
         }
     )
+
+
+@router.get("/accounts/{username}/preview")
+async def get_account_preview_route(username: str):
+    detail = await asyncio.to_thread(get_account_detail, username, DB_PATH)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    items = await asyncio.to_thread(get_account_preview_media, username, 5, DB_PATH)
+    return JSONResponse({
+        "media": [
+            {
+                "url": f"/api/media/{_encode(item['filepath'])}",
+                "type": "video" if item["extension"] == "mp4" else "image",
+            }
+            for item in items
+        ]
+    })
 
 
 def _fetch_and_upsert_following(L, db_path: Path) -> tuple[int, list[dict]]:
