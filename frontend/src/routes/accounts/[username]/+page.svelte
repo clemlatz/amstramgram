@@ -123,9 +123,7 @@
           {@const thumb = post.media?.find((m) => m.type === 'image') ?? post.media?.[0]}
           <a
             class="grid-cell"
-            href={post.shortcode && !post.shortcode.startsWith('syn_')
-              ? `/accounts/${profile.username}/${post.shortcode}`
-              : undefined}
+            href={post.shortcode ? `/accounts/${profile.username}/${post.shortcode}` : undefined}
           >
             {#if thumb?.type === 'video'}
               <video
