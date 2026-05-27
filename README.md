@@ -86,3 +86,32 @@ The image is built in two stages: Node 22 compiles the SvelteKit SPA, then Pytho
 | `STORAGE_BASE` | `/storage` | Media storage root (DB stored here too) |
 | `DRY_RUN` | `false` | Skip all syncs (for testing) |
 | `ENABLE_ACCESS_LOG` | `false` | Enable HTTP access logs |
+
+## Importing media from Gramoire
+
+`import_media.py` imports media files downloaded by [Gramoire](https://greasyfork.org/en/scripts/566467-gramoire-an-actual-good-instagram-downloader) into the database.
+
+### How it works
+
+1. Drop your media files and their `.json` sidecars into `STORAGE_BASE/imports/`
+2. Run the script — it moves each file to `STORAGE_BASE/{account_id}/`, creates the account if it doesn't exist yet (inactive), and skips duplicates
+
+```bash
+python import_media.py
+```
+
+The script reads `STORAGE_BASE` and `DB_PATH` from your `.env` by default. You can override them:
+
+```bash
+python import_media.py --storage /path/to/storage --db /path/to/amstramgram.db
+```
+
+Use `--dry-run` to preview what would be imported without making any changes:
+
+```bash
+python import_media.py --dry-run
+```
+
+### Requirements
+
+Gramoire must be configured to export metadata sidecars alongside each download (schema `gramoire-media-metadata-v1.2` or later). Each media file needs a `.json` sidecar with the same stem — files without a sidecar are skipped with a warning.
