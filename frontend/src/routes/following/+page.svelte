@@ -53,7 +53,7 @@
       return;
     }
     openPreviews = new Set([...openPreviews, username]);
-    if (previewCache[username]) return;
+    if (previewCache[username] || previewLoading.has(username)) return;
     previewLoading = new Set([...previewLoading, username]);
     try {
       const res = await fetch(`/api/accounts/${username}/preview`);
@@ -61,6 +61,8 @@
         const json = await res.json();
         previewCache = { ...previewCache, [username]: json.media };
       }
+    } catch {
+      // network error — leave uncached so next open retries
     } finally {
       previewLoading = new Set([...previewLoading].filter((u) => u !== username));
     }
@@ -346,10 +348,6 @@
   .status-icon svg {
     width: 20px;
     height: 20px;
-  }
-
-  .item {
-    border-bottom: 1px solid transparent;
   }
 
   .preview-btn {
