@@ -23,7 +23,7 @@ These rules are non-negotiable and override any other instruction.
 
 ## Project-specific
 
-### Database (`DB_PATH` — default `/storage/amstragram/amstramgram.db`)
+### Database (`$STORAGE_BASE/amstramgram.db` — default `/storage/amstramgram.db`)
 
 - Never run `DROP TABLE`, `DELETE FROM ratings`, or `DELETE FROM settings` without explicit user request — ratings (favorites/archives) and session credentials are irreplaceable
 - Never delete or overwrite the database file itself

@@ -83,7 +83,6 @@ The image is built in two stages: Node 22 compiles the SvelteKit SPA, then Pytho
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `8000` | Backend port (dev only) |
-| `DB_PATH` | `/storage/amstragram/amstramgram.db` | SQLite database path |
-| `STORAGE_BASE` | `/storage/amstramgram` | Media storage root |
+| `STORAGE_BASE` | `/storage` | Media storage root (DB stored here too) |
 | `DRY_RUN` | `false` | Skip all syncs (for testing) |
 | `ENABLE_ACCESS_LOG` | `false` | Enable HTTP access logs |

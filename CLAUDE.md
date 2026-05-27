@@ -49,8 +49,8 @@ amstramgram/
 
 ### Storage
 
-- SQLite DB: `DB_PATH` (Docker default: `/storage/amstragram/amstramgram.db`)
-- Media: `STORAGE_BASE` (Docker default: `/storage/amstramgram/{account}/`)
+- SQLite DB: `$STORAGE_BASE/amstramgram.db` (Docker default: `/storage/amstramgram.db`)
+- Media: `STORAGE_BASE` (Docker default: `/storage/{account}/`)
 
 ## Commands
 
@@ -79,8 +79,7 @@ cd frontend && npm run build   # → frontend/build/ (served by FastAPI in produ
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `8000` | FastAPI backend port (dev only) |
-| `DB_PATH` | `/storage/amstragram/amstramgram.db` | SQLite database path |
-| `STORAGE_BASE` | `/storage/amstramgram` | Media storage root directory |
+| `STORAGE_BASE` | `/storage` | Media storage root (DB stored here too) |
 | `DRY_RUN` | `false` | Skip all syncs (for testing) |
 | `ENABLE_ACCESS_LOG` | `false` | Enable HTTP access logs |
 
