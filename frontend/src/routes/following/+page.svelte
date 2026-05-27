@@ -175,7 +175,12 @@
                 {/each}
               {:else if previewCache[account.username]?.length}
                 {#each previewCache[account.username] as item (item.url)}
-                  <a href="/accounts/{account.username}" class="preview-thumb">
+                  <a
+                    href={item.shortcode
+                      ? `/accounts/${account.username}/${item.shortcode}`
+                      : `/accounts/${account.username}`}
+                    class="preview-thumb"
+                  >
                     {#if item.type === 'image'}
                       <img src={item.url} alt="" loading="lazy" />
                     {:else}

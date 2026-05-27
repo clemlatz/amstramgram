@@ -934,7 +934,7 @@ def get_account_preview_media(username: str, count: int, db_path: Path) -> list[
     try:
         rows = conn.execute(
             """
-            SELECT m.filepath, m.extension
+            SELECT m.filepath, m.extension, m.shortcode
             FROM media m
             JOIN accounts a ON a.id = m.account_id
             LEFT JOIN ratings r ON r.shortcode = m.shortcode
@@ -952,7 +952,7 @@ def get_account_preview_media(username: str, count: int, db_path: Path) -> list[
             """,
             (username, count),
         ).fetchall()
-        return [{"filepath": r["filepath"], "extension": r["extension"]} for r in rows]
+        return [{"filepath": r["filepath"], "extension": r["extension"], "shortcode": r["shortcode"]} for r in rows]
     finally:
         conn.close()
 

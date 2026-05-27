@@ -214,6 +214,7 @@ async def get_account_preview_route(username: str):
             {
                 "url": f"/api/media/{_encode(item['filepath'])}",
                 "type": _media_type(item["extension"]),
+                "shortcode": item["shortcode"],
             }
             for item in items
         ]
