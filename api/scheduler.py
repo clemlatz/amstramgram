@@ -31,6 +31,7 @@ from .config import (
     SYNC_MAX_RECENT_POSTS,
     SYNC_POST_DELAY_MAX,
     SYNC_POST_DELAY_MIN,
+    SYNC_ENABLE_BACKFILL,
     SYNC_RATE_LIMIT_BACKOFF_BASE,
     SYNC_RATE_LIMIT_BACKOFF_MAX,
     SYNC_RATE_LIMIT_RETRIES,
@@ -318,6 +319,9 @@ def _fetch_new_posts(
 
 
 def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> dict[str, int]:
+    if not SYNC_ENABLE_BACKFILL:
+        logger.info("fetch_old_posts: disabled (SYNC_ENABLE_BACKFILL)")
+        return {}
     if datetime.now().hour >= 22:
         logger.info("fetch_old_posts: skipped (after 22:00)")
         return {}
