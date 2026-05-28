@@ -620,14 +620,18 @@ async def start_scheduler() -> None:
     set_setting("scheduler_enabled", "true", DB_PATH)
     _scheduler_task = asyncio.create_task(_scheduler_loop())
     logger.info("Scheduler started")
+    backfill_info = (
+        f"enabled ({SYNC_BACKFILL_MIN}–{SYNC_BACKFILL_MAX} posts)"
+        if SYNC_ENABLE_BACKFILL
+        else "disabled"
+    )
     logger.info(
-        "Config — accounts/cycle: %d–%d | recent posts cap: %d | backfill: %s (%d–%d posts) | "
+        "Config — accounts/cycle: %d–%d | recent posts cap: %d | backfill: %s | "
         "delays: post %d–%ds, account %d–%ds, group %d–%ds, backfill %d–%ds | "
         "cycle every %s–%s | rate-limit retries: %d",
         SYNC_ACCOUNTS_PER_CYCLE_MIN, SYNC_ACCOUNTS_PER_CYCLE_MAX,
         SYNC_MAX_RECENT_POSTS,
-        "enabled" if SYNC_ENABLE_BACKFILL else "disabled",
-        SYNC_BACKFILL_MIN, SYNC_BACKFILL_MAX,
+        backfill_info,
         SYNC_POST_DELAY_MIN, SYNC_POST_DELAY_MAX,
         SYNC_ACCOUNT_DELAY_MIN, SYNC_ACCOUNT_DELAY_MAX,
         SYNC_GROUP_DELAY_MIN, SYNC_GROUP_DELAY_MAX,
