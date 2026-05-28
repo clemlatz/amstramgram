@@ -87,6 +87,9 @@ def _build_loader() -> instaloader.Instaloader | None:
 
 def reload_session(new_session_id: str) -> str:
     global _loader
+    old_session_id = get_setting("session_id", DB_PATH)
+    old_suffix = f"…{old_session_id[-6:]}" if old_session_id else "none"
+    new_suffix = f"…{new_session_id[-6:]}"
     L = _make_instaloader()
     L.context._session.cookies.set(
         "sessionid", new_session_id, domain=".instagram.com", path="/"
@@ -97,7 +100,7 @@ def reload_session(new_session_id: str) -> str:
     L.context.username = username
     _save_all_to_db(L, new_session_id)
     _loader = L
-    logger.info("Session reloaded for %s", username)
+    logger.info("Session reloaded for %s (session id: %s → %s)", username, old_suffix, new_suffix)
     return username
 
 
