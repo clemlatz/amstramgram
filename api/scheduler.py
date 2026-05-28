@@ -9,7 +9,32 @@ from pathlib import Path
 
 import instaloader
 
-from .config import DB_PATH, DRY_RUN, MEDIA_BASE, STORAGE_BASE
+from .config import (
+    DB_PATH,
+    DRY_RUN,
+    MEDIA_BASE,
+    STORAGE_BASE,
+    SYNC_ACCOUNTS_PER_CYCLE_MAX,
+    SYNC_ACCOUNTS_PER_CYCLE_MIN,
+    SYNC_ACCOUNT_DELAY_MAX,
+    SYNC_ACCOUNT_DELAY_MIN,
+    SYNC_BACKFILL_DELAY_MAX,
+    SYNC_BACKFILL_DELAY_MIN,
+    SYNC_BACKFILL_MAX,
+    SYNC_BACKFILL_MIN,
+    SYNC_CYCLE_DELAY_MAX,
+    SYNC_CYCLE_DELAY_MIN,
+    SYNC_GROUP_DELAY_MAX,
+    SYNC_GROUP_DELAY_MIN,
+    SYNC_INITIAL_DELAY_MAX,
+    SYNC_INITIAL_DELAY_MIN,
+    SYNC_MAX_RECENT_POSTS,
+    SYNC_POST_DELAY_MAX,
+    SYNC_POST_DELAY_MIN,
+    SYNC_RATE_LIMIT_BACKOFF_BASE,
+    SYNC_RATE_LIMIT_BACKOFF_MAX,
+    SYNC_RATE_LIMIT_RETRIES,
+)
 from .db import (
     deactivate_account,
     get_active_accounts,
@@ -32,14 +57,6 @@ _TYPE_LABELS = {
     "GraphVideo": "video",
 }
 
-_MIN_SYNCS_PER_ACCOUNT = 60
-_MAX_SYNCS_PER_ACCOUNT = 140
-_RATE_LIMIT_BACKOFF_BASE = 1800  # 30 min
-_RATE_LIMIT_BACKOFF_MAX = 10800  # 3 h
-_RATE_LIMIT_MAX_RETRIES = 3
-_MIN_ACCOUNTS_PER_CYCLE = 15
-_MAX_ACCOUNTS_PER_CYCLE = 30
-_MAX_RECENT_UNSYNCED = 15
 
 _stop_event: threading.Event = threading.Event()
 _scheduler_task: asyncio.Task | None = None
@@ -78,7 +95,7 @@ class RateLimitException(Exception):
 
 def _backoff_delay(consecutive: int) -> int:
     cap = min(
-        _RATE_LIMIT_BACKOFF_BASE * (2 ** (consecutive - 1)), _RATE_LIMIT_BACKOFF_MAX
+        SYNC_RATE_LIMIT_BACKOFF_BASE * (2 ** (consecutive - 1)), SYNC_RATE_LIMIT_BACKOFF_MAX
     )
     return int(random.uniform(cap / 2, cap))
 
@@ -211,7 +228,7 @@ def _sync_account_fast(
                 type_label = _TYPE_LABELS.get(post.typename, "media")
                 type_counts[type_label] = type_counts.get(type_label, 0) + 1
                 fetched += 1
-                time.sleep(_lognormal_delay(2, 5))
+                time.sleep(_lognormal_delay(SYNC_POST_DELAY_MIN, SYNC_POST_DELAY_MAX))
     except (instaloader.LoginRequiredException, instaloader.AbortDownloadException):
         raise
     except instaloader.QueryReturnedBadRequestException as exc:
@@ -260,11 +277,11 @@ def _fetch_new_posts(
     # Unsynced accounts: fetch only the N most recent posts so the feed stays fresh
     # while _fetch_old_posts handles the historical backfill separately.
     to_check = [
-        (account_id, ig_id, username, None if fully_synced else _MAX_RECENT_UNSYNCED)
+        (account_id, ig_id, username, None if fully_synced else SYNC_MAX_RECENT_POSTS)
         for account_id, ig_id, username, fully_synced in active_accounts
     ]
     random.shuffle(to_check)
-    cap = random.randint(_MIN_ACCOUNTS_PER_CYCLE, _MAX_ACCOUNTS_PER_CYCLE)
+    cap = random.randint(SYNC_ACCOUNTS_PER_CYCLE_MIN, SYNC_ACCOUNTS_PER_CYCLE_MAX)
     to_check = to_check[:cap]
 
     if not to_check:
@@ -293,9 +310,9 @@ def _fetch_new_posts(
                 account_counts[username] = account_counts.get(username, 0) + count
             total_synced += count
             if a_idx < len(group) - 1:
-                _sleep(_lognormal_delay(30, 90))
+                _sleep(_lognormal_delay(SYNC_ACCOUNT_DELAY_MIN, SYNC_ACCOUNT_DELAY_MAX))
         if g_idx < len(groups) - 1:
-            _sleep(_lognormal_delay(300, 600), "between groups")
+            _sleep(_lognormal_delay(SYNC_GROUP_DELAY_MIN, SYNC_GROUP_DELAY_MAX), "between groups")
     logger.info("fetch_new_posts: done — %d synced", total_synced)
     return account_counts
 
@@ -322,7 +339,7 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> dict[str, int
         dest = MEDIA_BASE / platform_user_id
         dest.mkdir(parents=True, exist_ok=True)
         L.dirname_pattern = str(dest)
-        max_syncs = random.randint(_MIN_SYNCS_PER_ACCOUNT, _MAX_SYNCS_PER_ACCOUNT)
+        max_syncs = random.randint(SYNC_BACKFILL_MIN, SYNC_BACKFILL_MAX)
         logger.info("%s: syncing new media… (max=%d)", username, max_syncs)
 
         synced = 0
@@ -401,7 +418,7 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> dict[str, int
             logger.error("%s: indexing failed — %s", username, exc)
 
         if i < len(candidates) - 1:
-            _sleep(_lognormal_delay(90, 180))
+            _sleep(_lognormal_delay(SYNC_BACKFILL_DELAY_MIN, SYNC_BACKFILL_DELAY_MAX))
     logger.info("fetch_old_posts: done — %d synced", total_synced)
     return account_counts
 
@@ -471,7 +488,7 @@ def _load_next_delay() -> int:
         except ValueError:
             pass
 
-    delay = _lognormal_delay(5 * 60, 30 * 60)
+    delay = _lognormal_delay(SYNC_INITIAL_DELAY_MIN, SYNC_INITIAL_DELAY_MAX)
     logger.info("Initial delay: %s", _fmt_delay(delay))
     return delay
 
@@ -500,7 +517,7 @@ async def _scheduler_loop() -> None:
                 msg = "✅ Sync complete — nothing new"
             await asyncio.to_thread(send_telegram_alert, msg)
             consecutive_rl = 0
-            next_delay = _lognormal_delay(6 * 3600, 9 * 3600)
+            next_delay = _lognormal_delay(SYNC_CYCLE_DELAY_MIN, SYNC_CYCLE_DELAY_MAX)
             next_run = datetime.now() + timedelta(seconds=next_delay)
             try:
                 set_setting("next_run_at", next_run.isoformat(), DB_PATH)
@@ -513,7 +530,7 @@ async def _scheduler_loop() -> None:
             )
         except RateLimitException as exc:
             consecutive_rl += 1
-            if consecutive_rl >= _RATE_LIMIT_MAX_RETRIES:
+            if consecutive_rl >= SYNC_RATE_LIMIT_RETRIES:
                 logger.critical(
                     "Rate limited %d times consecutively — scheduler stopped. (%s)",
                     consecutive_rl,
@@ -534,7 +551,7 @@ async def _scheduler_loop() -> None:
             logger.warning(
                 "Rate limited (attempt %d/%d) — retry in %s (next at %s)",
                 consecutive_rl,
-                _RATE_LIMIT_MAX_RETRIES - 1,
+                SYNC_RATE_LIMIT_RETRIES - 1,
                 _fmt_delay(next_delay),
                 retry_at.strftime("%H:%M"),
             )
@@ -550,7 +567,7 @@ async def _scheduler_loop() -> None:
             )
             return
         except instaloader.ConnectionException as exc:
-            next_delay = _RATE_LIMIT_BACKOFF_BASE
+            next_delay = SYNC_RATE_LIMIT_BACKOFF_BASE
             retry_at = datetime.now() + timedelta(seconds=next_delay)
             try:
                 set_setting("next_run_at", retry_at.isoformat(), DB_PATH)
@@ -561,7 +578,7 @@ async def _scheduler_loop() -> None:
             )
         except Exception as exc:
             consecutive_rl += 1
-            if consecutive_rl >= _RATE_LIMIT_MAX_RETRIES:
+            if consecutive_rl >= SYNC_RATE_LIMIT_RETRIES:
                 logger.critical(
                     "Too many consecutive errors (%d) — scheduler stopped: %s",
                     consecutive_rl,
@@ -582,7 +599,7 @@ async def _scheduler_loop() -> None:
             logger.error(
                 "Unexpected error in cycle (attempt %d/%d) — retry in %s: %s",
                 consecutive_rl,
-                _RATE_LIMIT_MAX_RETRIES - 1,
+                SYNC_RATE_LIMIT_RETRIES - 1,
                 _fmt_delay(next_delay),
                 exc,
                 exc_info=True,
