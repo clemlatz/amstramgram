@@ -24,6 +24,7 @@ async def get_random():
         {
             "post": {
                 "account": post["account"],
+                "account_active": post["account_active"],
                 "post_timestamp": post["post_timestamp"],
                 "shortcode": post["shortcode"],
                 "media": [
@@ -49,6 +50,7 @@ async def get_random_favorites():
         {
             "post": {
                 "account": post["account"],
+                "account_active": post["account_active"],
                 "post_timestamp": post["post_timestamp"],
                 "shortcode": post["shortcode"],
                 "media": [

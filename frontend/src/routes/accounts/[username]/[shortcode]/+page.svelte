@@ -23,13 +23,29 @@
   let rating = $state(null);
   let ratingLoading = $state(false);
   let swiperEl = $state(null);
+  let accountActive = $state(post?.account_active ?? true);
 
   const isCarousel = $derived((post?.media?.length ?? 0) > 1);
 
   $effect(() => {
     void post?.shortcode;
     rating = post?.favorited_at ? 'favorite' : post?.archived_at ? 'archive' : null;
+    accountActive = post?.account_active ?? true;
   });
+
+  async function toggleAccountActive() {
+    const next = !accountActive;
+    accountActive = next;
+    try {
+      await fetch(`/api/accounts/${username}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: next }),
+      });
+    } catch {
+      accountActive = !next;
+    }
+  }
 
   $effect(() => {
     if (!swiperEl) return;
@@ -184,7 +200,7 @@
   <div class="page">
     <article class="card">
       <header class="post-header">
-        <Avatar account={post.account} active={post.account_active ?? true} />
+        <Avatar account={post.account} active={accountActive} ontoggle={toggleAccountActive} />
         <div class="post-meta">
           <div class="post-account">
             <a href="/accounts/{post.account}">{post.account}</a>
