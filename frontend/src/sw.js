@@ -1,11 +1,7 @@
 import { clientsClaim } from 'workbox-core';
-import {
-  cleanupOutdatedCaches,
-  createHandlerBoundToURL,
-  precacheAndRoute,
-} from 'workbox-precaching';
+import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
-import { CacheFirst } from 'workbox-strategies';
+import { CacheFirst, NetworkFirst } from 'workbox-strategies';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
 self.skipWaiting();
@@ -14,8 +10,13 @@ clientsClaim();
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 
+// Fetch the actual navigation URL — the server returns index.html for all SPA routes,
+// so there's no URL mismatch and Safari respondWith works correctly.
 registerRoute(
-  new NavigationRoute(createHandlerBoundToURL('/index.html'), { denylist: [/^\/api\//] })
+  new NavigationRoute(
+    new NetworkFirst({ cacheName: 'spa-shell', networkTimeoutSeconds: 3 }),
+    { denylist: [/^\/api\//] }
+  )
 );
 
 registerRoute(
