@@ -730,7 +730,7 @@ def get_recent_posts(db_path: Path, sort: str = "post_timestamp") -> list[dict]:
 
     posts: dict[str, dict] = {}
     for row in rows:
-        key = (
+        key = row["shortcode"] or (
             f"{row['account']}/{row['post_timestamp']}"
             if row["post_timestamp"]
             else row["filepath"]
