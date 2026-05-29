@@ -1,7 +1,7 @@
 PYTHON := .venv/bin/python
 PIP    := .venv/bin/pip
 
-.PHONY: install test start dev
+.PHONY: install test start dev import
 
 install:
 	python3 -m venv .venv
@@ -15,3 +15,6 @@ start:
 
 dev:
 	$(PYTHON) -m api & npm --prefix frontend run dev & wait
+
+import:
+	$(PYTHON) import_media.py
