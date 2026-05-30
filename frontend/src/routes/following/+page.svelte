@@ -4,6 +4,9 @@
 
   let accounts = $state(data.accounts);
 
+  let activeAccounts = $derived(accounts.filter((a) => a.active));
+  let inactiveAccounts = $derived(accounts.filter((a) => !a.active));
+
   async function toggleFollow(username, currentActive) {
     const newActive = !currentActive;
     const idx = accounts.findIndex((a) => a.username === username);
@@ -69,6 +72,115 @@
   }
 </script>
 
+{#snippet accountItem(account)}
+  <li class="item">
+    <div class="row">
+      <Avatar
+        account={account.username}
+        active={account.active}
+        ontoggle={() => toggleFollow(account.username, account.active)}
+      />
+      <div class="info">
+        <a
+          class="username"
+          id="account-{account.username}"
+          href="/accounts/{account.username}"
+        >
+          {account.username}
+        </a>
+        <span class="count">
+          {account.count.toLocaleString('en')} posts
+          {#if account.favorited_count > 0}
+            {@const rated = account.favorited_count + account.archived_count}
+            <span class="ratings">
+              ·
+              {Math.round((account.favorited_count / rated) * 100)} %
+            </span>
+          {/if}
+        </span>
+      </div>
+      <button
+        class="preview-btn"
+        class:active={openPreviews.has(account.username)}
+        type="button"
+        title="Preview posts"
+        onclick={() => togglePreview(account.username)}
+        aria-expanded={openPreviews.has(account.username)}
+      >
+        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <rect x="2" y="2" width="7" height="7" rx="1" />
+          <rect x="11" y="2" width="7" height="7" rx="1" />
+          <rect x="2" y="11" width="7" height="7" rx="1" />
+          <rect x="11" y="11" width="7" height="7" rx="1" />
+        </svg>
+      </button>
+      <div class="status-icons" aria-hidden="true">
+        <span
+          class="status-icon"
+          class:on={!account.hidden}
+          title={account.hidden ? 'Hidden' : 'Visible'}
+        >
+          {#if account.hidden}
+            <!-- eye-off -->
+            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path
+                fill-rule="evenodd"
+                d="M3.28 2.22a.75.75 0 0 0-1.06 1.06l14.5 14.5a.75.75 0 1 0 1.06-1.06l-1.745-1.745a10.029 10.029 0 0 0 3.3-4.38 1.651 1.651 0 0 0 0-1.185A10.004 10.004 0 0 0 9.999 3a9.956 9.956 0 0 0-4.744 1.194L3.28 2.22ZM7.752 6.69l1.092 1.092a2.5 2.5 0 0 1 3.374 3.373l1.091 1.092a4 4 0 0 0-5.557-5.557Z"
+                clip-rule="evenodd"
+              />
+              <path
+                d="M10.748 13.93l2.523 2.524a9.987 9.987 0 0 1-3.27.547c-4.258 0-7.894-2.66-9.337-6.41a1.651 1.651 0 0 1 0-1.186A10.007 10.007 0 0 1 2.839 6.02L6.07 9.252a4 4 0 0 0 4.678 4.678Z"
+              />
+            </svg>
+          {:else}
+            <!-- eye -->
+            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+              <path
+                fill-rule="evenodd"
+                d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41Z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          {/if}
+        </span>
+      </div>
+    </div>
+    {#if openPreviews.has(account.username)}
+      <div class="preview-strip">
+        {#if previewLoading.has(account.username)}
+          {#each [0, 1, 2, 3, 4] as i (i)}
+            <div class="preview-thumb skeleton"></div>
+          {/each}
+        {:else if previewCache[account.username]?.length}
+          {#each previewCache[account.username] as item (item.url)}
+            <a
+              href={item.shortcode
+                ? `/accounts/${account.username}/${item.shortcode}`
+                : `/accounts/${account.username}`}
+              class="preview-thumb"
+            >
+              {#if item.type === 'image'}
+                <img src={item.url} alt="" loading="lazy" />
+              {:else}
+                <div class="preview-video">
+                  <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path
+                      d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"
+                    />
+                  </svg>
+                </div>
+              {/if}
+            </a>
+          {/each}
+        {:else}
+          <p class="preview-empty">No posts</p>
+        {/if}
+      </div>
+    {/if}
+  </li>
+{/snippet}
+
 <div class="page">
   <div class="header">
     <h1 class="title">Following</h1>
@@ -92,116 +204,31 @@
   {#if accounts.length === 0}
     <p class="empty">No accounts yet.</p>
   {:else}
-    <ul class="list">
-      {#each accounts as account (account.username)}
-        <li class="item">
-          <div class="row">
-            <Avatar
-              account={account.username}
-              active={account.active}
-              ontoggle={() => toggleFollow(account.username, account.active)}
-            />
-            <div class="info">
-              <a
-                class="username"
-                id="account-{account.username}"
-                href="/accounts/{account.username}"
-              >
-                {account.username}
-              </a>
-              <span class="count">
-                {account.count.toLocaleString('en')} posts
-                {#if account.favorited_count > 0}
-                  {@const rated = account.favorited_count + account.archived_count}
-                  <span class="ratings">
-                    ·
-                    {Math.round((account.favorited_count / rated) * 100)} %
-                  </span>
-                {/if}
-              </span>
-            </div>
-            <button
-              class="preview-btn"
-              class:active={openPreviews.has(account.username)}
-              type="button"
-              title="Preview posts"
-              onclick={() => togglePreview(account.username)}
-              aria-expanded={openPreviews.has(account.username)}
-            >
-              <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <rect x="2" y="2" width="7" height="7" rx="1" />
-                <rect x="11" y="2" width="7" height="7" rx="1" />
-                <rect x="2" y="11" width="7" height="7" rx="1" />
-                <rect x="11" y="11" width="7" height="7" rx="1" />
-              </svg>
-            </button>
-            <div class="status-icons" aria-hidden="true">
-              <span
-                class="status-icon"
-                class:on={!account.hidden}
-                title={account.hidden ? 'Hidden' : 'Visible'}
-              >
-                {#if account.hidden}
-                  <!-- eye-off -->
-                  <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path
-                      fill-rule="evenodd"
-                      d="M3.28 2.22a.75.75 0 0 0-1.06 1.06l14.5 14.5a.75.75 0 1 0 1.06-1.06l-1.745-1.745a10.029 10.029 0 0 0 3.3-4.38 1.651 1.651 0 0 0 0-1.185A10.004 10.004 0 0 0 9.999 3a9.956 9.956 0 0 0-4.744 1.194L3.28 2.22ZM7.752 6.69l1.092 1.092a2.5 2.5 0 0 1 3.374 3.373l1.091 1.092a4 4 0 0 0-5.557-5.557Z"
-                      clip-rule="evenodd"
-                    />
-                    <path
-                      d="M10.748 13.93l2.523 2.524a9.987 9.987 0 0 1-3.27.547c-4.258 0-7.894-2.66-9.337-6.41a1.651 1.651 0 0 1 0-1.186A10.007 10.007 0 0 1 2.839 6.02L6.07 9.252a4 4 0 0 0 4.678 4.678Z"
-                    />
-                  </svg>
-                {:else}
-                  <!-- eye -->
-                  <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
-                    <path
-                      fill-rule="evenodd"
-                      d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41Z"
-                      clip-rule="evenodd"
-                    />
-                  </svg>
-                {/if}
-              </span>
-            </div>
-          </div>
-          {#if openPreviews.has(account.username)}
-            <div class="preview-strip">
-              {#if previewLoading.has(account.username)}
-                {#each [0, 1, 2, 3, 4] as i (i)}
-                  <div class="preview-thumb skeleton"></div>
-                {/each}
-              {:else if previewCache[account.username]?.length}
-                {#each previewCache[account.username] as item (item.url)}
-                  <a
-                    href={item.shortcode
-                      ? `/accounts/${account.username}/${item.shortcode}`
-                      : `/accounts/${account.username}`}
-                    class="preview-thumb"
-                  >
-                    {#if item.type === 'image'}
-                      <img src={item.url} alt="" loading="lazy" />
-                    {:else}
-                      <div class="preview-video">
-                        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                          <path
-                            d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"
-                          />
-                        </svg>
-                      </div>
-                    {/if}
-                  </a>
-                {/each}
-              {:else}
-                <p class="preview-empty">No posts</p>
-              {/if}
-            </div>
-          {/if}
-        </li>
-      {/each}
-    </ul>
+    <section class="group">
+      <h2 class="group-title">Active ({activeAccounts.length})</h2>
+      {#if activeAccounts.length === 0}
+        <p class="group-empty">No active accounts.</p>
+      {:else}
+        <ul class="list">
+          {#each activeAccounts as account (account.username)}
+            {@render accountItem(account)}
+          {/each}
+        </ul>
+      {/if}
+    </section>
+
+    <section class="group">
+      <h2 class="group-title">Inactive ({inactiveAccounts.length})</h2>
+      {#if inactiveAccounts.length === 0}
+        <p class="group-empty">No inactive accounts.</p>
+      {:else}
+        <ul class="list">
+          {#each inactiveAccounts as account (account.username)}
+            {@render accountItem(account)}
+          {/each}
+        </ul>
+      {/if}
+    </section>
   {/if}
 </div>
 
@@ -295,6 +322,24 @@
     color: var(--color-text-muted);
     font-size: 14px;
     padding: 48px 20px;
+  }
+
+  .group-title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    padding: 12px 16px 6px;
+    border-bottom: 1px solid var(--color-border);
+    margin: 0;
+  }
+
+  .group-empty {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    padding: 12px 16px;
+    margin: 0;
   }
 
   .list {
