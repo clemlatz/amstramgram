@@ -64,11 +64,12 @@ async def test_wait_until_window_sleeps_at_night():
     with patch("api.scheduler.datetime") as mock_dt:
         mock_dt.now.return_value = datetime(2026, 5, 10, 2, 0, 0)
         with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
-            await _wait_until_window()
+            with patch("api.scheduler._lognormal_delay", return_value=600):
+                await _wait_until_window()
     mock_sleep.assert_called_once()
     delay = mock_sleep.call_args[0][0]
-    # 2am → sleeps until 7am = 5h = 18000s
-    assert 17900 < delay < 18100
+    # 2am → 7am = 18000s base + 600s jitter
+    assert 18500 < delay < 18700
 
 
 @pytest.mark.asyncio
@@ -78,11 +79,12 @@ async def test_wait_until_window_sleeps_after_23h():
     with patch("api.scheduler.datetime") as mock_dt:
         mock_dt.now.return_value = datetime(2026, 5, 10, 23, 30, 0)
         with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
-            await _wait_until_window()
+            with patch("api.scheduler._lognormal_delay", return_value=600):
+                await _wait_until_window()
     mock_sleep.assert_called_once()
     delay = mock_sleep.call_args[0][0]
-    # 23:30 → sleeps until 7am next day = 7.5h = 27000s
-    assert 26900 < delay < 27100
+    # 23:30 → 7am next day = 27000s base + 600s jitter
+    assert 27500 < delay < 27700
 
 
 def test_fetch_new_posts_synced_accounts_get_unlimited_max_posts(tmp_path):
@@ -106,7 +108,8 @@ def test_fetch_new_posts_synced_accounts_get_unlimited_max_posts(tmp_path):
 
 
 def test_fetch_new_posts_unsynced_only_still_runs(tmp_path):
-    from api.scheduler import _fetch_new_posts, _MAX_RECENT_UNSYNCED
+    from api.scheduler import _fetch_new_posts
+    from api.config import SYNC_MAX_RECENT_POSTS
 
     db = tmp_path / "test.db"
     active_accounts = [(1, "111", "alice", 0)]  # unsynced — included with cap
@@ -115,7 +118,7 @@ def test_fetch_new_posts_unsynced_only_still_runs(tmp_path):
         _fetch_new_posts(MagicMock(), active_accounts, db)
 
     mock_dl.assert_called_once()
-    assert mock_dl.call_args.kwargs.get("max_posts") == _MAX_RECENT_UNSYNCED
+    assert mock_dl.call_args.kwargs.get("max_posts") == SYNC_MAX_RECENT_POSTS
 
 
 def test_fetch_new_posts_calls_sync_for_all_accounts(tmp_path):
@@ -162,25 +165,13 @@ def test_sync_account_fast_stops_on_existing_post(tmp_path):
     assert L.download_post.call_count == 2
 
 
-def test_fetch_old_posts_skips_after_22h(tmp_path):
-    from api.scheduler import _fetch_old_posts
-
-    db = tmp_path / "test.db"
-    with patch("api.scheduler.datetime") as mock_dt:
-        mock_dt.now.return_value = datetime(2026, 5, 10, 22, 30)
-        with patch("api.scheduler.get_unsynced_accounts") as mock_q:
-            _fetch_old_posts(MagicMock(), db)
-    mock_q.assert_not_called()
-
-
 def test_fetch_old_posts_marks_synced_when_no_new_posts(tmp_path):
     from api.scheduler import _fetch_old_posts
 
     db = tmp_path / "test.db"
     (tmp_path / "111").mkdir()
 
-    with patch("api.scheduler.datetime") as mock_dt:
-        mock_dt.now.return_value = datetime(2026, 5, 10, 10, 0)
+    with patch("api.scheduler.SYNC_ENABLE_BACKFILL", True):
         with patch(
             "api.scheduler.get_unsynced_accounts", return_value=[(1, "111", "alice")]
         ):
@@ -208,8 +199,7 @@ def test_fetch_old_posts_selects_max_3_accounts(tmp_path):
 
     unsynced = [(i, str(i), f"user{i}") for i in range(10)]
 
-    with patch("api.scheduler.datetime") as mock_dt:
-        mock_dt.now.return_value = datetime(2026, 5, 10, 10, 0)
+    with patch("api.scheduler.SYNC_ENABLE_BACKFILL", True):
         with patch("api.scheduler.get_unsynced_accounts", return_value=unsynced):
             with patch("api.scheduler.mark_account_synced"):
                 with patch("api.scheduler.index_account", return_value=0):
@@ -246,8 +236,7 @@ def test_fetch_old_posts_stops_when_stop_event_set(tmp_path):
 
     sched._stop_event.set()
     try:
-        with patch("api.scheduler.datetime") as mock_dt:
-            mock_dt.now.return_value = datetime(2026, 5, 10, 10, 0)
+        with patch("api.scheduler.SYNC_ENABLE_BACKFILL", True):
             with patch(
                 "api.scheduler.get_unsynced_accounts",
                 return_value=[(1, "111", "alice")],

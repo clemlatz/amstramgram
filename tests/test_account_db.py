@@ -14,6 +14,7 @@ from api.db import (
     get_all_accounts,
     get_account_detail,
     get_account_posts,
+    archive_account,
 )
 
 
@@ -497,3 +498,82 @@ def test_get_account_preview_media_does_not_include_other_accounts(tmp_path):
     result = get_account_preview_media("alice", 5, db)
     assert len(result) == 1
     assert result[0]["filepath"] == "media/111/a1.jpg"
+
+
+def test_archive_account_returns_false_for_unknown_username(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    assert archive_account("nobody", db) is False
+
+
+def test_archive_account_sets_active_and_hidden(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
+    conn = sqlite3.connect(str(db))
+    conn.execute("UPDATE accounts SET active=1 WHERE username='alice'")
+    conn.commit()
+    conn.close()
+
+    result = archive_account("alice", db)
+
+    assert result is True
+    conn = sqlite3.connect(str(db))
+    row = conn.execute(
+        "SELECT active, hidden FROM accounts WHERE username='alice'"
+    ).fetchone()
+    conn.close()
+    assert row[0] == 0
+    assert row[1] == 1
+
+
+def test_archive_account_archives_all_shortcodes(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
+    conn = sqlite3.connect(str(db))
+    account_id = conn.execute(
+        "SELECT id FROM accounts WHERE username='alice'"
+    ).fetchone()[0]
+    conn.close()
+
+    _insert_media(db, account_id, "sc1")
+    _insert_media(db, account_id, "sc2")
+
+    archive_account("alice", db)
+
+    conn = sqlite3.connect(str(db))
+    rows = conn.execute(
+        "SELECT shortcode, archived_at, favorited_at FROM ratings ORDER BY shortcode"
+    ).fetchall()
+    conn.close()
+    assert len(rows) == 2
+    assert rows[0][0] == "sc1"
+    assert rows[0][1] is not None
+    assert rows[0][2] is None
+    assert rows[1][0] == "sc2"
+    assert rows[1][1] is not None
+
+
+def test_archive_account_overwrites_existing_ratings(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    upsert_following_accounts([{"username": "alice", "platform_user_id": "111"}], db)
+    conn = sqlite3.connect(str(db))
+    account_id = conn.execute(
+        "SELECT id FROM accounts WHERE username='alice'"
+    ).fetchone()[0]
+    conn.close()
+
+    _insert_media(db, account_id, "sc1")
+    _insert_rating(db, "sc1", favorited=True)
+
+    archive_account("alice", db)
+
+    conn = sqlite3.connect(str(db))
+    row = conn.execute(
+        "SELECT archived_at, favorited_at FROM ratings WHERE shortcode='sc1'"
+    ).fetchone()
+    conn.close()
+    assert row[0] is not None
+    assert row[1] is None

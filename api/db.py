@@ -884,6 +884,31 @@ def set_account_hidden(username: str, hidden: bool, db_path: Path) -> bool:
         conn.close()
 
 
+def archive_account(username: str, db_path: Path) -> bool:
+    conn = _conn(db_path)
+    try:
+        result = conn.execute(
+            "UPDATE accounts SET active=0, hidden=1 WHERE username=?",
+            (username,),
+        )
+        if result.rowcount == 0:
+            return False
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO ratings (shortcode, archived_at, favorited_at)
+            SELECT DISTINCT shortcode, datetime('now'), NULL
+            FROM media
+            WHERE account_id = (SELECT id FROM accounts WHERE username=?)
+              AND shortcode IS NOT NULL
+            """,
+            (username,),
+        )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
 def get_account_posts(username: str, db_path: Path) -> list[dict]:
     conn = _conn(db_path, read_only=True)
     try:
