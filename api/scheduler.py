@@ -322,9 +322,6 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> dict[str, int
     if not SYNC_ENABLE_BACKFILL:
         logger.info("fetch_old_posts: disabled (SYNC_ENABLE_BACKFILL)")
         return {}
-    if datetime.now().hour >= 22:
-        logger.info("fetch_old_posts: skipped (after 22:00)")
-        return {}
 
     unsynced = get_unsynced_accounts(db_path)
     if not unsynced:
