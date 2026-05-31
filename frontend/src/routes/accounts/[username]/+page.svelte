@@ -6,6 +6,20 @@
 
   let active = $state(profile?.active ?? true);
   let hidden = $state(profile?.hidden ?? false);
+  let archiveConfirming = $state(false);
+
+  async function archiveAccount() {
+    try {
+      const res = await fetch(`/api/accounts/${profile.username}/archive`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        window.location.href = '/following';
+      }
+    } catch {
+      archiveConfirming = false;
+    }
+  }
 
   function displayUrl(url) {
     if (!url) return '';
@@ -112,6 +126,12 @@
         <button class="profile-action-btn" class:hidden-btn={hidden} onclick={toggleHidden}>
           {hidden ? 'Show' : 'Hide'}
         </button>
+        {#if archiveConfirming}
+          <button class="profile-action-btn archive-confirm" onclick={archiveAccount}>Confirm?</button>
+          <button class="profile-action-btn" onclick={() => (archiveConfirming = false)}>Cancel</button>
+        {:else}
+          <button class="profile-action-btn" onclick={() => (archiveConfirming = true)}>Archive</button>
+        {/if}
       </div>
     </div>
 
@@ -286,6 +306,11 @@
 
   .profile-action-btn.hidden-btn {
     color: var(--color-text-muted);
+    border-color: var(--color-border);
+  }
+
+  .profile-action-btn.archive-confirm {
+    color: var(--color-text);
     border-color: var(--color-border);
   }
 
