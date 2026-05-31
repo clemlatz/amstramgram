@@ -65,6 +65,10 @@ SYNC_CYCLE_DELAY_MAX: int = _int("SYNC_CYCLE_DELAY_MAX", 86400)   # 24 h
 SYNC_INITIAL_DELAY_MIN: int = _int("SYNC_INITIAL_DELAY_MIN", 300)   # 5 min
 SYNC_INITIAL_DELAY_MAX: int = _int("SYNC_INITIAL_DELAY_MAX", 1800)  # 30 min
 
+# Jitter added after the overnight pause before starting the first daytime cycle (seconds).
+SYNC_MORNING_JITTER_MIN: int = _int("SYNC_MORNING_JITTER_MIN", 300)    # 5 min
+SYNC_MORNING_JITTER_MAX: int = _int("SYNC_MORNING_JITTER_MAX", 7200)   # 2 h
+
 # Enable historical backfill (fetch_old_posts). Disabled by default to reduce
 # Instagram API volume — enable only once the session is stable.
 SYNC_ENABLE_BACKFILL: bool = os.getenv("SYNC_ENABLE_BACKFILL", "").lower() in ("1", "true", "yes")

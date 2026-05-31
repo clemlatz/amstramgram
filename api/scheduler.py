@@ -29,6 +29,8 @@ from .config import (
     SYNC_INITIAL_DELAY_MAX,
     SYNC_INITIAL_DELAY_MIN,
     SYNC_MAX_RECENT_POSTS,
+    SYNC_MORNING_JITTER_MAX,
+    SYNC_MORNING_JITTER_MIN,
     SYNC_POST_DELAY_MAX,
     SYNC_POST_DELAY_MIN,
     SYNC_ENABLE_BACKFILL,
@@ -179,8 +181,14 @@ async def _wait_until_window() -> None:
         target = (now + timedelta(days=1)).replace(
             hour=7, minute=0, second=0, microsecond=0
         )
-    delay = (target - now).total_seconds()
-    logger.info("Outside active window — sleeping until 07:00 (%.0f min)", delay / 60)
+    jitter = _lognormal_delay(SYNC_MORNING_JITTER_MIN, SYNC_MORNING_JITTER_MAX)
+    delay = (target - now).total_seconds() + jitter
+    resume_at = now + timedelta(seconds=delay)
+    logger.info(
+        "Outside active window — sleeping until %s (%.0f min)",
+        resume_at.strftime("%H:%M"),
+        delay / 60,
+    )
     await asyncio.sleep(delay)
 
 
