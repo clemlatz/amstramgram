@@ -4,8 +4,8 @@
 
   let accounts = $state(data.accounts);
 
-  let activeAccounts = $derived(accounts.filter((a) => a.active));
-  let inactiveAccounts = $derived(accounts.filter((a) => !a.active));
+  let activeAccounts = $derived(accounts.filter((a) => a.active && !a.hidden));
+  let inactiveAccounts = $derived(accounts.filter((a) => !a.active && !a.hidden));
 
   async function toggleFollow(username, currentActive) {
     const newActive = !currentActive;
