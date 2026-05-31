@@ -1,5 +1,5 @@
 import sqlite3 as _sqlite3
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -309,3 +309,69 @@ def test_preview_returns_at_most_5_items(account_client):
     resp = tc.get("/api/accounts/alice/preview")
     assert resp.status_code == 200
     assert len(resp.json()["media"]) == 5
+
+
+@pytest.fixture()
+def accounts_client(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    with patch("api.routes.accounts.DB_PATH", db):
+        yield TestClient(app), db
+
+
+def _insert_account_with_media(db, username, platform_user_id, shortcodes):
+    conn = _sqlite3.connect(str(db))
+    conn.execute(
+        "INSERT INTO accounts (username, platform_user_id, active) VALUES (?, ?, 1)",
+        (username, platform_user_id),
+    )
+    account_id = conn.execute(
+        "SELECT id FROM accounts WHERE username=?", (username,)
+    ).fetchone()[0]
+    for sc in shortcodes:
+        conn.execute(
+            "INSERT INTO media (account_id, filename, filepath, extension, shortcode)"
+            " VALUES (?, ?, ?, 'jpg', ?)",
+            (account_id, f"{sc}.jpg", f"{username}/{sc}.jpg", sc),
+        )
+    conn.commit()
+    conn.close()
+
+
+def test_archive_account_route_returns_404_for_unknown(accounts_client):
+    tc, _ = accounts_client
+    resp = tc.post("/api/accounts/nobody/archive")
+    assert resp.status_code == 404
+
+
+def test_archive_account_route_returns_archived_true(accounts_client):
+    tc, db = accounts_client
+    _insert_account_with_media(db, "alice", "111", ["sc1", "sc2"])
+    resp = tc.post("/api/accounts/alice/archive")
+    assert resp.status_code == 200
+    assert resp.json() == {"archived": True}
+
+
+def test_archive_account_route_marks_account_inactive_and_hidden(accounts_client):
+    tc, db = accounts_client
+    _insert_account_with_media(db, "alice", "111", ["sc1"])
+    tc.post("/api/accounts/alice/archive")
+    conn = _sqlite3.connect(str(db))
+    row = conn.execute(
+        "SELECT active, hidden FROM accounts WHERE username='alice'"
+    ).fetchone()
+    conn.close()
+    assert row[0] == 0
+    assert row[1] == 1
+
+
+def test_archive_account_route_archives_all_posts(accounts_client):
+    tc, db = accounts_client
+    _insert_account_with_media(db, "alice", "111", ["sc1", "sc2"])
+    tc.post("/api/accounts/alice/archive")
+    conn = _sqlite3.connect(str(db))
+    rows = conn.execute(
+        "SELECT shortcode FROM ratings WHERE archived_at IS NOT NULL ORDER BY shortcode"
+    ).fetchall()
+    conn.close()
+    assert [r[0] for r in rows] == ["sc1", "sc2"]

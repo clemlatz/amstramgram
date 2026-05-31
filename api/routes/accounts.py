@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from ..config import DB_PATH, MEDIA_BASE, STORAGE_BASE
 from ..db import (
+    archive_account,
     get_account_detail,
     get_account_posts,
     get_account_preview_media,
@@ -163,6 +164,14 @@ async def patch_account_route(username: str, body: AccountPatch):
             raise HTTPException(status_code=404, detail="Account not found")
         return JSONResponse({"active": body.active})
     raise HTTPException(status_code=422, detail="No field to update")
+
+
+@router.post("/accounts/{username}/archive")
+async def archive_account_route(username: str):
+    archived = await asyncio.to_thread(archive_account, username, DB_PATH)
+    if not archived:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return JSONResponse({"archived": True})
 
 
 @router.get("/accounts/{username}")
