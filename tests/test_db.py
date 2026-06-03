@@ -10,6 +10,7 @@ from api.db import (
     shortcode_exists,
     get_unsynced_accounts,
     mark_account_synced,
+    upsert_account,
 )
 
 
@@ -547,3 +548,36 @@ def test_mark_as_saved_posts_noop_on_empty_list(tmp_path):
     db = tmp_path / "test.db"
     init_db(db)
     mark_as_saved_posts([], db)
+
+
+def test_upsert_account_updates_username_on_rename(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    _insert_account(db, "old_name", "42", active=0)
+
+    account_id, is_new = upsert_account("new_name", "42", db)
+
+    assert is_new is False
+    conn = sqlite3.connect(str(db))
+    row = conn.execute(
+        "SELECT username, active FROM accounts WHERE id = ?", (account_id,)
+    ).fetchone()
+    conn.close()
+    assert row[0] == "new_name"
+    assert row[1] == 0  # active state unchanged
+
+
+def test_upsert_account_creates_new(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+
+    account_id, is_new = upsert_account("newuser", "99", db)
+
+    assert is_new is True
+    conn = sqlite3.connect(str(db))
+    row = conn.execute(
+        "SELECT username, active FROM accounts WHERE id = ?", (account_id,)
+    ).fetchone()
+    conn.close()
+    assert row[0] == "newuser"
+    assert row[1] == 0

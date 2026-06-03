@@ -166,14 +166,21 @@ def record_saved_seen(shortcode: str, db_path: Path) -> None:
 def upsert_account(
     username: str, platform_user_id: str, db_path: Path
 ) -> tuple[int, bool]:
-    """Insert account if not exists. Returns (account_id, is_new). Never changes active state."""
+    """Insert account if not exists. Returns (account_id, is_new). Never changes active state.
+    Updates username if the account exists under a different name (Instagram username change)."""
     conn = _conn(db_path)
     try:
         existing = conn.execute(
-            "SELECT id FROM accounts WHERE platform_user_id = ?",
+            "SELECT id, username FROM accounts WHERE platform_user_id = ?",
             (platform_user_id,),
         ).fetchone()
         if existing:
+            if existing["username"] != username:
+                conn.execute(
+                    "UPDATE accounts SET username = ? WHERE id = ?",
+                    (username, existing["id"]),
+                )
+                conn.commit()
             return existing["id"], False
         try:
             cur = conn.execute(
@@ -977,7 +984,14 @@ def get_account_preview_media(username: str, count: int, db_path: Path) -> list[
             """,
             (username, count),
         ).fetchall()
-        return [{"filepath": r["filepath"], "extension": r["extension"], "shortcode": r["shortcode"]} for r in rows]
+        return [
+            {
+                "filepath": r["filepath"],
+                "extension": r["extension"],
+                "shortcode": r["shortcode"],
+            }
+            for r in rows
+        ]
     finally:
         conn.close()
 
