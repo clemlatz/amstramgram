@@ -143,6 +143,61 @@ def test_import_gramoire_file_duplicate_returns_duplicate(tmp_path):
     assert media2.exists()
 
 
+def test_import_gramoire_carousel_all_slides_imported(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    imports_dir = tmp_path / "imports"
+    imports_dir.mkdir()
+    storage = tmp_path / "storage"
+
+    # Simulate importing a 3-slide carousel — all shares the same shortcode
+    for idx in range(1, 4):
+        media = _make_media_file(imports_dir, f"CAR111_{idx}.jpg")
+        j = imports_dir / f"CAR111_{idx}.json"
+        _write_json(
+            j,
+            _gramoire_v12(
+                shortcode="CAR111",
+                kind="image",
+                carousel_total=3,
+                index=idx,
+                author_id="555",
+            ),
+        )
+        result = import_gramoire_file(media, j, storage, db)
+        assert result == "imported", f"slide {idx} was wrongly marked as duplicate"
+
+    conn = sqlite3.connect(str(db))
+    rows = conn.execute(
+        "SELECT carousel_index FROM media WHERE shortcode = 'CAR111' ORDER BY carousel_index"
+    ).fetchall()
+    conn.close()
+    assert [r[0] for r in rows] == [1, 2, 3]
+
+
+def test_import_gramoire_carousel_slide_duplicate_detected(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    imports_dir = tmp_path / "imports"
+    imports_dir.mkdir()
+    storage = tmp_path / "storage"
+
+    media = _make_media_file(imports_dir, "CAR222_2.jpg")
+    j = imports_dir / "CAR222_2.json"
+    _write_json(
+        j, _gramoire_v12(shortcode="CAR222", kind="image", carousel_total=3, index=2)
+    )
+    import_gramoire_file(media, j, storage, db)
+
+    media2 = _make_media_file(imports_dir, "CAR222_2.jpg")
+    j2 = imports_dir / "CAR222_2.json"
+    _write_json(
+        j2, _gramoire_v12(shortcode="CAR222", kind="image", carousel_total=3, index=2)
+    )
+    result = import_gramoire_file(media2, j2, storage, db)
+    assert result == "duplicate"
+
+
 def test_import_gramoire_file_creates_account_inactive(tmp_path):
     db = tmp_path / "test.db"
     init_db(db)

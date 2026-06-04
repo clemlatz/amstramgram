@@ -135,6 +135,30 @@ def shortcode_exists(shortcode: str, db_path: Path) -> bool:
         conn.close()
 
 
+def _media_file_exists(
+    shortcode: str, carousel_index: int | None, db_path: Path
+) -> bool:
+    """Check whether a specific media file (identified by shortcode + carousel slot) is already in the DB.
+
+    Carousel slides share a shortcode — only the (shortcode, carousel_index) pair is unique per file.
+    """
+    conn = _conn(db_path, read_only=True)
+    try:
+        if carousel_index is None:
+            row = conn.execute(
+                "SELECT 1 FROM media WHERE shortcode = ? AND carousel_index IS NULL",
+                (shortcode,),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT 1 FROM media WHERE shortcode = ? AND carousel_index = ?",
+                (shortcode, carousel_index),
+            ).fetchone()
+        return row is not None
+    finally:
+        conn.close()
+
+
 def get_all_shortcodes_set(db_path: Path) -> set[str]:
     """Return all known shortcodes: synced media + saved-but-skipped entries."""
     conn = _conn(db_path, read_only=True)
@@ -396,8 +420,14 @@ def import_gramoire_file(
 
     account_id, _ = upsert_account(meta["author_username"], meta["author_id"], db_path)
 
-    if meta["shortcode"] and shortcode_exists(meta["shortcode"], db_path):
-        return "duplicate"
+    if meta["shortcode"]:
+        is_dup = (
+            _media_file_exists(meta["shortcode"], meta["carousel_index"], db_path)
+            if meta["post_type"] == "carousel"
+            else shortcode_exists(meta["shortcode"], db_path)
+        )
+        if is_dup:
+            return "duplicate"
 
     dest_dir = storage_base / "media" / meta["author_id"]
     dest_dir.mkdir(parents=True, exist_ok=True)
