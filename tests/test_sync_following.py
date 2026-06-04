@@ -126,6 +126,19 @@ def test_upsert_tolerates_missing_bio_fields(db):
     assert added == 1  # must not raise
 
 
+def test_upsert_updates_username_on_instagram_rename(db):
+    import sqlite3
+
+    upsert_following_accounts([{"username": "old_name", "platform_user_id": "111"}], db)
+    upsert_following_accounts([{"username": "new_name", "platform_user_id": "111"}], db)
+    conn = sqlite3.connect(str(db))
+    row = conn.execute(
+        "SELECT username FROM accounts WHERE platform_user_id = '111'"
+    ).fetchone()
+    conn.close()
+    assert row[0] == "new_name"
+
+
 # Route tests
 
 

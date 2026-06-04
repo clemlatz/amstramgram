@@ -1048,9 +1048,10 @@ def upsert_following_accounts(
             [(a["username"], a["platform_user_id"]) for a in accounts],
         )
         conn.executemany(
-            "UPDATE accounts SET bio = ?, full_name = ?, external_url = ? WHERE platform_user_id = ?",
+            "UPDATE accounts SET username = ?, bio = ?, full_name = ?, external_url = ? WHERE platform_user_id = ?",
             [
                 (
+                    a["username"],
                     a.get("bio"),
                     a.get("full_name"),
                     a.get("external_url"),
