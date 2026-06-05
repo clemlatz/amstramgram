@@ -43,6 +43,11 @@
   let syncSavedResult = $state(null);
   let syncSavedError = $state(null);
 
+  let pendingImports = $state(data.pending_imports ?? 0);
+  let importLoading = $state(false);
+  let importResult = $state(null);
+  let importError = $state(null);
+
   let updateLoading = $state(false);
   let updateStatus = $state(null);
 
@@ -237,6 +242,28 @@
       syncSavedError = 'Network error. Please try again.';
     } finally {
       syncSavedLoading = false;
+    }
+  }
+
+  async function runImport() {
+    importLoading = true;
+    importResult = null;
+    importError = null;
+    try {
+      const res = await fetch('/api/settings/import', { method: 'POST' });
+      if (res.ok) {
+        const json = await res.json();
+        importResult = json;
+        pendingImports = 0;
+      } else if (res.status === 409) {
+        importError = 'Import already in progress.';
+      } else {
+        importError = 'Import failed. Please try again.';
+      }
+    } catch {
+      importError = 'Network error. Please try again.';
+    } finally {
+      importLoading = false;
     }
   }
 
@@ -442,6 +469,34 @@
     {/if}
     <button class="btn" type="button" disabled={syncSavedLoading} onclick={syncSavedPosts}>
       {syncSavedLoading ? 'Syncing…' : 'Sync saved posts'}
+    </button>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="imports-section">
+    <span class="field-label">Imports</span>
+    <span class="label">
+      {pendingImports === 1 ? '1 file pending' : pendingImports > 1 ? `${pendingImports} files pending` : 'No files pending'}
+    </span>
+    {#if importError}
+      <p class="error">{importError}</p>
+    {/if}
+    {#if importResult !== null}
+      <p class="saved">
+        {#if importResult.imported === 0 && importResult.duplicates === 0 && importResult.warnings === 0}
+          Nothing to import.
+        {:else}
+          {[
+            importResult.imported ? `${importResult.imported} imported` : '',
+            importResult.duplicates ? `${importResult.duplicates} duplicate${importResult.duplicates > 1 ? 's' : ''}` : '',
+            importResult.warnings ? `${importResult.warnings} warning${importResult.warnings > 1 ? 's' : ''}` : '',
+          ].filter(Boolean).join(', ')}.
+        {/if}
+      </p>
+    {/if}
+    <button class="btn" type="button" disabled={importLoading || pendingImports === 0} onclick={runImport}>
+      {importLoading ? 'Importing…' : 'Import'}
     </button>
   </div>
 
@@ -811,6 +866,12 @@
 
   .log-entry.log-error {
     color: var(--color-error);
+  }
+
+  .imports-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .offline-section {
