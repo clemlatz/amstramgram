@@ -13,8 +13,8 @@ export async function load({ fetch }) {
       fetch('/api/stats'),
     ]);
     const settings = settingsRes.ok
-      ? await safeJson(settingsRes, { username: null, session_id: null })
-      : { username: null, session_id: null };
+      ? await safeJson(settingsRes, { username: null, session_id: null, pending_imports: 0 })
+      : { username: null, session_id: null, pending_imports: 0 };
     const stats = statsRes.ok
       ? await safeJson(statsRes, { total: 0, images: 0, videos: 0, unrated: 0, favorites: 0, diskBytes: 0 })
       : { total: 0, images: 0, videos: 0, unrated: 0, favorites: 0, diskBytes: 0 };
@@ -31,6 +31,7 @@ export async function load({ fetch }) {
     return {
       username: null,
       session_id: null,
+      pending_imports: 0,
       total: 0,
       images: 0,
       videos: 0,
