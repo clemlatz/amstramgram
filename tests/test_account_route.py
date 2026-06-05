@@ -16,23 +16,29 @@ from api.main import app
 @pytest.fixture()
 def client(tmp_path):
     db = tmp_path / "test.db"
+    storage = tmp_path / "storage"
+    storage.mkdir()
     init_db(db)
-    with patch("api.routes.settings.DB_PATH", db):
-        yield TestClient(app), db
+    with (
+        patch("api.routes.settings.DB_PATH", db),
+        patch("api.routes.settings.STORAGE_BASE", storage),
+    ):
+        yield TestClient(app), db, storage
 
 
 def test_get_settings_returns_nulls_when_no_session(client):
-    tc, _ = client
+    tc, _, _ = client
     resp = tc.get("/api/settings")
     assert resp.status_code == 200
     data = resp.json()
     assert data["username"] is None
     assert data["session_id"] is None
     assert data["user_agent"] is None
+    assert data["pending_imports"] == 0
 
 
 def test_get_settings_returns_stored_values(client):
-    tc, db = client
+    tc, db, _ = client
     set_setting("username", "alice", db)
     set_setting("session_id", "sid123", db)
     resp = tc.get("/api/settings")
@@ -43,7 +49,7 @@ def test_get_settings_returns_stored_values(client):
 
 
 def test_post_session_returns_username_on_success(client):
-    tc, _ = client
+    tc, _, _ = client
     with patch("api.routes.settings.reload_session", return_value="alice"):
         resp = tc.post("/api/settings/session", json={"session_id": "newsid"})
     assert resp.status_code == 200
@@ -51,7 +57,7 @@ def test_post_session_returns_username_on_success(client):
 
 
 def test_post_session_returns_401_on_auth_failure(client):
-    tc, _ = client
+    tc, _, _ = client
     with patch(
         "api.routes.settings.reload_session",
         side_effect=ValueError("Authentication failed"),
@@ -62,7 +68,7 @@ def test_post_session_returns_401_on_auth_failure(client):
 
 
 def test_get_settings_includes_scheduler_fields(client):
-    tc, _ = client
+    tc, _, _ = client
     with patch(
         "api.routes.settings.get_scheduler_status",
         return_value={"running": False, "cycle_running": False, "next_run_at": None},
@@ -75,7 +81,7 @@ def test_get_settings_includes_scheduler_fields(client):
 
 
 def test_post_scheduler_start_returns_running_true(client):
-    tc, _ = client
+    tc, _, _ = client
     with patch(
         "api.routes.settings.start_scheduler", new_callable=AsyncMock
     ) as mock_start:
@@ -86,7 +92,7 @@ def test_post_scheduler_start_returns_running_true(client):
 
 
 def test_post_scheduler_stop_returns_running_false(client):
-    tc, _ = client
+    tc, _, _ = client
     with patch(
         "api.routes.settings.stop_scheduler", new_callable=AsyncMock
     ) as mock_stop:
@@ -94,6 +100,40 @@ def test_post_scheduler_stop_returns_running_false(client):
     assert resp.status_code == 200
     assert resp.json() == {"running": False}
     mock_stop.assert_called_once()
+
+
+def test_get_settings_counts_pending_imports(client):
+    tc, _, storage = client
+    imports_dir = storage / "imports"
+    imports_dir.mkdir()
+    (imports_dir / "photo.jpg").write_bytes(b"")
+    (imports_dir / "photo.json").write_bytes(b"{}")
+    resp = tc.get("/api/settings")
+    assert resp.status_code == 200
+    assert resp.json()["pending_imports"] == 1
+
+
+def test_post_import_returns_result_on_success(client):
+    tc, db, storage = client
+    with patch(
+        "api.routes.settings.run_import_media",
+        return_value={"imported": 3, "duplicates": 1, "warnings": 0},
+    ) as mock_import:
+        resp = tc.post("/api/settings/import")
+    assert resp.status_code == 200
+    assert resp.json() == {"imported": 3, "duplicates": 1, "warnings": 0}
+    mock_import.assert_called_once_with(db, storage)
+
+
+def test_post_import_returns_500_on_exception(client):
+    tc, _, _ = client
+    with patch(
+        "api.routes.settings.run_import_media",
+        side_effect=RuntimeError("disk full"),
+    ):
+        resp = tc.post("/api/settings/import")
+    assert resp.status_code == 500
+    assert resp.json()["detail"] == "Import failed. Please try again."
 
 
 @pytest.fixture()
