@@ -16,16 +16,28 @@ def run_import(db_path: Path, storage_base: Path, dry_run: bool) -> None:
         return
 
     if dry_run:
-        media_files = [
+        media_files = sorted(
             f for f in imports_dir.iterdir()
             if f.is_file() and f.suffix.lower() in MEDIA_EXTS
-        ]
+        )
         if not media_files:
             print("No media files found in imports directory.")
             return
-        for media in sorted(media_files):
-            print(f"  [dry-run] would import {media.name}")
-        print(f"\nDone: {len(media_files)} would be imported")
+        would_import = 0
+        warnings = 0
+        for media in media_files:
+            if not media.with_suffix(".json").exists():
+                print(f"WARNING: no sidecar for {media.name}, skipping")
+                warnings += 1
+            else:
+                print(f"  [dry-run] would import {media.name}")
+                would_import += 1
+        parts = []
+        if would_import:
+            parts.append(f"{would_import} would be imported")
+        if warnings:
+            parts.append(f"{warnings} warning{'s' if warnings > 1 else ''}")
+        print("\nDone: " + (", ".join(parts) if parts else "nothing to do"))
         return
 
     result = _run_import(db_path, storage_base)

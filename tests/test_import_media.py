@@ -293,6 +293,24 @@ def test_cli_dry_run_does_not_move(tmp_path):
     assert (imports_dir / "ABC123_1.json").exists()
 
 
+def test_cli_dry_run_warns_missing_sidecar(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    storage = tmp_path / "storage"
+    imports_dir = storage / "imports"
+    imports_dir.mkdir(parents=True)
+
+    media = _make_media_file(imports_dir, "NOSIDECAR_1.jpg")
+
+    result = _run_script(["--db", str(db), "--storage", str(storage), "--dry-run"])
+
+    assert result.returncode == 0
+    assert "WARNING" in result.stdout
+    assert "no sidecar for NOSIDECAR_1.jpg" in result.stdout
+    assert "1 warning" in result.stdout
+    assert media.exists()
+
+
 def test_cli_reports_duplicate(tmp_path):
     db = tmp_path / "test.db"
     init_db(db)
