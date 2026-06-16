@@ -4370,16 +4370,59 @@
       return;
     }
 
-    const rerunController = controller.runAgain();
-    if (!rerunController) {
+    const allItems = Array.isArray(controller.items) ? controller.items : [];
+    if (allItems.length === 0) {
       showToast(`${record.label}: original items unavailable.`, 3800);
       return;
     }
 
+    const skipPreviouslyDownloaded = !!USER_SETTINGS?.downloads?.skipPreviouslyDownloaded;
+    const itemsWithKeys = allItems.map(item => ({
+      ...item,
+      historyKey: item.historyKey || getDownloadHistoryKeyForTask(item)
+    }));
+
+    let skippedCount = 0;
+    const queuedItems = itemsWithKeys.filter(item => {
+      if (skipPreviouslyDownloaded && item.historyKey && hasDownloadedHistoryKey(item.historyKey)) {
+        skippedCount += 1;
+        return false;
+      }
+      return true;
+    });
+
+    if (skippedCount > 0) {
+      showToast(`Skipped ${skippedCount} previously downloaded item(s).`, 3800);
+    }
+    if (queuedItems.length === 0) {
+      showToast("All items were already downloaded.", 4000);
+      return;
+    }
+
+    const completedHistoryKeys = new Set();
+    const onItemResult = (detail) => {
+      if (detail?.status === "done" && Number.isInteger(detail.index) && detail.index >= 0 && detail.index < queuedItems.length) {
+        const historyKey = queuedItems[detail.index]?.historyKey;
+        if (historyKey) completedHistoryKeys.add(historyKey);
+      }
+    };
+
+    const rerunController = new BatchJobController(queuedItems, {
+      policy: controller.policy,
+      label: `${record.label} (run again)`,
+      mode: controller.mode,
+      onStateChange: controller._onStateChange,
+      onItemResult,
+      zipOptions: controller.zipOptions
+    });
+
     record.retryInFlight = true;
     renderBatchProgressIndicator();
     try {
-      await rerunController.run();
+      const result = await rerunController.run();
+      if (result?.completed > 0 && completedHistoryKeys.size > 0) {
+        rememberDownloadedHistoryKeys(Array.from(completedHistoryKeys));
+      }
     } catch (err) {
       showToast(`${record.label}: run again failed (${err?.message || "Unknown error"}).`, 6500);
     } finally {
