@@ -2851,6 +2851,7 @@
       filenameSeparator: "_",
       bulkAsZip: false,
       skipPreviouslyDownloaded: false,
+      amstramgramUrl: "",
       useTypeSubfolders: true,
       saveMetadataJson: false,
       saveMetadataXmp: false,
@@ -3018,6 +3019,19 @@
     return cleaned.slice(0, 240);
   }
 
+  function sanitizeAmstramgramUrl(value) {
+    if (typeof value !== "string") return "";
+    const trimmed = value.trim().replace(/\/+$/, "");
+    if (!trimmed) return "";
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+      return trimmed.slice(0, 200);
+    } catch {
+      return "";
+    }
+  }
+
   function sanitizeDownloadSettings(settings) {
     const source = settings && typeof settings === "object" ? settings : {};
     const androidCompatMode = (typeof source.androidCompatMode === "boolean")
@@ -3035,6 +3049,7 @@
       skipPreviouslyDownloaded: (typeof source.skipPreviouslyDownloaded === "boolean")
         ? source.skipPreviouslyDownloaded
         : DEFAULT_USER_SETTINGS.downloads.skipPreviouslyDownloaded,
+      amstramgramUrl: sanitizeAmstramgramUrl(source.amstramgramUrl),
       useTypeSubfolders: androidCompatMode
         ? false
         : (typeof source.useTypeSubfolders === "boolean")
@@ -7198,6 +7213,18 @@
               </div>
             </div>
             <div class="ig-hd-settings-help">Remember downloaded files and skip them in future batches to avoid duplicates.</div>
+            <div class="ig-hd-settings-card">
+              <div class="ig-hd-settings-card-inner">
+                <div class="ig-hd-settings-row">
+                  <label class="ig-hd-settings-label" for="ig-hd-amstramgram-url">Amstramgram URL</label>
+                  <input id="ig-hd-amstramgram-url" class="ig-hd-settings-input" type="text" value="${escapeHtml(currentSettings.downloads.amstramgramUrl || "")}" placeholder="http://localhost:8000" spellcheck="false" autocomplete="off" />
+                  <span class="ig-hd-token-actions">
+                    <button id="ig-hd-amstramgram-sync" class="ig-hd-settings-btn text-action" type="button">Sync now</button>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="ig-hd-settings-help">Enter your Amstramgram server URL to sync posts already in its database into the skip list.</div>
           </div>
           <div class="ig-hd-settings-group">
             <div class="ig-hd-settings-subheading">Compatibility</div>
@@ -7691,6 +7718,8 @@
     const saveMetadataExifGroup = modal.querySelector("#ig-hd-save-metadata-exif-group");
     const saveMetadataExifToggle = modal.querySelector("#ig-hd-save-metadata-exif");
     const skipPreviouslyDownloadedToggle = modal.querySelector("#ig-hd-skip-previously-downloaded");
+    const amstramgramUrlInput = modal.querySelector("#ig-hd-amstramgram-url");
+    const amstramgramSyncButton = modal.querySelector("#ig-hd-amstramgram-sync");
     const delayMinInput = modal.querySelector("#ig-hd-delay-min");
     const delayMaxInput = modal.querySelector("#ig-hd-delay-max");
     const safetyThresholdInput = modal.querySelector("#ig-hd-safety-threshold");
@@ -8249,7 +8278,7 @@
 
       setInfoTipText(
         speedTipNodes.skipDownloaded,
-        `Tracks downloaded files using your browser's local storage.\nFiles are identified by their Instagram media URL, so re-downloading the same content is skipped automatically.\nClearing your browser data or reinstalling the script will erase this history, and duplicates will no longer be detected.`
+        `Tracks downloaded files using your browser's local storage.\nFiles are identified by their Instagram shortcode, so re-downloading the same content is skipped automatically.\nClearing your browser data or reinstalling the script will erase this history, and duplicates will no longer be detected.\nUse "Sync now" below to pre-fill the skip list with posts already in your Amstramgram database.`
       );
 
       setInfoTipText(
@@ -8416,6 +8445,7 @@
           filenameTemplate: filenameTemplateInput.value,
           bulkAsZip: bulkZipToggle.checked,
           skipPreviouslyDownloaded: !!skipPreviouslyDownloadedToggle?.checked,
+          amstramgramUrl: amstramgramUrlInput?.value?.trim() ?? "",
           useTypeSubfolders: typeSubfoldersToggle ? !!typeSubfoldersToggle.checked : (USER_SETTINGS?.downloads?.useTypeSubfolders ?? true),
           saveMetadataJson: !!saveMetadataJsonToggle?.checked,
           saveMetadataXmp: !!saveMetadataXmpToggle?.checked,
@@ -9010,6 +9040,40 @@
       setRiskAckSessionAcknowledged(!!riskAckInput.checked);
       syncRiskAckControls(riskAckInput, profileDownloadButton);
     });
+
+    amstramgramSyncButton?.addEventListener("click", async () => {
+      const baseUrl = sanitizeAmstramgramUrl(amstramgramUrlInput?.value ?? "");
+      if (!baseUrl) {
+        showToast("Enter a valid Amstramgram URL first.", 4000);
+        return;
+      }
+      amstramgramSyncButton.disabled = true;
+      amstramgramSyncButton.textContent = "Syncing…";
+      try {
+        const response = await GramPlatform.fetchUrl({
+          method: "GET",
+          url: `${baseUrl}/api/shortcodes`,
+          withCredentials: false,
+          timeout: 15000
+        });
+        if (response.status !== 200) {
+          throw new Error(`Server returned ${response.status}`);
+        }
+        const shortcodes = JSON.parse(response.responseText);
+        if (!Array.isArray(shortcodes)) throw new Error("Unexpected response format");
+        const keys = shortcodes.filter(Boolean).map((s) => `shortcode:${s}`);
+        const added = rememberDownloadedHistoryKeys(keys);
+        showToast(`Synced ${added} new shortcode${added !== 1 ? "s" : ""} from Amstramgram (${shortcodes.length} total in DB).`, 5000);
+        triggerImmediateAutosave();
+      } catch (err) {
+        showToast(`Amstramgram sync failed: ${err?.message || "Unknown error"}`, 6000);
+      } finally {
+        amstramgramSyncButton.disabled = false;
+        amstramgramSyncButton.textContent = "Sync now";
+      }
+    });
+
+    amstramgramUrlInput?.addEventListener("input", scheduleDebouncedAutosave);
 
     [
       hotkeyInput,
