@@ -9093,20 +9093,8 @@
       amstramgramSyncButton.disabled = true;
       amstramgramSyncButton.textContent = "Syncing…";
       try {
-        const response = await GramPlatform.fetchUrl({
-          method: "GET",
-          url: `${baseUrl}/api/shortcodes`,
-          withCredentials: false,
-          timeout: 15000
-        });
-        if (response.status !== 200) {
-          throw new Error(`Server returned ${response.status}`);
-        }
-        const shortcodes = JSON.parse(response.responseText);
-        if (!Array.isArray(shortcodes)) throw new Error("Unexpected response format");
-        const keys = shortcodes.filter(Boolean).map((s) => `shortcode:${s}`);
-        const added = rememberDownloadedHistoryKeys(keys);
-        showToast(`Synced ${added} new shortcode${added !== 1 ? "s" : ""} from Amstramgram (${shortcodes.length} total in DB).`, 5000);
+        const { added, total } = await syncAmstramgramShortcodes(baseUrl);
+        showToast(`Synced ${added} new shortcode${added !== 1 ? "s" : ""} from Amstramgram (${total} total in DB).`, 5000);
         triggerImmediateAutosave();
       } catch (err) {
         showToast(`Amstramgram sync failed: ${err?.message || "Unknown error"}`, 6000);
@@ -9419,6 +9407,21 @@
 
     const settingsModal = document.getElementById("ig-hd-settings-modal");
     if (settingsModal) settingsModal.scrollTop = 0;
+  }
+
+  async function syncAmstramgramShortcodes(baseUrl) {
+    const response = await GramPlatform.fetchUrl({
+      method: "GET",
+      url: `${baseUrl}/api/shortcodes`,
+      withCredentials: false,
+      timeout: 15000
+    });
+    if (response.status !== 200) throw new Error(`Server returned ${response.status}`);
+    const shortcodes = JSON.parse(response.responseText);
+    if (!Array.isArray(shortcodes)) throw new Error("Unexpected response format");
+    const keys = shortcodes.filter(Boolean).map((s) => `shortcode:${s}`);
+    const added = rememberDownloadedHistoryKeys(keys);
+    return { added, total: shortcodes.length };
   }
 
   function isEditableTarget(target) {
@@ -16874,6 +16877,16 @@ const STORY_MATCHING_CORE = (() => {
       return { total: 0, completed: 0, failed: 0 };
     }
 
+    const amstramgramBaseUrl = sanitizeAmstramgramUrl(USER_SETTINGS?.downloads?.amstramgramUrl ?? "");
+    if (amstramgramBaseUrl) {
+      try {
+        const { added, total } = await syncAmstramgramShortcodes(amstramgramBaseUrl);
+        if (added > 0) showToast(`Amstramgram: synced ${added} new shortcode${added !== 1 ? "s" : ""} (${total} total).`, 4000);
+      } catch (err) {
+        showToast(`Amstramgram sync failed: ${err?.message || "Unknown error"}`, 4000);
+      }
+    }
+
     const policy = options?.policy && typeof options.policy === "object"
       ? options.policy
       : getActiveBulkPolicy();
@@ -19405,6 +19418,16 @@ const STORY_MATCHING_CORE = (() => {
     const normalizedUsername = typeof username === "string" ? username.trim() : "";
     if (!/^[A-Za-z0-9._]+$/.test(normalizedUsername)) {
       throw new Error("Invalid username");
+    }
+
+    const amstramgramBaseUrl = sanitizeAmstramgramUrl(USER_SETTINGS?.downloads?.amstramgramUrl ?? "");
+    if (amstramgramBaseUrl) {
+      try {
+        const { added, total } = await syncAmstramgramShortcodes(amstramgramBaseUrl);
+        if (added > 0) showToast(`Amstramgram: synced ${added} new shortcode${added !== 1 ? "s" : ""} (${total} total).`, 4000);
+      } catch (err) {
+        showToast(`Amstramgram sync failed: ${err?.message || "Unknown error"}`, 4000);
+      }
     }
 
     const policy = options?.policy && typeof options.policy === "object"
