@@ -10,7 +10,7 @@ from .config import DB_PATH, ENABLE_ACCESS_LOG, LOG_PATH
 from .db import get_setting, init_db
 from .patches import apply_all as apply_patches
 from .logs import AppLogHandler, init_log_buffer
-from .routes import accounts, feed, media, random, rate, settings, stats
+from .routes import accounts, feed, media, random, rate, settings, shortcodes, stats
 from .scheduler import start_scheduler
 
 logging.basicConfig(
@@ -48,6 +48,7 @@ app.include_router(feed.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
 app.include_router(accounts.router, prefix="/api")
+app.include_router(shortcodes.router, prefix="/api")
 
 
 class _SPAFiles(StaticFiles):
