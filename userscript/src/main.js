@@ -4082,6 +4082,7 @@
       completed: 0,
       failed: 0,
       cancelled: 0,
+      skipped: 0,
       indeterminate: false,
       forceVisible: false,
       elapsedMs: 0,
@@ -4197,6 +4198,9 @@
     }
     if (status?.cancelled !== undefined) {
       record.cancelled = Math.max(0, Number(status.cancelled) || 0);
+    }
+    if (status?.skipped !== undefined) {
+      record.skipped = Math.max(0, Number(status.skipped) || 0);
     }
     if (Array.isArray(status?.failedItems)) {
       record.failedItems = status.failedItems.map((item) => ({ ...item }));
@@ -4416,6 +4420,9 @@
       zipOptions: controller.zipOptions
     });
 
+    if (skippedCount > 0) {
+      ensureBatchRunRecord({ jobId: rerunController.jobId }).skipped = skippedCount;
+    }
     record.retryInFlight = true;
     renderBatchProgressIndicator();
     try {
@@ -4997,6 +5004,9 @@
     }
 
     ui.valueCompleted.textContent = String(safeCompleted);
+    const safeSkipped = Math.max(0, Number(selected.skipped) || 0);
+    ui.valueSkipped.textContent = String(safeSkipped);
+    ui.skippedRow.hidden = safeSkipped === 0;
     ui.valueFailed.textContent = String(safeFailed);
     ui.valueFailed.classList.toggle("fail", safeFailed > 0);
     ui.valueElapsed.textContent = formatDurationShort(safeElapsedMs);
@@ -5299,6 +5309,9 @@
     }
 
     const completedRow = createDetailsRow("Completed");
+    const skippedRow = createDetailsRow("Skipped");
+    skippedRow.row.hidden = true;
+    skippedRow.rowValue.classList.add("secondary");
 
     const failedRow = document.createElement("div");
     failedRow.className = "gm-row linkish";
@@ -5347,7 +5360,7 @@
     const elapsedRow = createDetailsRow("Elapsed");
     elapsedRow.rowValue.classList.add("secondary");
 
-    detailsCard.append(completedRow.row, failedRow, failedList, elapsedRow.row);
+    detailsCard.append(completedRow.row, skippedRow.row, failedRow, failedList, elapsedRow.row);
 
     // Actions row with overflow menu
     const actions = document.createElement("div");
@@ -5521,6 +5534,8 @@
       cooldownCard,
       cooldownTime,
       valueCompleted: completedRow.rowValue,
+      skippedRow: skippedRow.row,
+      valueSkipped: skippedRow.rowValue,
       valueFailed: failedValue,
       valueElapsed: elapsedRow.rowValue,
       failedRow,
@@ -6417,6 +6432,10 @@
       zipOptions: { zipName: options.zipName }
     });
 
+    const skippedZip = Math.max(0, Number(options.skipped) || 0);
+    if (skippedZip > 0) {
+      ensureBatchRunRecord({ jobId: controller.jobId }).skipped = skippedZip;
+    }
     return await controller.run();
   }
 
@@ -6495,7 +6514,8 @@
     if (USER_SETTINGS?.downloads?.bulkAsZip && queued.length > 1) {
       const zipResult = await runBatchZipExportTasks(queued, safePolicy, {
         ...options,
-        onItemResult: onItemResult
+        onItemResult: onItemResult,
+        skipped: skippedByHistory
       });
       if (zipResult?.completed > 0 && completedHistoryKeys.size > 0) {
         rememberDownloadedHistoryKeys(Array.from(completedHistoryKeys));
@@ -6512,6 +6532,9 @@
       onItemResult: onItemResult
     });
 
+    if (skippedByHistory > 0) {
+      ensureBatchRunRecord({ jobId: controller.jobId }).skipped = skippedByHistory;
+    }
     const result = await controller.run();
     if (result?.completed > 0 && completedHistoryKeys.size > 0) {
       rememberDownloadedHistoryKeys(Array.from(completedHistoryKeys));
