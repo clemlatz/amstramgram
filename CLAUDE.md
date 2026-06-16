@@ -14,9 +14,12 @@ amstramgram/
 ├── frontend/         — SvelteKit frontend (adapter-static → SPA)
 │   ├── src/
 │   └── static/
+├── userscript/       — Tampermonkey userscript (separate sub-project, own CLAUDE.md)
 ├── Dockerfile        — Multi-stage: Node build + Python runtime
 └── docker-compose.yml
 ```
+
+> `userscript/` is a standalone JavaScript project with its own `CLAUDE.md`. It is a modular browser userscript for Instagram — built by concatenation of `src/` files via `npm run build`, no bundler.
 
 ### FastAPI backend (`api/`)
 
@@ -60,6 +63,27 @@ amstramgram/
 | `POST /api/settings/import` | Trigger manual Gramoire import |
 | `GET /api/logs` | Recent application log entries (last 100) |
 
+### Frontend (`frontend/`)
+
+SvelteKit with `adapter-static` (SPA mode: `ssr = false`, `prerender = false`). Built output in `frontend/build/` is served by FastAPI via a `_SPAFiles` catch-all that falls back to `index.html`.
+
+**Routes:**
+
+| Path | Page |
+|---|---|
+| `/` | Feed — last 100 photos |
+| `/random` | Pick — rate a random unrated photo |
+| `/following` | Following list (all accounts) |
+| `/accounts/[username]` | Account detail + post grid |
+| `/settings` | Settings, scheduler, import |
+
+**Key conventions:**
+- Uses **Svelte 5 runes** syntax throughout (`$props()`, `$state()`, `$derived()`, `$effect()`).
+- `$lib/audio.svelte.js` and `$lib/offline.svelte.js` are rune-based reactive singletons (module-level `$state`).
+- The layout polls `/api/stats` every 10–15 s to detect server reachability; sets `offline.value` which hides data pages.
+- **Responsive layout**: bottom tab bar on mobile, left sidebar at 768px+.
+- **PWA**: `VitePWA` plugin with a custom `src/sw.js` service worker using `injectManifest` strategy.
+
 ### Storage
 
 - SQLite DB: `$STORAGE_BASE/amstramgram.db` (Docker default: `/storage/amstramgram.db`)
@@ -67,19 +91,26 @@ amstramgram/
 - Log: `$STORAGE_BASE/amstramgram.log`
 - Gramoire imports: `$STORAGE_BASE/imports/` (drop files here before importing)
 
+**SQLite schema (5 tables):** `accounts`, `media`, `ratings` (keyed by shortcode), `settings` (key/value), `saved_seen` (tracks already-seen saved posts).
+
 ## Commands
 
 ```bash
 # Install dependencies (creates .venv + installs Python deps)
 make install
 
-# Run tests
+# Run all tests
 make test
 
-# Dev — run FastAPI + SvelteKit in parallel
-make start             # backend — reads PORT from .env (default 8000)
+# Run a single test file or function
+.venv/bin/pytest tests/test_db.py -v
+.venv/bin/pytest tests/test_db.py::test_index_account -v
 
-cd frontend && npm run dev   # in another terminal — proxies /api → PORT from .env
+# Dev — run FastAPI + SvelteKit dev server in parallel (single terminal)
+make dev               # backend on PORT (.env default 8000) + Vite proxy at :5173
+
+# Backend only
+make start
 
 # Production — Docker
 cp .env.example .env
@@ -87,6 +118,9 @@ docker compose up -d --build
 
 # Build SvelteKit only
 cd frontend && npm run build   # → frontend/build/ (served by FastAPI in production)
+
+# Import media from Gramoire drop folder
+make import
 ```
 
 ## Environment variables
@@ -137,7 +171,7 @@ All scheduler delays are configurable. Defaults are intentionally conservative.
 - `.done` sentinel file in each account's storage folder
 - Without `.done` → full sync
 - With `.done` → `fast_update=True` (stops at the first already-known post)
-- Random 10–60 min delay between each cycle
+- Default cycle delay: 12–24 h (`SYNC_CYCLE_DELAY_MIN/MAX`)
 
 ## Naming conventions
 
