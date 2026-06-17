@@ -39,14 +39,14 @@
   let schedulerLoading = $state(false);
   let schedulerError = $state(false);
 
-  let syncSavedLoading = $state(false);
-  let syncSavedResult = $state(null);
-  let syncSavedError = $state(null);
+  let importSavedLoading = $state(false);
+  let importSavedResult = $state(null);
+  let importSavedError = $state(null);
 
   let pendingImports = $state(data.pending_imports ?? 0);
-  let importLoading = $state(false);
-  let importResult = $state(null);
-  let importError = $state(null);
+  let importFromDiskLoading = $state(false);
+  let importFromDiskResult = $state(null);
+  let importFromDiskError = $state(null);
 
   let updateLoading = $state(false);
   let updateStatus = $state(null);
@@ -226,44 +226,44 @@
     await saveUserAgent(UA_PLACEHOLDER);
   }
 
-  async function syncSavedPosts() {
-    syncSavedLoading = true;
-    syncSavedResult = null;
-    syncSavedError = null;
+  async function importSavedPosts() {
+    importSavedLoading = true;
+    importSavedResult = null;
+    importSavedError = null;
     try {
-      const res = await fetch('/api/settings/sync-saved', { method: 'POST' });
+      const res = await fetch('/api/settings/import-saved', { method: 'POST' });
       if (res.ok) {
         const json = await res.json();
-        syncSavedResult = json.synced;
+        importSavedResult = json.imported;
       } else {
-        syncSavedError = 'Sync failed. Please try again.';
+        importSavedError = 'Import failed. Please try again.';
       }
     } catch {
-      syncSavedError = 'Network error. Please try again.';
+      importSavedError = 'Network error. Please try again.';
     } finally {
-      syncSavedLoading = false;
+      importSavedLoading = false;
     }
   }
 
-  async function runImport() {
-    importLoading = true;
-    importResult = null;
-    importError = null;
+  async function importFromDisk() {
+    importFromDiskLoading = true;
+    importFromDiskResult = null;
+    importFromDiskError = null;
     try {
-      const res = await fetch('/api/settings/import', { method: 'POST' });
+      const res = await fetch('/api/settings/import-from-disk', { method: 'POST' });
       if (res.ok) {
         const json = await res.json();
-        importResult = json;
+        importFromDiskResult = json;
         pendingImports = 0;
       } else if (res.status === 409) {
-        importError = 'Import already in progress.';
+        importFromDiskError = 'Import already in progress.';
       } else {
-        importError = 'Import failed. Please try again.';
+        importFromDiskError = 'Import failed. Please try again.';
       }
     } catch {
-      importError = 'Network error. Please try again.';
+      importFromDiskError = 'Network error. Please try again.';
     } finally {
-      importLoading = false;
+      importFromDiskLoading = false;
     }
   }
 
@@ -413,7 +413,7 @@
         <p class="error">{uaError}</p>
       {/if}
       {#if uaSaved}
-        <p class="saved">Saved — applies on next sync cycle.</p>
+        <p class="saved">Saved — applies on next import cycle.</p>
       {/if}
       <div class="btn-row">
         <button class="btn" type="submit" disabled={uaLoading || !userAgent.trim()}>
@@ -454,49 +454,49 @@
 
   <div class="divider"></div>
 
-  <div class="sync-saved-section">
+  <div class="import-saved-section">
     <span class="field-label">Saved posts</span>
-    <span class="label">Sync posts you saved on Instagram</span>
-    {#if syncSavedError}
-      <p class="error">{syncSavedError}</p>
+    <span class="label">Import posts you saved on Instagram</span>
+    {#if importSavedError}
+      <p class="error">{importSavedError}</p>
     {/if}
-    {#if syncSavedResult !== null}
+    {#if importSavedResult !== null}
       <p class="saved">
-        {syncSavedResult === 0
+        {importSavedResult === 0
           ? 'Already up to date.'
-          : `${syncSavedResult} post${syncSavedResult === 1 ? '' : 's'} synced.`}
+          : `${importSavedResult} post${importSavedResult === 1 ? '' : 's'} imported.`}
       </p>
     {/if}
-    <button class="btn" type="button" disabled={syncSavedLoading} onclick={syncSavedPosts}>
-      {syncSavedLoading ? 'Syncing…' : 'Sync saved posts'}
+    <button class="btn" type="button" disabled={importSavedLoading} onclick={importSavedPosts}>
+      {importSavedLoading ? 'Importing…' : 'Import saved posts'}
     </button>
   </div>
 
   <div class="divider"></div>
 
-  <div class="imports-section">
-    <span class="field-label">Imports</span>
+  <div class="import-from-disk-section">
+    <span class="field-label">Import from disk</span>
     <span class="label">
       {pendingImports === 1 ? '1 file pending' : pendingImports > 1 ? `${pendingImports} files pending` : 'No files pending'}
     </span>
-    {#if importError}
-      <p class="error">{importError}</p>
+    {#if importFromDiskError}
+      <p class="error">{importFromDiskError}</p>
     {/if}
-    {#if importResult !== null}
+    {#if importFromDiskResult !== null}
       <p class="saved">
-        {#if importResult.imported === 0 && importResult.duplicates === 0 && importResult.warnings === 0}
+        {#if importFromDiskResult.imported === 0 && importFromDiskResult.duplicates === 0 && importFromDiskResult.warnings === 0}
           Nothing to import.
         {:else}
           {[
-            importResult.imported ? `${importResult.imported} imported` : '',
-            importResult.duplicates ? `${importResult.duplicates} duplicate${importResult.duplicates > 1 ? 's' : ''}` : '',
-            importResult.warnings ? `${importResult.warnings} warning${importResult.warnings > 1 ? 's' : ''}` : '',
+            importFromDiskResult.imported ? `${importFromDiskResult.imported} imported` : '',
+            importFromDiskResult.duplicates ? `${importFromDiskResult.duplicates} duplicate${importFromDiskResult.duplicates > 1 ? 's' : ''}` : '',
+            importFromDiskResult.warnings ? `${importFromDiskResult.warnings} warning${importFromDiskResult.warnings > 1 ? 's' : ''}` : '',
           ].filter(Boolean).join(', ')}.
         {/if}
       </p>
     {/if}
-    <button class="btn" type="button" disabled={importLoading || pendingImports === 0} onclick={runImport}>
-      {importLoading ? 'Importing…' : 'Import'}
+    <button class="btn" type="button" disabled={importFromDiskLoading || pendingImports === 0} onclick={importFromDisk}>
+      {importFromDiskLoading ? 'Importing…' : 'Import from disk'}
     </button>
   </div>
 
@@ -785,7 +785,7 @@
 
   .stats-section,
   .scheduler-section,
-  .sync-saved-section,
+  .import-saved-section,
   .app-section {
     display: flex;
     flex-direction: column;
@@ -868,7 +868,7 @@
     color: var(--color-error);
   }
 
-  .imports-section {
+  .import-from-disk-section {
     display: flex;
     flex-direction: column;
     gap: 8px;

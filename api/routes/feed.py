@@ -20,7 +20,7 @@ def _media_type(ext: str) -> str:
 
 
 @router.get("/feed")
-async def get_feed(sort: Literal["post_timestamp", "synced_at"] = "post_timestamp"):
+async def get_feed(sort: Literal["post_timestamp", "imported_at"] = "post_timestamp"):
     posts = await asyncio.to_thread(get_recent_posts, DB_PATH, sort)
     return JSONResponse(
         {

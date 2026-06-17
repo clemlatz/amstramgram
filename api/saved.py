@@ -11,7 +11,7 @@ from .db import (
     shortcode_exists,
     upsert_account,
 )
-from .loader import sync_lock
+from .loader import import_lock
 from .scheduler import (
     RateLimitException,
     _is_rate_limited,
@@ -31,10 +31,10 @@ _TYPE_LABELS = {
 def sync_saved_posts(
     L: instaloader.Instaloader, db_path: Path, storage_base: Path
 ) -> tuple[int, list[str]]:
-    """Sync saved posts from Instagram, stopping at the first already-indexed shortcode.
+    """Import saved posts from Instagram, stopping at the first already-indexed shortcode.
 
-    Verifies each synced post on disk and in DB; aborts if a post fails to land.
-    Returns (synced_count, new_account_platform_user_ids).
+    Verifies each imported post on disk and in DB; aborts if a post fails to land.
+    Returns (imported_count, new_account_platform_user_ids).
     Raises RateLimitException, LoginRequiredException, or AbortDownloadException on hard failures.
     """
     _set_session_headers(L)
@@ -51,7 +51,7 @@ def sync_saved_posts(
 
             if shortcode_exists(shortcode, db_path):
                 logger.info(
-                    "sync-saved: [%s] %s — already indexed, stopping",
+                    "import-saved: [%s] %s — already indexed, stopping",
                     type_label,
                     shortcode,
                 )
@@ -74,20 +74,20 @@ def sync_saved_posts(
             }
 
             logger.info(
-                "sync-saved: [%s] %s from @%s — downloading",
+                "import-saved: [%s] %s from @%s — downloading",
                 type_label,
                 shortcode,
                 username,
             )
             try:
-                with sync_lock:
+                with import_lock:
                     L.dirname_pattern = str(dest)
                     L.download_post(post, target=username)
             except Exception as exc:
                 if _is_rate_limited(exc):
                     raise RateLimitException(str(exc)) from exc
                 logger.error(
-                    "sync-saved: [%s] %s — download error: %s",
+                    "import-saved: [%s] %s — download error: %s",
                     type_label,
                     shortcode,
                     exc,
@@ -103,7 +103,7 @@ def sync_saved_posts(
 
             if not new_files:
                 logger.error(
-                    "sync-saved: [%s] %s — no media files on disk after download, aborting",
+                    "import-saved: [%s] %s — no media files on disk after download, aborting",
                     type_label,
                     shortcode,
                 )
@@ -113,7 +113,7 @@ def sync_saved_posts(
                 index_account(account_id, dest, db_path)
             except Exception as exc:
                 logger.error(
-                    "sync-saved: [%s] %s — indexing failed: %s, aborting",
+                    "import-saved: [%s] %s — indexing failed: %s, aborting",
                     type_label,
                     shortcode,
                     exc,
@@ -122,14 +122,14 @@ def sync_saved_posts(
 
             if not shortcode_exists(shortcode, db_path):
                 logger.error(
-                    "sync-saved: [%s] %s — files on disk but not in DB after indexing, aborting",
+                    "import-saved: [%s] %s — files on disk but not in DB after indexing, aborting",
                     type_label,
                     shortcode,
                 )
                 break
 
             logger.info(
-                "sync-saved: [%s] %s ✓ — %d file(s) saved and indexed",
+                "import-saved: [%s] %s ✓ — %d file(s) saved and indexed",
                 type_label,
                 shortcode,
                 len(new_files),
@@ -151,9 +151,9 @@ def sync_saved_posts(
     except Exception as exc:
         if _is_rate_limited(exc):
             raise RateLimitException(str(exc)) from exc
-        logger.error("sync-saved: unexpected error — %s", exc, exc_info=True)
+        logger.error("import-saved: unexpected error — %s", exc, exc_info=True)
 
     L.download_videos = False
     mark_as_saved_posts(saved_shortcodes, db_path)
-    logger.info("sync-saved: done — %d post(s) synced", len(saved_shortcodes))
+    logger.info("import-saved: done — %d post(s) synced", len(saved_shortcodes))
     return len(saved_shortcodes), new_platform_user_ids

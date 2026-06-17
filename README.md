@@ -24,7 +24,7 @@
 - **Feed** — chronological grid of all downloaded media
 - **Random** — swipe through photos one at a time, mark them as favorite or archive
 - **Following** — list of followed accounts with profile pictures and post counts
-- **Settings** — manage session, scheduler, saved-post sync, and Gramoire imports from the web UI
+- **Settings** — manage session, scheduler, saved-post import, and Gramoire imports from disk
 
 ## Requirements
 
@@ -56,7 +56,7 @@ cp .env.example .env   # adjust storage paths if needed
 make start
 ```
 
-The backend starts a background scheduler that syncs media from followed accounts and exposes the API on `http://localhost:8000`.
+The backend starts a background scheduler that imports media from followed accounts and exposes the API on `http://localhost:8000`.
 
 **Terminal 2 — SvelteKit**
 
@@ -85,7 +85,7 @@ The image is built in two stages: Node 22 compiles the SvelteKit SPA, then Pytho
 |---|---|---|
 | `PORT` | `8000` | Backend port (dev only) |
 | `STORAGE_BASE` | `/storage` | Media storage root (DB stored here too) |
-| `DRY_RUN` | `false` | Skip all syncs (for testing) |
+| `DRY_RUN` | `false` | Skip all imports (for testing) |
 | `ENABLE_ACCESS_LOG` | `false` | Enable HTTP access logs |
 
 ## Importing media from Gramoire

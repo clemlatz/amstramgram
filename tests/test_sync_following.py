@@ -154,7 +154,7 @@ def _make_loader(following_pages):
 def test_sync_returns_400_when_no_session(client):
     tc, _ = client
     with patch("api.routes.accounts.get_loader", return_value=None):
-        resp = tc.post("/api/accounts/sync-following")
+        resp = tc.post("/api/accounts/import-following")
     assert resp.status_code == 400
 
 
@@ -165,7 +165,7 @@ def test_sync_inserts_accounts_and_returns_count(client):
     }
     mock_L = _make_loader([page])
     with patch("api.routes.accounts.get_loader", return_value=mock_L):
-        resp = tc.post("/api/accounts/sync-following")
+        resp = tc.post("/api/accounts/import-following")
     assert resp.status_code == 200
     assert resp.json() == {"added": 2}
 
@@ -176,7 +176,7 @@ def test_sync_paginates_until_no_next_cursor(client):
     page2 = {"users": [{"username": "bob", "pk": "222"}]}
     mock_L = _make_loader([page1, page2])
     with patch("api.routes.accounts.get_loader", return_value=mock_L):
-        resp = tc.post("/api/accounts/sync-following")
+        resp = tc.post("/api/accounts/import-following")
     assert resp.status_code == 200
     assert resp.json() == {"added": 2}
 
@@ -187,7 +187,7 @@ def test_sync_returns_zero_when_all_accounts_exist(client):
     page = {"users": [{"username": "alice", "pk": "111"}]}
     mock_L = _make_loader([page])
     with patch("api.routes.accounts.get_loader", return_value=mock_L):
-        resp = tc.post("/api/accounts/sync-following")
+        resp = tc.post("/api/accounts/import-following")
     assert resp.status_code == 200
     assert resp.json() == {"added": 0}
 
@@ -209,7 +209,7 @@ def test_sync_stores_bio_from_instagram_response(client):
     }
     mock_L = _make_loader([page])
     with patch("api.routes.accounts.get_loader", return_value=mock_L):
-        resp = tc.post("/api/accounts/sync-following")
+        resp = tc.post("/api/accounts/import-following")
     assert resp.status_code == 200
     conn = sqlite3.connect(str(db))
     row = conn.execute(

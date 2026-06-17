@@ -14,42 +14,42 @@ from .config import (
     DRY_RUN,
     MEDIA_BASE,
     STORAGE_BASE,
-    SYNC_ACCOUNTS_PER_CYCLE_MAX,
-    SYNC_ACCOUNTS_PER_CYCLE_MIN,
-    SYNC_ACCOUNT_DELAY_MAX,
-    SYNC_ACCOUNT_DELAY_MIN,
-    SYNC_BACKFILL_DELAY_MAX,
-    SYNC_BACKFILL_DELAY_MIN,
-    SYNC_BACKFILL_MAX,
-    SYNC_BACKFILL_MIN,
-    SYNC_CYCLE_DELAY_MAX,
-    SYNC_CYCLE_DELAY_MIN,
-    SYNC_GROUP_DELAY_MAX,
-    SYNC_GROUP_DELAY_MIN,
-    SYNC_INITIAL_DELAY_MAX,
-    SYNC_INITIAL_DELAY_MIN,
-    SYNC_MAX_RECENT_POSTS,
-    SYNC_MORNING_JITTER_MAX,
-    SYNC_MORNING_JITTER_MIN,
-    SYNC_POST_DELAY_MAX,
-    SYNC_POST_DELAY_MIN,
-    SYNC_ENABLE_BACKFILL,
-    SYNC_RATE_LIMIT_BACKOFF_BASE,
-    SYNC_RATE_LIMIT_BACKOFF_MAX,
-    SYNC_RATE_LIMIT_RETRIES,
+    IMPORT_ACCOUNTS_PER_CYCLE_MAX,
+    IMPORT_ACCOUNTS_PER_CYCLE_MIN,
+    IMPORT_ACCOUNT_DELAY_MAX,
+    IMPORT_ACCOUNT_DELAY_MIN,
+    IMPORT_BACKFILL_DELAY_MAX,
+    IMPORT_BACKFILL_DELAY_MIN,
+    IMPORT_BACKFILL_MAX,
+    IMPORT_BACKFILL_MIN,
+    IMPORT_CYCLE_DELAY_MAX,
+    IMPORT_CYCLE_DELAY_MIN,
+    IMPORT_GROUP_DELAY_MAX,
+    IMPORT_GROUP_DELAY_MIN,
+    IMPORT_INITIAL_DELAY_MAX,
+    IMPORT_INITIAL_DELAY_MIN,
+    IMPORT_MAX_RECENT_POSTS,
+    IMPORT_MORNING_JITTER_MAX,
+    IMPORT_MORNING_JITTER_MIN,
+    IMPORT_POST_DELAY_MAX,
+    IMPORT_POST_DELAY_MIN,
+    IMPORT_ENABLE_BACKFILL,
+    IMPORT_RATE_LIMIT_BACKOFF_BASE,
+    IMPORT_RATE_LIMIT_BACKOFF_MAX,
+    IMPORT_RATE_LIMIT_RETRIES,
 )
 from .db import (
     deactivate_account,
     get_active_accounts,
     get_setting,
-    get_unsynced_accounts,
+    get_not_fully_imported_accounts,
     index_account,
     init_db,
-    mark_account_synced,
+    mark_account_fully_imported,
     migrate_done_files,
     set_setting,
 )
-from .loader import sync_lock, get_loader, persist_session_cookies
+from .loader import import_lock, get_loader, persist_session_cookies
 from .notifier import send_telegram_alert
 
 logger = logging.getLogger(__name__)
@@ -98,7 +98,7 @@ class RateLimitException(Exception):
 
 def _backoff_delay(consecutive: int) -> int:
     cap = min(
-        SYNC_RATE_LIMIT_BACKOFF_BASE * (2 ** (consecutive - 1)), SYNC_RATE_LIMIT_BACKOFF_MAX
+        IMPORT_RATE_LIMIT_BACKOFF_BASE * (2 ** (consecutive - 1)), IMPORT_RATE_LIMIT_BACKOFF_MAX
     )
     return int(random.uniform(cap / 2, cap))
 
@@ -127,7 +127,7 @@ class SessionExpiredException(Exception):
     pass
 
 
-def _fmt_sync_summary(type_counts: dict[str, int]) -> str:
+def _fmt_import_summary(type_counts: dict[str, int]) -> str:
     parts = []
     for key in ("image", "carousel", "video", "media"):
         n = type_counts.get(key, 0)
@@ -181,7 +181,7 @@ async def _wait_until_window() -> None:
         target = (now + timedelta(days=1)).replace(
             hour=7, minute=0, second=0, microsecond=0
         )
-    jitter = _lognormal_delay(SYNC_MORNING_JITTER_MIN, SYNC_MORNING_JITTER_MAX)
+    jitter = _lognormal_delay(IMPORT_MORNING_JITTER_MIN, IMPORT_MORNING_JITTER_MAX)
     delay = (target - now).total_seconds() + jitter
     resume_at = now + timedelta(seconds=delay)
     logger.info(
@@ -192,7 +192,7 @@ async def _wait_until_window() -> None:
     await asyncio.sleep(delay)
 
 
-def _sync_account_fast(
+def _import_account(
     L: instaloader.Instaloader,
     account_id: int,
     platform_user_id: str,
@@ -204,7 +204,7 @@ def _sync_account_fast(
     dest.mkdir(parents=True, exist_ok=True)
     L.dirname_pattern = str(dest)
     suffix = f" (max={max_posts})" if max_posts is not None else ""
-    logger.info("%s: syncing new media…%s", username, suffix)
+    logger.info("%s: importing new media…%s", username, suffix)
     fetched = 0
     type_counts: dict[str, int] = {}
     try:
@@ -228,16 +228,16 @@ def _sync_account_fast(
                 continue
             if max_posts is not None and fetched >= max_posts:
                 break
-            with sync_lock:
+            with import_lock:
                 L.dirname_pattern = str(dest)
-                did_sync = L.download_post(post, target=username)
-            if not did_sync and max_posts is None:
+                did_import = L.download_post(post, target=username)
+            if not did_import and max_posts is None:
                 break
-            if did_sync:
+            if did_import:
                 type_label = _TYPE_LABELS.get(post.typename, "media")
                 type_counts[type_label] = type_counts.get(type_label, 0) + 1
                 fetched += 1
-                time.sleep(_lognormal_delay(SYNC_POST_DELAY_MIN, SYNC_POST_DELAY_MAX))
+                time.sleep(_lognormal_delay(IMPORT_POST_DELAY_MIN, IMPORT_POST_DELAY_MAX))
     except (instaloader.LoginRequiredException, instaloader.AbortDownloadException):
         raise
     except instaloader.QueryReturnedBadRequestException as exc:
@@ -265,9 +265,9 @@ def _sync_account_fast(
             logger.warning("%s: account not found (404) — deactivating", username)
             deactivate_account(account_id, db_path)
             return fetched
-        logger.error("%s: sync failed — %s", username, exc)
+        logger.error("%s: import failed — %s", username, exc)
     if fetched:
-        logger.info("%s: synced %s", username, _fmt_sync_summary(type_counts))
+        logger.info("%s: imported %s", username, _fmt_import_summary(type_counts))
     else:
         logger.info("%s: up to date", username)
     try:
@@ -282,15 +282,15 @@ def _fetch_new_posts(
     active_accounts: list[tuple[int, str, str, int]],
     db_path: Path,
 ) -> dict[str, int]:
-    # Synced accounts: stop at the first already-known post (unlimited fast_update).
-    # Unsynced accounts: fetch only the N most recent posts so the feed stays fresh
+    # Fully imported accounts: stop at the first already-known post (unlimited fast_update).
+    # Not yet fully imported accounts: fetch only the N most recent posts so the feed stays fresh
     # while _fetch_old_posts handles the historical backfill separately.
     to_check = [
-        (account_id, ig_id, username, None if fully_synced else SYNC_MAX_RECENT_POSTS)
-        for account_id, ig_id, username, fully_synced in active_accounts
+        (account_id, ig_id, username, None if fully_imported else IMPORT_MAX_RECENT_POSTS)
+        for account_id, ig_id, username, fully_imported in active_accounts
     ]
     random.shuffle(to_check)
-    cap = random.randint(SYNC_ACCOUNTS_PER_CYCLE_MIN, SYNC_ACCOUNTS_PER_CYCLE_MAX)
+    cap = random.randint(IMPORT_ACCOUNTS_PER_CYCLE_MIN, IMPORT_ACCOUNTS_PER_CYCLE_MAX)
     to_check = to_check[:cap]
 
     if not to_check:
@@ -307,51 +307,51 @@ def _fetch_new_posts(
         i += size
 
     account_counts: dict[str, int] = {}
-    total_synced = 0
+    total_imported = 0
     for g_idx, group in enumerate(groups):
         for a_idx, (account_id, ig_id, username, max_posts) in enumerate(group):
             if _stop_event.is_set():
                 return account_counts
-            count = _sync_account_fast(
+            count = _import_account(
                 L, account_id, ig_id, username, db_path, max_posts=max_posts
             )
             if count:
                 account_counts[username] = account_counts.get(username, 0) + count
-            total_synced += count
+            total_imported += count
             if a_idx < len(group) - 1:
-                _sleep(_lognormal_delay(SYNC_ACCOUNT_DELAY_MIN, SYNC_ACCOUNT_DELAY_MAX))
+                _sleep(_lognormal_delay(IMPORT_ACCOUNT_DELAY_MIN, IMPORT_ACCOUNT_DELAY_MAX))
         if g_idx < len(groups) - 1:
-            _sleep(_lognormal_delay(SYNC_GROUP_DELAY_MIN, SYNC_GROUP_DELAY_MAX), "between groups")
-    logger.info("fetch_new_posts: done — %d synced", total_synced)
+            _sleep(_lognormal_delay(IMPORT_GROUP_DELAY_MIN, IMPORT_GROUP_DELAY_MAX), "between groups")
+    logger.info("fetch_new_posts: done — %d imported", total_imported)
     return account_counts
 
 
 def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> dict[str, int]:
-    if not SYNC_ENABLE_BACKFILL:
-        logger.info("fetch_old_posts: disabled (SYNC_ENABLE_BACKFILL)")
+    if not IMPORT_ENABLE_BACKFILL:
+        logger.info("fetch_old_posts: disabled (IMPORT_ENABLE_BACKFILL)")
         return {}
 
-    unsynced = get_unsynced_accounts(db_path)
-    if not unsynced:
-        logger.info("fetch_old_posts: all accounts synced")
+    not_fully_imported = get_not_fully_imported_accounts(db_path)
+    if not not_fully_imported:
+        logger.info("fetch_old_posts: all accounts fully imported")
         return {}
 
-    random.shuffle(unsynced)
-    candidates = unsynced[:3]
+    random.shuffle(not_fully_imported)
+    candidates = not_fully_imported[:3]
     logger.info("fetch_old_posts: catching up %d account(s)…", len(candidates))
 
     account_counts: dict[str, int] = {}
-    total_synced = 0
+    total_imported = 0
     for i, (account_id, platform_user_id, username) in enumerate(candidates):
         if _stop_event.is_set():
             return account_counts
         dest = MEDIA_BASE / platform_user_id
         dest.mkdir(parents=True, exist_ok=True)
         L.dirname_pattern = str(dest)
-        max_syncs = random.randint(SYNC_BACKFILL_MIN, SYNC_BACKFILL_MAX)
-        logger.info("%s: syncing new media… (max=%d)", username, max_syncs)
+        max_imports = random.randint(IMPORT_BACKFILL_MIN, IMPORT_BACKFILL_MAX)
+        logger.info("%s: importing new media… (max=%d)", username, max_imports)
 
-        synced = 0
+        imported = 0
         type_counts: dict[str, int] = {}
         try:
             user_info = L.context.get_iphone_json(
@@ -370,17 +370,17 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> dict[str, int
             for post in profile.get_posts():
                 if _stop_event.is_set():
                     return account_counts
-                if synced >= max_syncs:
+                if imported >= max_imports:
                     break
                 if _post_has_video(post):
                     continue
-                with sync_lock:
+                with import_lock:
                     L.dirname_pattern = str(dest)
-                    did_sync = L.download_post(post, target=username)
-                if did_sync:
+                    did_import = L.download_post(post, target=username)
+                if did_import:
                     type_label = _TYPE_LABELS.get(post.typename, "media")
                     type_counts[type_label] = type_counts.get(type_label, 0) + 1
-                    synced += 1
+                    imported += 1
         except (instaloader.LoginRequiredException, instaloader.AbortDownloadException):
             raise
         except instaloader.QueryReturnedBadRequestException as exc:
@@ -412,14 +412,14 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> dict[str, int
                 continue
             logger.error("%s: catchup failed — %s", username, exc)
 
-        total_synced += synced
-        if synced:
-            account_counts[username] = account_counts.get(username, 0) + synced
-        if synced == 0:
-            mark_account_synced(account_id, db_path)
-            logger.info("%s: fully synced", username)
+        total_imported += imported
+        if imported:
+            account_counts[username] = account_counts.get(username, 0) + imported
+        if imported == 0:
+            mark_account_fully_imported(account_id, db_path)
+            logger.info("%s: fully imported", username)
         else:
-            logger.info("%s: synced %s", username, _fmt_sync_summary(type_counts))
+            logger.info("%s: imported %s", username, _fmt_import_summary(type_counts))
 
         try:
             index_account(account_id, dest, db_path, STORAGE_BASE)
@@ -427,8 +427,8 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> dict[str, int
             logger.error("%s: indexing failed — %s", username, exc)
 
         if i < len(candidates) - 1:
-            _sleep(_lognormal_delay(SYNC_BACKFILL_DELAY_MIN, SYNC_BACKFILL_DELAY_MAX))
-    logger.info("fetch_old_posts: done — %d synced", total_synced)
+            _sleep(_lognormal_delay(IMPORT_BACKFILL_DELAY_MIN, IMPORT_BACKFILL_DELAY_MAX))
+    logger.info("fetch_old_posts: done — %d imported", total_imported)
     return account_counts
 
 
@@ -443,7 +443,7 @@ _SESSION_INVALIDATED_EXCEPTIONS = (
 
 def _run_cycle() -> dict[str, int]:
     if DRY_RUN:
-        logger.info("DRY_RUN — skipping sync")
+        logger.info("DRY_RUN — skipping import")
         return {}
 
     init_db(DB_PATH)
@@ -470,7 +470,7 @@ def _run_cycle() -> dict[str, int]:
         account_counts[username] = account_counts.get(username, 0) + count
 
     persist_session_cookies()
-    logger.info("Sync cycle complete")
+    logger.info("Import cycle complete")
     return account_counts
 
 
@@ -487,7 +487,7 @@ def _load_next_delay() -> int:
             secs = int((next_run - datetime.now()).total_seconds())
             if secs > 60:
                 logger.info(
-                    "Resuming — next sync at %s (%s)",
+                    "Resuming — next import at %s (%s)",
                     next_run.strftime("%m/%d %H:%M"),
                     _fmt_delay(secs),
                 )
@@ -497,7 +497,7 @@ def _load_next_delay() -> int:
         except ValueError:
             pass
 
-    delay = _lognormal_delay(SYNC_INITIAL_DELAY_MIN, SYNC_INITIAL_DELAY_MAX)
+    delay = _lognormal_delay(IMPORT_INITIAL_DELAY_MIN, IMPORT_INITIAL_DELAY_MAX)
     logger.info("Initial delay: %s", _fmt_delay(delay))
     return delay
 
@@ -509,8 +509,8 @@ async def _scheduler_loop() -> None:
     while True:
         await asyncio.sleep(next_delay)
         await _wait_until_window()
-        logger.info("Starting sync cycle")
-        await asyncio.to_thread(send_telegram_alert, "🔄 Sync cycle starting…")
+        logger.info("Starting import cycle")
+        await asyncio.to_thread(send_telegram_alert, "🔄 Import cycle starting…")
 
         global _cycle_running
         _cycle_running = True
@@ -518,28 +518,28 @@ async def _scheduler_loop() -> None:
             account_counts = await asyncio.to_thread(_run_cycle)
             total = sum(account_counts.values())
             if total:
-                lines = [f"✅ Sync complete — {total} post{'s' if total > 1 else ''} downloaded"]
+                lines = [f"✅ Import complete — {total} post{'s' if total > 1 else ''} downloaded"]
                 for username, count in sorted(account_counts.items(), key=lambda x: -x[1]):
                     lines.append(f"  @{username}: {count}")
                 msg = "\n".join(lines)
             else:
-                msg = "✅ Sync complete — nothing new"
+                msg = "✅ Import complete — nothing new"
             await asyncio.to_thread(send_telegram_alert, msg)
             consecutive_rl = 0
-            next_delay = _lognormal_delay(SYNC_CYCLE_DELAY_MIN, SYNC_CYCLE_DELAY_MAX)
+            next_delay = _lognormal_delay(IMPORT_CYCLE_DELAY_MIN, IMPORT_CYCLE_DELAY_MAX)
             next_run = datetime.now() + timedelta(seconds=next_delay)
             try:
                 set_setting("next_run_at", next_run.isoformat(), DB_PATH)
             except Exception:
                 pass
             logger.info(
-                "Next sync at %s (%s)",
+                "Next import at %s (%s)",
                 next_run.strftime("%m/%d %H:%M"),
                 _fmt_delay(next_delay),
             )
         except RateLimitException as exc:
             consecutive_rl += 1
-            if consecutive_rl >= SYNC_RATE_LIMIT_RETRIES:
+            if consecutive_rl >= IMPORT_RATE_LIMIT_RETRIES:
                 logger.critical(
                     "Rate limited %d times consecutively — scheduler stopped. (%s)",
                     consecutive_rl,
@@ -560,7 +560,7 @@ async def _scheduler_loop() -> None:
             logger.warning(
                 "Rate limited (attempt %d/%d) — retry in %s (next at %s)",
                 consecutive_rl,
-                SYNC_RATE_LIMIT_RETRIES - 1,
+                IMPORT_RATE_LIMIT_RETRIES - 1,
                 _fmt_delay(next_delay),
                 retry_at.strftime("%H:%M"),
             )
@@ -576,7 +576,7 @@ async def _scheduler_loop() -> None:
             )
             return
         except instaloader.ConnectionException as exc:
-            next_delay = SYNC_RATE_LIMIT_BACKOFF_BASE
+            next_delay = IMPORT_RATE_LIMIT_BACKOFF_BASE
             retry_at = datetime.now() + timedelta(seconds=next_delay)
             try:
                 set_setting("next_run_at", retry_at.isoformat(), DB_PATH)
@@ -587,7 +587,7 @@ async def _scheduler_loop() -> None:
             )
         except Exception as exc:
             consecutive_rl += 1
-            if consecutive_rl >= SYNC_RATE_LIMIT_RETRIES:
+            if consecutive_rl >= IMPORT_RATE_LIMIT_RETRIES:
                 logger.critical(
                     "Too many consecutive errors (%d) — scheduler stopped: %s",
                     consecutive_rl,
@@ -608,7 +608,7 @@ async def _scheduler_loop() -> None:
             logger.error(
                 "Unexpected error in cycle (attempt %d/%d) — retry in %s: %s",
                 consecutive_rl,
-                SYNC_RATE_LIMIT_RETRIES - 1,
+                IMPORT_RATE_LIMIT_RETRIES - 1,
                 _fmt_delay(next_delay),
                 exc,
                 exc_info=True,
@@ -626,23 +626,23 @@ async def start_scheduler() -> None:
     _scheduler_task = asyncio.create_task(_scheduler_loop())
     logger.info("Scheduler started")
     backfill_info = (
-        f"enabled ({SYNC_BACKFILL_MIN}–{SYNC_BACKFILL_MAX} posts)"
-        if SYNC_ENABLE_BACKFILL
+        f"enabled ({IMPORT_BACKFILL_MIN}–{IMPORT_BACKFILL_MAX} posts)"
+        if IMPORT_ENABLE_BACKFILL
         else "disabled"
     )
     logger.info(
         "Config — accounts/cycle: %d–%d | recent posts cap: %d | backfill: %s | "
         "delays: post %d–%ds, account %d–%ds, group %d–%ds, backfill %d–%ds | "
         "cycle every %s–%s | rate-limit retries: %d",
-        SYNC_ACCOUNTS_PER_CYCLE_MIN, SYNC_ACCOUNTS_PER_CYCLE_MAX,
-        SYNC_MAX_RECENT_POSTS,
+        IMPORT_ACCOUNTS_PER_CYCLE_MIN, IMPORT_ACCOUNTS_PER_CYCLE_MAX,
+        IMPORT_MAX_RECENT_POSTS,
         backfill_info,
-        SYNC_POST_DELAY_MIN, SYNC_POST_DELAY_MAX,
-        SYNC_ACCOUNT_DELAY_MIN, SYNC_ACCOUNT_DELAY_MAX,
-        SYNC_GROUP_DELAY_MIN, SYNC_GROUP_DELAY_MAX,
-        SYNC_BACKFILL_DELAY_MIN, SYNC_BACKFILL_DELAY_MAX,
-        _fmt_delay(SYNC_CYCLE_DELAY_MIN), _fmt_delay(SYNC_CYCLE_DELAY_MAX),
-        SYNC_RATE_LIMIT_RETRIES,
+        IMPORT_POST_DELAY_MIN, IMPORT_POST_DELAY_MAX,
+        IMPORT_ACCOUNT_DELAY_MIN, IMPORT_ACCOUNT_DELAY_MAX,
+        IMPORT_GROUP_DELAY_MIN, IMPORT_GROUP_DELAY_MAX,
+        IMPORT_BACKFILL_DELAY_MIN, IMPORT_BACKFILL_DELAY_MAX,
+        _fmt_delay(IMPORT_CYCLE_DELAY_MIN), _fmt_delay(IMPORT_CYCLE_DELAY_MAX),
+        IMPORT_RATE_LIMIT_RETRIES,
     )
 
 

@@ -119,7 +119,7 @@ def test_post_import_returns_result_on_success(client):
         "api.routes.settings.run_import_media",
         return_value={"imported": 3, "duplicates": 1, "warnings": 0},
     ) as mock_import:
-        resp = tc.post("/api/settings/import")
+        resp = tc.post("/api/settings/import-from-disk")
     assert resp.status_code == 200
     assert resp.json() == {"imported": 3, "duplicates": 1, "warnings": 0}
     mock_import.assert_called_once_with(db, storage)
@@ -131,7 +131,7 @@ def test_post_import_returns_500_on_exception(client):
         "api.routes.settings.run_import_media",
         side_effect=RuntimeError("disk full"),
     ):
-        resp = tc.post("/api/settings/import")
+        resp = tc.post("/api/settings/import-from-disk")
     assert resp.status_code == 500
     assert resp.json()["detail"] == "Import failed. Please try again."
 

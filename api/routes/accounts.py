@@ -101,8 +101,8 @@ async def get_accounts_route():
     return JSONResponse(accounts)
 
 
-@router.post("/accounts/sync-following")
-async def sync_following_route():
+@router.post("/accounts/import-following")
+async def import_following_route():
     L = get_loader()
     if L is None:
         return JSONResponse({"detail": "No session configured"}, status_code=400)
@@ -111,9 +111,9 @@ async def sync_following_route():
             _fetch_and_upsert_following, L, DB_PATH
         )
     except Exception as exc:
-        logger.exception("sync-following failed: %s", exc)
+        logger.exception("import-following failed: %s", exc)
         return JSONResponse(
-            {"detail": "Sync failed. Please try again."}, status_code=500
+            {"detail": "Import failed. Please try again."}, status_code=500
         )
     if candidates:
         task = asyncio.create_task(_sync_profile_pics_bg(candidates, L))
@@ -231,7 +231,7 @@ async def get_account_preview_route(username: str):
 
 
 def _fetch_and_upsert_following(L, db_path: Path) -> tuple[int, list[dict]]:
-    logger.info("sync-following: fetching following list")
+    logger.info("import-following: fetching following list")
     user_info = L.context.get_iphone_json(
         "api/v1/accounts/current_user/", {"edit": "false"}
     )
@@ -259,11 +259,11 @@ def _fetch_and_upsert_following(L, db_path: Path) -> tuple[int, list[dict]]:
             break
         params = {"count": 200, "max_id": next_cursor}
 
-    logger.info("sync-following: %d account(s) found in following list", len(accounts))
+    logger.info("import-following: %d account(s) found in following list", len(accounts))
     added, new_usernames = upsert_following_accounts(accounts, db_path)
     for uname in new_usernames:
         logger.info("Added account @%s", uname)
-    logger.info("sync-following: done — %d new account(s) added", added)
+    logger.info("import-following: done — %d new account(s) added", added)
 
     missing_ids = get_accounts_missing_profile_pic(
         [a["platform_user_id"] for a in accounts], db_path

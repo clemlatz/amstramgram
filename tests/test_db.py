@@ -8,19 +8,19 @@ from api.db import (
     mark_as_saved_posts,
     migrate_done_files,
     shortcode_exists,
-    get_unsynced_accounts,
-    mark_account_synced,
+    get_not_fully_imported_accounts,
+    mark_account_fully_imported,
     upsert_account,
 )
 
 
 def _insert_account(
-    db: Path, username: str, ig_id: str, active: int = 1, fully_synced: int = 0
+    db: Path, username: str, ig_id: str, active: int = 1, fully_imported: int = 0
 ) -> int:
     conn = sqlite3.connect(str(db))
     conn.execute(
-        "INSERT INTO accounts (username, platform_user_id, active, fully_synced) VALUES (?, ?, ?, ?)",
-        (username, ig_id, active, fully_synced),
+        "INSERT INTO accounts (username, platform_user_id, active, fully_imported) VALUES (?, ?, ?, ?)",
+        (username, ig_id, active, fully_imported),
     )
     conn.commit()
     row_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -42,10 +42,10 @@ def test_init_db_creates_tables(tmp_path):
 def test_get_active_accounts_returns_four_tuple(tmp_path):
     db = tmp_path / "test.db"
     init_db(db)
-    _insert_account(db, "alice", "111", fully_synced=1)
+    _insert_account(db, "alice", "111", fully_imported=1)
     rows = get_active_accounts(db)
     assert len(rows) == 1
-    assert len(rows[0]) == 4  # (id, platform_user_id, username, fully_synced)
+    assert len(rows[0]) == 4  # (id, platform_user_id, username, fully_imported)
     assert rows[0][2] == "alice"
     assert rows[0][3] == 1
 
@@ -81,35 +81,35 @@ def test_shortcode_exists_false(tmp_path):
     assert shortcode_exists("NOTHERE", db) is False
 
 
-def test_get_unsynced_accounts_returns_only_active_unsynced(tmp_path):
+def test_get_not_fully_imported_accounts_returns_only_active_not_imported(tmp_path):
     db = tmp_path / "test.db"
     init_db(db)
-    _insert_account(db, "alice", "111", fully_synced=0)  # expected
-    _insert_account(db, "bob", "222", fully_synced=1)  # synced — excluded
+    _insert_account(db, "alice", "111", fully_imported=0)  # expected
+    _insert_account(db, "bob", "222", fully_imported=1)  # fully imported — excluded
     _insert_account(db, "carol", "333", active=0)  # inactive — excluded
-    rows = get_unsynced_accounts(db)
+    rows = get_not_fully_imported_accounts(db)
     assert len(rows) == 1
     assert rows[0][2] == "alice"
 
 
-def test_mark_account_synced(tmp_path):
+def test_mark_account_fully_imported(tmp_path):
     db = tmp_path / "test.db"
     init_db(db)
-    account_id = _insert_account(db, "alice", "111", fully_synced=0)
-    mark_account_synced(account_id, db)
+    account_id = _insert_account(db, "alice", "111", fully_imported=0)
+    mark_account_fully_imported(account_id, db)
     conn = sqlite3.connect(str(db))
     row = conn.execute(
-        "SELECT fully_synced FROM accounts WHERE id = ?", (account_id,)
+        "SELECT fully_imported FROM accounts WHERE id = ?", (account_id,)
     ).fetchone()
     conn.close()
     assert row[0] == 1
 
 
-def test_migrate_done_files_sets_fully_synced(tmp_path):
+def test_migrate_done_files_sets_fully_imported(tmp_path):
     db = tmp_path / "test.db"
     storage = tmp_path / "storage"
     init_db(db)
-    account_id = _insert_account(db, "alice", "111", fully_synced=0)
+    account_id = _insert_account(db, "alice", "111", fully_imported=0)
 
     (storage / "111").mkdir(parents=True)
     (storage / "111" / ".done").write_text("")
@@ -118,7 +118,7 @@ def test_migrate_done_files_sets_fully_synced(tmp_path):
 
     conn = sqlite3.connect(str(db))
     row = conn.execute(
-        "SELECT fully_synced FROM accounts WHERE id = ?", (account_id,)
+        "SELECT fully_imported FROM accounts WHERE id = ?", (account_id,)
     ).fetchone()
     conn.close()
     assert row[0] == 1
@@ -129,14 +129,14 @@ def test_migrate_done_files_does_not_touch_accounts_without_done(tmp_path):
     db = tmp_path / "test.db"
     storage = tmp_path / "storage"
     init_db(db)
-    account_id = _insert_account(db, "alice", "111", fully_synced=0)
+    account_id = _insert_account(db, "alice", "111", fully_imported=0)
     (storage / "111").mkdir(parents=True)  # no .done file
 
     migrate_done_files(db, storage)
 
     conn = sqlite3.connect(str(db))
     row = conn.execute(
-        "SELECT fully_synced FROM accounts WHERE id = ?", (account_id,)
+        "SELECT fully_imported FROM accounts WHERE id = ?", (account_id,)
     ).fetchone()
     conn.close()
     assert row[0] == 0
@@ -146,14 +146,14 @@ def test_migrate_done_files_is_idempotent(tmp_path):
     db = tmp_path / "test.db"
     storage = tmp_path / "storage"
     init_db(db)
-    account_id = _insert_account(db, "alice", "111", fully_synced=1)
+    account_id = _insert_account(db, "alice", "111", fully_imported=1)
     (storage / "111").mkdir(parents=True)
 
     migrate_done_files(db, storage)
 
     conn = sqlite3.connect(str(db))
     row = conn.execute(
-        "SELECT fully_synced FROM accounts WHERE id = ?", (account_id,)
+        "SELECT fully_imported FROM accounts WHERE id = ?", (account_id,)
     ).fetchone()
     conn.close()
     assert row[0] == 1
@@ -184,7 +184,7 @@ def test_migrate_done_files_adds_column_on_legacy_db(tmp_path):
 
     conn = sqlite3.connect(str(db))
     row = conn.execute(
-        "SELECT fully_synced FROM accounts WHERE username = 'alice'"
+        "SELECT fully_imported FROM accounts WHERE username = 'alice'"
     ).fetchone()
     conn.close()
     assert row[0] == 1
