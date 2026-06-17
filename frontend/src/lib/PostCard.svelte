@@ -229,14 +229,12 @@
         {#each post.media as item, i (item.url)}
           <div class="swiper-slide">
             {#if item.type === 'video'}
-              <div
-                class="video-wrapper"
-                style={item.width && item.height
-                  ? `aspect-ratio: ${item.width} / ${item.height}`
-                  : ''}
-              >
+              <div class="video-wrapper">
                 <video
                   src={item.url}
+                  style={item.width && item.height
+                    ? `aspect-ratio: ${item.width} / ${item.height}`
+                    : ''}
                   loop
                   bind:muted={audio.muted}
                   playsinline
@@ -265,13 +263,15 @@
                 </button>
               </div>
             {:else}
-              <div
-                class="media-placeholder"
-                style={item.width && item.height
-                  ? `aspect-ratio: ${item.width} / ${item.height}`
-                  : ''}
-              >
-                <img src={item.url} alt="" loading="lazy" />
+              <div class="media-placeholder">
+                <img
+                  src={item.url}
+                  style={item.width && item.height
+                    ? `aspect-ratio: ${item.width} / ${item.height}`
+                    : ''}
+                  alt=""
+                  loading="lazy"
+                />
               </div>
             {/if}
           </div>
@@ -304,14 +304,12 @@
       </button>
     </div>
   {:else if post.media[0]?.type === 'video'}
-    <div
-      class="video-wrapper"
-      style={post.media[0].width && post.media[0].height
-        ? `aspect-ratio: ${post.media[0].width} / ${post.media[0].height}`
-        : ''}
-    >
+    <div class="video-wrapper">
       <video
         class="post-video"
+        style={post.media[0].width && post.media[0].height
+          ? `aspect-ratio: ${post.media[0].width} / ${post.media[0].height}`
+          : ''}
         bind:this={videoEl}
         src={post.media[0].url}
         loop
@@ -332,13 +330,16 @@
       </button>
     </div>
   {:else}
-    <div
-      class="media-placeholder"
-      style={post.media[0]?.width && post.media[0]?.height
-        ? `aspect-ratio: ${post.media[0].width} / ${post.media[0].height}`
-        : ''}
-    >
-      <img class="post-image" src={post.media[0]?.url} alt="" loading="lazy" />
+    <div class="media-placeholder">
+      <img
+        class="post-image"
+        style={post.media[0]?.width && post.media[0]?.height
+          ? `aspect-ratio: ${post.media[0].width} / ${post.media[0].height}`
+          : ''}
+        src={post.media[0]?.url}
+        alt=""
+        loading="lazy"
+      />
     </div>
   {/if}
 
@@ -415,15 +416,20 @@
   }
   .post-image {
     width: 100%;
+    max-height: 100vh;
+    max-height: 100dvh;
     display: block;
   }
   .media-placeholder {
     width: 100%;
     background: var(--color-border-subtle);
-    overflow: hidden;
+    display: flex;
+    justify-content: center;
   }
   .media-placeholder img {
     width: 100%;
+    max-height: 100vh;
+    max-height: 100dvh;
     display: block;
   }
   .post-caption {
@@ -456,6 +462,8 @@
   }
   .post-video {
     width: 100%;
+    max-height: 100vh;
+    max-height: 100dvh;
     display: block;
     cursor: pointer;
   }
@@ -500,10 +508,14 @@
   }
   .swiper :global(.swiper-slide img) {
     width: 100%;
+    max-height: 100vh;
+    max-height: 100dvh;
     display: block;
   }
   .swiper :global(.swiper-slide video) {
     width: 100%;
+    max-height: 100vh;
+    max-height: 100dvh;
     display: block;
     cursor: pointer;
   }
