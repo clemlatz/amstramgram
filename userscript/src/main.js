@@ -6434,7 +6434,8 @@
 
     const skippedZip = Math.max(0, Number(options.skipped) || 0);
     if (skippedZip > 0) {
-      ensureBatchRunRecord({ jobId: controller.jobId }).skipped = skippedZip;
+      const rec = ensureBatchRunRecord({ jobId: controller.jobId });
+      rec.skipped = (Number(rec.skipped) || 0) + skippedZip;
     }
     return await controller.run();
   }
@@ -6533,7 +6534,8 @@
     });
 
     if (skippedByHistory > 0) {
-      ensureBatchRunRecord({ jobId: controller.jobId }).skipped = skippedByHistory;
+      const rec = ensureBatchRunRecord({ jobId: controller.jobId });
+      rec.skipped = (Number(rec.skipped) || 0) + skippedByHistory;
     }
     const result = await controller.run();
     if (result?.completed > 0 && completedHistoryKeys.size > 0) {
@@ -17046,6 +17048,9 @@ const STORY_MATCHING_CORE = (() => {
       }
 
       showToast(`Saved: ${scopedTasks.length} file(s) queued.`, 3200);
+      if (combinedDeltaSyncSkippedCount > 0) {
+        ensureBatchRunRecord({ jobId: savedBulkJobId }).skipped = combinedDeltaSyncSkippedCount;
+      }
       if (savedBulkSetupVisible) {
         showBatchProgressIndicator({
           jobId: savedBulkJobId,
@@ -17058,6 +17063,7 @@ const STORY_MATCHING_CORE = (() => {
           completed: 0,
           failed: 0,
           cancelled: 0,
+          skipped: combinedDeltaSyncSkippedCount,
           indeterminate: false,
           elapsedMs: Math.max(0, Date.now() - savedBulkSetupStartedAt),
           forceVisible: false
@@ -19814,6 +19820,9 @@ const STORY_MATCHING_CORE = (() => {
 
       const labelSuffix = selectionLabel;
       showToast(`Profile @${normalizedUsername}: ${scopedTasks.length} file(s) queued (${labelSuffix}).`, 3200);
+      if (combinedDeltaSyncSkippedCount > 0) {
+        ensureBatchRunRecord({ jobId: profileBulkJobId }).skipped = combinedDeltaSyncSkippedCount;
+      }
       if (profileBulkSetupVisible) {
         showBatchProgressIndicator({
           jobId: profileBulkJobId,
@@ -19826,6 +19835,7 @@ const STORY_MATCHING_CORE = (() => {
           completed: 0,
           failed: 0,
           cancelled: 0,
+          skipped: combinedDeltaSyncSkippedCount,
           indeterminate: false,
           elapsedMs: Math.max(0, Date.now() - profileBulkSetupStartedAt),
           forceVisible: false
