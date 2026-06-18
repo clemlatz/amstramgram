@@ -2539,6 +2539,23 @@
     .ig-hd-settings-help + .ig-hd-settings-card {
       margin-top: 22px;
     }
+    .ig-hd-skip-history-note {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: var(--ig-hd-bg-secondary);
+      border: 1px solid var(--ig-hd-border-primary);
+      font-size: 12px;
+      color: var(--ig-hd-text-secondary);
+      line-height: 16px;
+    }
+    .ig-hd-skip-history-count {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ig-hd-text-primary);
+    }
     .ig-hd-date-filter-body {
       display: grid;
       grid-template-rows: 1fr;
@@ -7654,6 +7671,12 @@
               </div>
             </div>
           </div>
+          <div class="ig-hd-settings-group" id="ig-hd-skip-history-group"${currentSettings.downloads.skipPreviouslyDownloaded ? "" : " hidden"}>
+            <div class="ig-hd-skip-history-note">
+              <span class="ig-hd-skip-history-count" id="ig-hd-skip-history-count">—</span>
+              <span id="ig-hd-skip-history-desc">items in download history — matching media in this batch will be skipped.</span>
+            </div>
+          </div>
           <div class="ig-hd-settings-group">
             <div class="ig-hd-settings-subheading">Pacing &amp; limits</div>
             <div class="ig-hd-settings-section-desc">Control download speed to reduce the risk of rate-limiting or account flags. Aggressive settings download faster but carry more risk.</div>
@@ -7734,6 +7757,7 @@
       requestAnimationFrame(() => { modal.scrollTop = 0; });
       if (tab.dataset.tab === "downloader") {
         scheduleTaggedCarouselAlignment();
+        updateSkipHistoryDisplay();
       }
     });
 
@@ -7942,6 +7966,86 @@
     const profileDownloadButton = modal.querySelector("#ig-hd-profile-download");
     syncRiskAckControls(riskAckInput, profileDownloadButton);
 
+    // === Skip history display ===
+    const skipHistoryGroup = modal.querySelector("#ig-hd-skip-history-group");
+    const skipHistoryCountEl = modal.querySelector("#ig-hd-skip-history-count");
+    const skipHistoryDescEl = modal.querySelector("#ig-hd-skip-history-desc");
+    let _skipHistoryReqId = 0;
+
+    function buildShortcodeHistorySet() {
+      ensureDownloadHistoryLoaded();
+      const set = new Set();
+      for (const key of downloadHistoryOrder) {
+        if (key.startsWith("shortcode:")) {
+          const sc = key.split("|")[0].slice("shortcode:".length);
+          if (sc) set.add(sc);
+        }
+      }
+      return set;
+    }
+
+    function showSkipHistoryFallback() {
+      ensureDownloadHistoryLoaded();
+      if (skipHistoryCountEl) skipHistoryCountEl.textContent = downloadHistoryOrder.length.toLocaleString();
+      if (skipHistoryDescEl) skipHistoryDescEl.textContent = "items in download history — matching media in this batch will be skipped.";
+    }
+
+    async function updateSkipHistoryDisplay() {
+      const enabled = !!skipPreviouslyDownloadedToggle?.checked;
+      if (skipHistoryGroup) skipHistoryGroup.hidden = !enabled;
+      if (!enabled || !skipHistoryCountEl) return;
+
+      const amstramgramUrl = sanitizeAmstramgramUrl(
+        amstramgramUrlInput?.value?.trim() || USER_SETTINGS?.downloads?.amstramgramUrl || ""
+      );
+      const isSaved = activeDownloadSource === "saved";
+      const rawUsername = (profileUsernameInput?.value || "").trim();
+      const username = !isSaved && /^[A-Za-z0-9._]+$/.test(rawUsername) ? rawUsername : "";
+
+      if (!amstramgramUrl || !username) {
+        showSkipHistoryFallback();
+        return;
+      }
+
+      const myId = ++_skipHistoryReqId;
+      if (skipHistoryCountEl) skipHistoryCountEl.textContent = "…";
+      if (skipHistoryDescEl) skipHistoryDescEl.textContent = `items from @${username} already downloaded — these will be skipped.`;
+
+      try {
+        const resp = await GramPlatform.fetchUrl({
+          method: "GET",
+          url: `${amstramgramUrl}/api/accounts/${encodeURIComponent(username)}/posts`,
+          withCredentials: false,
+          timeout: 8000
+        });
+        if (myId !== _skipHistoryReqId) return;
+        if (resp.status !== 200) { showSkipHistoryFallback(); return; }
+        const data = JSON.parse(resp.responseText);
+        const posts = Array.isArray(data?.posts) ? data.posts : [];
+        const scSet = buildShortcodeHistorySet();
+        let count = 0;
+        for (const post of posts) {
+          if (post.shortcode && scSet.has(String(post.shortcode).trim())) count++;
+        }
+        if (myId === _skipHistoryReqId) {
+          if (skipHistoryCountEl) skipHistoryCountEl.textContent = count.toLocaleString();
+        }
+      } catch {
+        if (myId === _skipHistoryReqId) showSkipHistoryFallback();
+      }
+    }
+
+    let _skipHistoryDebounceTimer = null;
+    function scheduleSkipHistoryUpdate() {
+      clearTimeout(_skipHistoryDebounceTimer);
+      _skipHistoryDebounceTimer = setTimeout(updateSkipHistoryDisplay, 600);
+    }
+
+    updateSkipHistoryDisplay();
+    skipPreviouslyDownloadedToggle?.addEventListener("change", updateSkipHistoryDisplay);
+    profileUsernameInput?.addEventListener("input", scheduleSkipHistoryUpdate);
+    amstramgramUrlInput?.addEventListener("input", scheduleSkipHistoryUpdate);
+
     // === Download source helpers ===
     function setDownloadSource(source) {
       activeDownloadSource = source;
@@ -7962,6 +8066,7 @@
       if (profileDownloadButton) {
         profileDownloadButton.textContent = "Start Download";
       }
+      updateSkipHistoryDisplay();
     }
 
     function renderSavedCollections(collections) {
