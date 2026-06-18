@@ -40,7 +40,7 @@ def init_db(db_path: Path) -> None:
                 platform_user_id TEXT    UNIQUE,
                 username          TEXT    NOT NULL UNIQUE,
                 active            INTEGER NOT NULL DEFAULT 0,
-                fully_synced      INTEGER NOT NULL DEFAULT 0,
+                fully_imported    INTEGER NOT NULL DEFAULT 0,
                 profile_pic_path  TEXT,
                 added_at          TEXT    NOT NULL DEFAULT (datetime('now'))
             );
@@ -51,7 +51,7 @@ def init_db(db_path: Path) -> None:
                 filepath        TEXT NOT NULL UNIQUE,
                 extension       TEXT,
                 post_timestamp  TEXT,
-                synced_at       TEXT NOT NULL DEFAULT (datetime('now')),
+                imported_at     TEXT NOT NULL DEFAULT (datetime('now')),
                 file_size       INTEGER,
                 width           INTEGER,
                 height          INTEGER,
@@ -103,8 +103,11 @@ def init_db(db_path: Path) -> None:
                 "ALTER TABLE media ADD COLUMN is_saved_post INTEGER NOT NULL DEFAULT 0"
             )
             conn.commit()
-        if "downloaded_at" in media_cols and "synced_at" not in media_cols:
-            conn.execute("ALTER TABLE media RENAME COLUMN downloaded_at TO synced_at")
+        if "downloaded_at" in media_cols and "imported_at" not in media_cols:
+            conn.execute("ALTER TABLE media RENAME COLUMN downloaded_at TO imported_at")
+            conn.commit()
+        if "synced_at" in media_cols and "imported_at" not in media_cols:
+            conn.execute("ALTER TABLE media RENAME COLUMN synced_at TO imported_at")
             conn.commit()
     finally:
         conn.close()
@@ -114,10 +117,10 @@ def get_active_accounts(db_path: Path) -> list[tuple[int, str, str, int]]:
     conn = _conn(db_path, read_only=True)
     try:
         rows = conn.execute(
-            "SELECT id, platform_user_id, username, fully_synced FROM accounts WHERE active = 1 AND platform_user_id IS NOT NULL"
+            "SELECT id, platform_user_id, username, fully_imported FROM accounts WHERE active = 1 AND platform_user_id IS NOT NULL"
         ).fetchall()
         return [
-            (r["id"], r["platform_user_id"], r["username"], r["fully_synced"])
+            (r["id"], r["platform_user_id"], r["username"], r["fully_imported"])
             for r in rows
         ]
     finally:
@@ -160,7 +163,7 @@ def _media_file_exists(
 
 
 def get_all_shortcodes_set(db_path: Path) -> set[str]:
-    """Return all known shortcodes: synced media + saved-but-skipped entries."""
+    """Return all known shortcodes: imported media + saved-but-skipped entries."""
     conn = _conn(db_path, read_only=True)
     try:
         media = {
@@ -243,21 +246,21 @@ def mark_as_saved_posts(shortcodes: list[str], db_path: Path) -> None:
         conn.close()
 
 
-def get_unsynced_accounts(db_path: Path) -> list[tuple[int, str, str]]:
+def get_not_fully_imported_accounts(db_path: Path) -> list[tuple[int, str, str]]:
     conn = _conn(db_path, read_only=True)
     try:
         rows = conn.execute(
-            "SELECT id, platform_user_id, username FROM accounts WHERE active = 1 AND fully_synced = 0 AND platform_user_id IS NOT NULL"
+            "SELECT id, platform_user_id, username FROM accounts WHERE active = 1 AND fully_imported = 0 AND platform_user_id IS NOT NULL"
         ).fetchall()
         return [(r["id"], r["platform_user_id"], r["username"]) for r in rows]
     finally:
         conn.close()
 
 
-def mark_account_synced(account_id: int, db_path: Path) -> None:
+def mark_account_fully_imported(account_id: int, db_path: Path) -> None:
     conn = _conn(db_path)
     try:
-        conn.execute("UPDATE accounts SET fully_synced = 1 WHERE id = ?", (account_id,))
+        conn.execute("UPDATE accounts SET fully_imported = 1 WHERE id = ?", (account_id,))
         conn.commit()
     finally:
         conn.close()
@@ -276,14 +279,19 @@ def migrate_done_files(db_path: Path, storage_base: Path) -> None:
     conn = _conn(db_path)
     try:
         cols = {row[1] for row in conn.execute("PRAGMA table_info(accounts)")}
-        if "fully_synced" not in cols:
+        if "fully_synced" in cols and "fully_imported" not in cols:
             conn.execute(
-                "ALTER TABLE accounts ADD COLUMN fully_synced INTEGER NOT NULL DEFAULT 0"
+                "ALTER TABLE accounts RENAME COLUMN fully_synced TO fully_imported"
+            )
+            conn.commit()
+        elif "fully_imported" not in cols:
+            conn.execute(
+                "ALTER TABLE accounts ADD COLUMN fully_imported INTEGER NOT NULL DEFAULT 0"
             )
             conn.commit()
 
         rows = conn.execute(
-            "SELECT id, platform_user_id FROM accounts WHERE active = 1 AND platform_user_id IS NOT NULL AND fully_synced = 0"
+            "SELECT id, platform_user_id FROM accounts WHERE active = 1 AND platform_user_id IS NOT NULL AND fully_imported = 0"
         ).fetchall()
 
         updated = 0
@@ -291,14 +299,14 @@ def migrate_done_files(db_path: Path, storage_base: Path) -> None:
             done_file = storage_base / row["platform_user_id"] / ".done"
             if done_file.exists():
                 conn.execute(
-                    "UPDATE accounts SET fully_synced = 1 WHERE id = ?", (row["id"],)
+                    "UPDATE accounts SET fully_imported = 1 WHERE id = ?", (row["id"],)
                 )
                 done_file.unlink()
                 updated += 1
 
         if updated:
             conn.commit()
-            logger.info("Migrated %d .done file(s) to fully_synced", updated)
+            logger.info("Migrated %d .done file(s) to fully_imported", updated)
     finally:
         conn.close()
 
@@ -749,11 +757,11 @@ def get_all_favorite_media_filepaths(db_path: Path) -> list[str]:
 
 
 def get_recent_posts(db_path: Path, sort: str = "post_timestamp") -> list[dict]:
-    order_col = "m.synced_at" if sort == "synced_at" else "m.post_timestamp"
+    order_col = "m.imported_at" if sort == "imported_at" else "m.post_timestamp"
     conn = _conn(db_path, read_only=True)
     try:
         rows = conn.execute(f"""
-            SELECT m.filepath, m.extension, m.post_timestamp, m.synced_at, m.caption, m.shortcode,
+            SELECT m.filepath, m.extension, m.post_timestamp, m.imported_at, m.caption, m.shortcode,
                    m.width, m.height, r.archived_at, r.favorited_at, a.username AS account, a.active AS account_active
             FROM media m
             JOIN accounts a ON a.id = m.account_id

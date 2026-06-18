@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _bg_tasks: set[asyncio.Task] = set()
-_sync_saved_lock = asyncio.Lock()
-_import_lock = asyncio.Lock()
+_import_saved_lock = asyncio.Lock()
+_import_from_disk_lock = asyncio.Lock()
 
 
 class _SessionBody(BaseModel):
@@ -83,43 +83,43 @@ async def get_logs_endpoint():
     return JSONResponse({"logs": get_logs()})
 
 
-@router.post("/settings/sync-saved")
-async def sync_saved_posts_endpoint():
+@router.post("/settings/import-saved")
+async def import_saved_posts_endpoint():
     from .accounts import sync_profile_pics_by_id
 
-    if _sync_saved_lock.locked():
-        return JSONResponse({"detail": "Sync already in progress"}, status_code=409)
+    if _import_saved_lock.locked():
+        return JSONResponse({"detail": "Import already in progress"}, status_code=409)
     L = get_loader()
     if L is None:
         return JSONResponse({"detail": "No session configured"}, status_code=400)
-    async with _sync_saved_lock:
+    async with _import_saved_lock:
         try:
-            synced, new_ids = await asyncio.to_thread(
+            imported, new_ids = await asyncio.to_thread(
                 sync_saved_posts, L, DB_PATH, STORAGE_BASE
             )
         except RateLimitException as exc:
-            logger.warning("sync-saved: rate limited — %s", exc)
+            logger.warning("import-saved: rate limited — %s", exc)
             return JSONResponse({"detail": "Rate limited by Instagram. Please wait a few minutes."}, status_code=429)
         except Exception as exc:
-            logger.exception("sync-saved failed: %s", exc)
+            logger.exception("import-saved failed: %s", exc)
             return JSONResponse(
-                {"detail": "Sync failed. Please try again."}, status_code=500
+                {"detail": "Import failed. Please try again."}, status_code=500
             )
     if new_ids:
         task = asyncio.create_task(sync_profile_pics_by_id(new_ids, L))
         _bg_tasks.add(task)
         task.add_done_callback(_bg_tasks.discard)
-    return JSONResponse({"synced": synced})
+    return JSONResponse({"imported": imported})
 
 
-@router.post("/settings/import")
-async def run_import_endpoint():
-    if _import_lock.locked():
-        return JSONResponse({"detail": "Import already in progress"}, status_code=409)
-    async with _import_lock:
+@router.post("/settings/import-from-disk")
+async def import_from_disk_endpoint():
+    if _import_from_disk_lock.locked():
+        return JSONResponse({"detail": "Import already in progress."}, status_code=409)
+    async with _import_from_disk_lock:
         try:
             result = await asyncio.to_thread(run_import_media, DB_PATH, STORAGE_BASE)
         except Exception as exc:
-            logger.exception("manual import failed: %s", exc)
+            logger.exception("manual import from disk failed: %s", exc)
             return JSONResponse({"detail": "Import failed. Please try again."}, status_code=500)
     return JSONResponse(result)

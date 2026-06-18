@@ -24,25 +24,25 @@
     }
   }
 
-  let syncLoading = $state(false);
-  let syncResult = $state(null);
-  let syncError = $state(null);
+  let importFollowingLoading = $state(false);
+  let importFollowingResult = $state(null);
+  let importFollowingError = $state(null);
 
-  async function syncFollowing() {
-    syncLoading = true;
-    syncError = null;
+  async function importFollowing() {
+    importFollowingLoading = true;
+    importFollowingError = null;
     try {
-      const res = await fetch('/api/accounts/sync-following', { method: 'POST' });
+      const res = await fetch('/api/accounts/import-following', { method: 'POST' });
       if (res.ok) {
         const json = await res.json();
-        syncResult = json.added;
+        importFollowingResult = json.added;
       } else {
-        syncError = 'Sync failed. Please try again.';
+        importFollowingError = 'Import failed. Please try again.';
       }
     } catch {
-      syncError = 'Network error. Please try again.';
+      importFollowingError = 'Network error. Please try again.';
     } finally {
-      syncLoading = false;
+      importFollowingLoading = false;
     }
   }
 
@@ -184,19 +184,19 @@
 <div class="page">
   <div class="header">
     <h1 class="title">Following</h1>
-    <div class="sync">
-      {#if syncResult !== null}
-        <span class="sync-label"
-          >{syncResult === 0
+    <div class="import-following">
+      {#if importFollowingResult !== null}
+        <span class="import-following-label"
+          >{importFollowingResult === 0
             ? 'Already up to date'
-            : `${syncResult} new account${syncResult === 1 ? '' : 's'} added`}</span
+            : `${importFollowingResult} new account${importFollowingResult === 1 ? '' : 's'} added`}</span
         >
       {/if}
-      {#if syncError}
-        <span class="sync-label error">{syncError}</span>
+      {#if importFollowingError}
+        <span class="import-following-label error">{importFollowingError}</span>
       {/if}
-      <button class="btn" type="button" disabled={syncLoading} onclick={syncFollowing}>
-        {syncLoading ? 'Syncing…' : 'Sync now'}
+      <button class="btn" type="button" disabled={importFollowingLoading} onclick={importFollowing}>
+        {importFollowingLoading ? 'Importing…' : 'Import now'}
       </button>
     </div>
   </div>
@@ -267,7 +267,7 @@
     white-space: nowrap;
   }
 
-  .sync {
+  .import-following {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -275,7 +275,7 @@
     min-width: 0;
   }
 
-  .sync-label {
+  .import-following-label {
     font-size: 12px;
     color: var(--color-text-muted);
     overflow: hidden;
@@ -284,7 +284,7 @@
     max-width: 160px;
   }
 
-  .sync-label.error {
+  .import-following-label.error {
     color: var(--color-error);
   }
 

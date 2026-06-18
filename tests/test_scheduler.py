@@ -87,16 +87,16 @@ async def test_wait_until_window_sleeps_after_23h():
     assert 27500 < delay < 27700
 
 
-def test_fetch_new_posts_synced_accounts_get_unlimited_max_posts(tmp_path):
+def test_fetch_new_posts_fully_imported_accounts_get_unlimited_max_posts(tmp_path):
     from api.scheduler import _fetch_new_posts
 
     db = tmp_path / "test.db"
     active_accounts = [
-        (1, "111", "alice", 1),  # synced — max_posts=None
-        (2, "222", "bob", 0),  # unsynced — max_posts=_MAX_RECENT_UNSYNCED
+        (1, "111", "alice", 1),  # fully imported — max_posts=None
+        (2, "222", "bob", 0),  # not fully imported — max_posts=IMPORT_MAX_RECENT_POSTS
     ]
 
-    with patch("api.scheduler._sync_account_fast", return_value=0) as mock_dl:
+    with patch("api.scheduler._import_account", return_value=0) as mock_dl:
         with patch("api.scheduler._sleep"):
             _fetch_new_posts(MagicMock(), active_accounts, db)
 
@@ -107,31 +107,31 @@ def test_fetch_new_posts_synced_accounts_get_unlimited_max_posts(tmp_path):
     assert calls_by_username["bob"] is not None
 
 
-def test_fetch_new_posts_unsynced_only_still_runs(tmp_path):
+def test_fetch_new_posts_not_fully_imported_only_still_runs(tmp_path):
     from api.scheduler import _fetch_new_posts
-    from api.config import SYNC_MAX_RECENT_POSTS
+    from api.config import IMPORT_MAX_RECENT_POSTS
 
     db = tmp_path / "test.db"
-    active_accounts = [(1, "111", "alice", 0)]  # unsynced — included with cap
+    active_accounts = [(1, "111", "alice", 0)]  # not fully imported — included with cap
 
-    with patch("api.scheduler._sync_account_fast", return_value=0) as mock_dl:
+    with patch("api.scheduler._import_account", return_value=0) as mock_dl:
         _fetch_new_posts(MagicMock(), active_accounts, db)
 
     mock_dl.assert_called_once()
-    assert mock_dl.call_args.kwargs.get("max_posts") == SYNC_MAX_RECENT_POSTS
+    assert mock_dl.call_args.kwargs.get("max_posts") == IMPORT_MAX_RECENT_POSTS
 
 
-def test_fetch_new_posts_calls_sync_for_all_accounts(tmp_path):
+def test_fetch_new_posts_calls_import_for_all_accounts(tmp_path):
     from api.scheduler import _fetch_new_posts
 
     db = tmp_path / "test.db"
     active_accounts = [
         (1, "111", "alice", 1),
         (2, "222", "bob", 1),
-        (3, "333", "carol", 0),  # unsynced — included with max_posts cap
+        (3, "333", "carol", 0),  # not fully imported — included with max_posts cap
     ]
 
-    with patch("api.scheduler._sync_account_fast", return_value=0) as mock_dl:
+    with patch("api.scheduler._import_account", return_value=0) as mock_dl:
         with patch("api.scheduler._sleep"):
             _fetch_new_posts(MagicMock(), active_accounts, db)
 
@@ -139,8 +139,8 @@ def test_fetch_new_posts_calls_sync_for_all_accounts(tmp_path):
     assert called_usernames == {"alice", "bob", "carol"}
 
 
-def test_sync_account_fast_stops_on_existing_post(tmp_path):
-    from api.scheduler import _sync_account_fast
+def test_import_account_stops_on_existing_post(tmp_path):
+    from api.scheduler import _import_account
 
     (tmp_path / "111").mkdir()
     L = MagicMock()
@@ -160,22 +160,22 @@ def test_sync_account_fast_stops_on_existing_post(tmp_path):
         with patch("api.scheduler.MEDIA_BASE", tmp_path):
             with patch("api.scheduler.index_account", return_value=0):
                 with patch("time.sleep"):
-                    _sync_account_fast(L, 1, "111", "alice", tmp_path / "test.db")
+                    _import_account(L, 1, "111", "alice", tmp_path / "test.db")
 
     assert L.download_post.call_count == 2
 
 
-def test_fetch_old_posts_marks_synced_when_no_new_posts(tmp_path):
+def test_fetch_old_posts_marks_fully_imported_when_no_new_posts(tmp_path):
     from api.scheduler import _fetch_old_posts
 
     db = tmp_path / "test.db"
     (tmp_path / "111").mkdir()
 
-    with patch("api.scheduler.SYNC_ENABLE_BACKFILL", True):
+    with patch("api.scheduler.IMPORT_ENABLE_BACKFILL", True):
         with patch(
-            "api.scheduler.get_unsynced_accounts", return_value=[(1, "111", "alice")]
+            "api.scheduler.get_not_fully_imported_accounts", return_value=[(1, "111", "alice")]
         ):
-            with patch("api.scheduler.mark_account_synced") as mock_mark:
+            with patch("api.scheduler.mark_account_fully_imported") as mock_mark:
                 with patch("api.scheduler.index_account", return_value=0):
                     with patch("api.scheduler.MEDIA_BASE", tmp_path):
                         L = MagicMock()
@@ -197,11 +197,11 @@ def test_fetch_old_posts_selects_max_3_accounts(tmp_path):
     for i in range(10):
         (tmp_path / str(i)).mkdir()
 
-    unsynced = [(i, str(i), f"user{i}") for i in range(10)]
+    not_imported = [(i, str(i), f"user{i}") for i in range(10)]
 
-    with patch("api.scheduler.SYNC_ENABLE_BACKFILL", True):
-        with patch("api.scheduler.get_unsynced_accounts", return_value=unsynced):
-            with patch("api.scheduler.mark_account_synced"):
+    with patch("api.scheduler.IMPORT_ENABLE_BACKFILL", True):
+        with patch("api.scheduler.get_not_fully_imported_accounts", return_value=not_imported):
+            with patch("api.scheduler.mark_account_fully_imported"):
                 with patch("api.scheduler.index_account", return_value=0):
                     with patch("api.scheduler.MEDIA_BASE", tmp_path):
                         with patch("api.scheduler._sleep"):
@@ -223,7 +223,7 @@ def test_fetch_new_posts_stops_when_stop_event_set(tmp_path):
     sched._stop_event.set()
     try:
         active_accounts = [(1, "111", "alice", 1)]
-        with patch("api.scheduler._sync_account_fast") as mock_dl:
+        with patch("api.scheduler._import_account") as mock_dl:
             _fetch_new_posts(MagicMock(), active_accounts, tmp_path / "test.db")
         mock_dl.assert_not_called()
     finally:
@@ -236,9 +236,9 @@ def test_fetch_old_posts_stops_when_stop_event_set(tmp_path):
 
     sched._stop_event.set()
     try:
-        with patch("api.scheduler.SYNC_ENABLE_BACKFILL", True):
+        with patch("api.scheduler.IMPORT_ENABLE_BACKFILL", True):
             with patch(
-                "api.scheduler.get_unsynced_accounts",
+                "api.scheduler.get_not_fully_imported_accounts",
                 return_value=[(1, "111", "alice")],
             ):
                 with patch("instaloader.Profile.from_iphone_struct") as mock_struct:
@@ -248,9 +248,9 @@ def test_fetch_old_posts_stops_when_stop_event_set(tmp_path):
         sched._stop_event.clear()
 
 
-def test_sync_account_fast_stops_when_stop_event_set(tmp_path):
+def test_import_account_stops_when_stop_event_set(tmp_path):
     from api import scheduler as sched
-    from api.scheduler import _sync_account_fast
+    from api.scheduler import _import_account
 
     (tmp_path / "111").mkdir()
     sched._stop_event.set()
@@ -262,7 +262,7 @@ def test_sync_account_fast_stops_when_stop_event_set(tmp_path):
         with patch("instaloader.Profile.from_iphone_struct", return_value=profile):
             with patch("api.scheduler.MEDIA_BASE", tmp_path):
                 with patch("api.scheduler.index_account", return_value=0):
-                    _sync_account_fast(L, 1, "111", "alice", tmp_path / "test.db")
+                    _import_account(L, 1, "111", "alice", tmp_path / "test.db")
         L.download_post.assert_not_called()
     finally:
         sched._stop_event.clear()

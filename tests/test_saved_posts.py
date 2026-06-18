@@ -35,7 +35,7 @@ def _run_sync(tmp_path, posts, *, shortcode_exists=False, download_side_effect=N
         patch("api.saved.instaloader.Profile.own_profile", return_value=profile),
         patch("api.saved._set_session_headers"),
         patch("api.saved.upsert_account", return_value=(1, False)),
-        patch("api.saved.sync_lock"),
+        patch("api.saved.import_lock"),
         patch("api.saved.index_account") as mock_index,
         patch("api.saved.shortcode_exists", **se_kwargs),
         patch("api.saved.mark_as_saved_posts"),
