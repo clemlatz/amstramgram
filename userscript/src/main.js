@@ -10680,11 +10680,14 @@
     const paths = [`/p/${normalized}/`, `/reel/${normalized}/`];
 
     for (const path of paths) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       try {
         const response = await fetch(`https://www.instagram.com${path}`, {
           method: "GET",
           credentials: "include",
-          headers: { "Accept": "text/html" }
+          headers: { "Accept": "text/html" },
+          signal: controller.signal
         });
         if (!response.ok) continue;
 
@@ -10696,6 +10699,8 @@
         }
       } catch (err) {
         debugLog("[Amstragram] HTML fallback failed for", path, ":", err?.message || err);
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
