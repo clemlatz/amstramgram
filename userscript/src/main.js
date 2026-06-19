@@ -18469,8 +18469,9 @@ const STORY_MATCHING_CORE = (() => {
     if (!isLikelyInstagramShortcode(shortcode)) return item;
     if (typeof fetchPostInfoWithFallback !== "function") return item;
 
+    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 10000));
     try {
-      const hydrated = await fetchPostInfoWithFallback(shortcode);
+      const hydrated = await Promise.race([fetchPostInfoWithFallback(shortcode), timeoutPromise]);
       return hydrated || item;
     } catch (err) {
       if (typeof debugLog === "function") {
