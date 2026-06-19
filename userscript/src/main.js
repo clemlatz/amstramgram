@@ -16895,6 +16895,7 @@ const STORY_MATCHING_CORE = (() => {
     let deltaSyncTerminatedEarly = false;
     let maxId = null;
     let pageCount = 0;
+    let emptyPageStreak = 0;
 
     const buildResult = () => ({
       tasks: collected,
@@ -16919,6 +16920,15 @@ const STORY_MATCHING_CORE = (() => {
 
       const feedPage = await fetchSavedFeedPage(collectionId, appId, maxId);
       const items = feedPage.items;
+      if (items.length === 0) {
+        emptyPageStreak += 1;
+        if (emptyPageStreak >= 3) {
+          debugLog("[Amstragram] Saved feed: stopping after 3 consecutive empty pages (moreAvailable was:", feedPage.moreAvailable, ")");
+          break;
+        }
+      } else {
+        emptyPageStreak = 0;
+      }
 
       for (const mediaItem of items) {
         const dateCheck = DATE_FILTER_CORE.itemPassesDateFilter(mediaItem?.taken_at, dateFilter);
@@ -18749,6 +18759,7 @@ const STORY_MATCHING_CORE = (() => {
     let deltaSyncTerminatedEarly = false;
     let maxId = null;
     let pageCount = 0;
+    let emptyPageStreak = 0;
 
     const buildResult = () => ({
       tasks: collected,
@@ -18773,6 +18784,15 @@ const STORY_MATCHING_CORE = (() => {
       });
 
       const items = Array.isArray(page?.items) ? page.items : [];
+      if (items.length === 0) {
+        emptyPageStreak += 1;
+        if (emptyPageStreak >= 3) {
+          debugLog("[Amstragram] Profile feed: stopping after 3 consecutive empty pages (more_available was:", page?.more_available, ")");
+          break;
+        }
+      } else {
+        emptyPageStreak = 0;
+      }
       for (const item of items) {
         const dateCheck = DATE_FILTER_CORE.itemPassesDateFilter(item?.taken_at, dateFilter);
         dateFilterCounters.scanned += 1;
@@ -18889,6 +18909,7 @@ const STORY_MATCHING_CORE = (() => {
     let dateFilterTerminatedEarly = false;
     let maxId = null;
     let pageCount = 0;
+    let emptyPageStreak = 0;
 
     const buildResult = () => ({
       tasks: collected,
@@ -18911,6 +18932,15 @@ const STORY_MATCHING_CORE = (() => {
       });
 
       const items = Array.isArray(page?.items) ? page.items : [];
+      if (items.length === 0) {
+        emptyPageStreak += 1;
+        if (emptyPageStreak >= 3) {
+          debugLog("[Amstragram] Reels feed: stopping after 3 consecutive empty pages (more_available was:", page?.more_available, ")");
+          break;
+        }
+      } else {
+        emptyPageStreak = 0;
+      }
       for (const item of items) {
         if (item?.product_type !== "clips") continue;
         const dateCheck = DATE_FILTER_CORE.itemPassesDateFilter(item?.taken_at, dateFilter);
