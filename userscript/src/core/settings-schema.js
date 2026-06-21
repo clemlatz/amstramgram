@@ -29,8 +29,6 @@ const SETTINGS_SCHEMA_CORE = (() => {
 
   const DEFAULT_USER_SETTINGS = {
     settingsSchemaVersion: SETTINGS_SCHEMA_VERSION,
-    hotkey: "Alt+Shift+I",
-    showSettingsLauncher: true,
     theme: "auto",
     riskPreset: "balanced",
     safetyThresholdCount: 40,
@@ -59,19 +57,11 @@ const SETTINGS_SCHEMA_CORE = (() => {
       }
     },
     downloads: {
-      androidCompatMode: false,
-      useCustomFolder: false,
+      useCustomFolder: true,
       folderLabel: "",
-      filenameTemplate: "",
-      filenameSeparator: "_",
-      bulkAsZip: false,
       skipPreviouslyDownloaded: false,
       amstramgramUrl: "",
-      useTypeSubfolders: true,
-      saveMetadataJson: false,
-      saveMetadataXmp: false,
-      saveMetadataIptc: false,
-      saveMetadataXmpExif: false,
+      saveMetadataJson: true,
       videoContainer: "mp4"
     },
     downloadSource: "profile",
@@ -86,57 +76,6 @@ const SETTINGS_SCHEMA_CORE = (() => {
     return ["safe", "balanced", "aggressive", "custom"].includes(normalized)
       ? normalized
       : DEFAULT_USER_SETTINGS.riskPreset;
-  }
-
-  function sanitizeHotkey(value) {
-    if (typeof value !== "string") return DEFAULT_USER_SETTINGS.hotkey;
-    const trimmed = value.trim().replace(/\s+/g, "");
-    if (!trimmed || trimmed.length > 40) return DEFAULT_USER_SETTINGS.hotkey;
-
-    const tokens = trimmed.split("+").map((token) => token.trim()).filter(Boolean);
-    if (tokens.length === 0) return DEFAULT_USER_SETTINGS.hotkey;
-
-    const aliases = {
-      control: "Ctrl",
-      ctrl: "Ctrl",
-      alt: "Alt",
-      option: "Alt",
-      shift: "Shift",
-      meta: "Meta",
-      cmd: "Meta",
-      command: "Meta"
-    };
-
-    const orderedModifiers = ["Ctrl", "Alt", "Shift", "Meta"];
-    const modifiers = new Set();
-    let keyToken = null;
-
-    for (const token of tokens) {
-      const lowered = token.toLowerCase();
-      const mappedModifier = aliases[lowered];
-      if (mappedModifier && orderedModifiers.includes(mappedModifier)) {
-        modifiers.add(mappedModifier);
-        continue;
-      }
-      if (keyToken) return DEFAULT_USER_SETTINGS.hotkey;
-      keyToken = token;
-    }
-
-    if (!keyToken) return DEFAULT_USER_SETTINGS.hotkey;
-
-    const formattedKey = keyToken.length === 1
-      ? keyToken.toUpperCase()
-      : keyToken[0].toUpperCase() + keyToken.slice(1);
-    const sortedMods = orderedModifiers.filter((mod) => modifiers.has(mod));
-    return sortedMods.length > 0
-      ? `${sortedMods.join("+")}+${formattedKey}`
-      : formattedKey;
-  }
-
-  function sanitizeShowSettingsLauncher(value) {
-    return (typeof value === "boolean")
-      ? value
-      : DEFAULT_USER_SETTINGS.showSettingsLauncher;
   }
 
   function sanitizeTheme(value) {
@@ -219,19 +158,8 @@ const SETTINGS_SCHEMA_CORE = (() => {
 
   function sanitizeOutputFolderLabel(value) {
     if (typeof value !== "string") return "";
-    const cleaned = value
-      .replace(/[\u0000-\u001F]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
+    const cleaned = value.replace(/[\x00-\x1F]/g, "").replace(/\s+/g, " ").trim();
     return cleaned.slice(0, 180);
-  }
-
-  function sanitizeFilenameTemplate(value) {
-    if (typeof value !== "string") return "";
-    const cleaned = value
-      .replace(/[\u0000-\u001F]/g, "")
-      .trim();
-    return cleaned.slice(0, 240);
   }
 
   function sanitizeAmstramgramUrl(value) {
@@ -249,50 +177,17 @@ const SETTINGS_SCHEMA_CORE = (() => {
 
   function sanitizeDownloadSettings(settings) {
     const source = settings && typeof settings === "object" ? settings : {};
-    const androidCompatMode = (typeof source.androidCompatMode === "boolean")
-      ? source.androidCompatMode
-      : DEFAULT_USER_SETTINGS.downloads.androidCompatMode;
     return {
-      androidCompatMode,
-      useCustomFolder: androidCompatMode ? false : !!source.useCustomFolder,
+      useCustomFolder: true,
       folderLabel: sanitizeOutputFolderLabel(source.folderLabel),
-      filenameTemplate: sanitizeFilenameTemplate(source.filenameTemplate),
-      filenameSeparator: (typeof source.filenameSeparator === "string" && source.filenameSeparator.length <= 1)
-        ? source.filenameSeparator
-        : (source.filenameSeparator === null ? null : DEFAULT_USER_SETTINGS.downloads.filenameSeparator),
-      bulkAsZip: androidCompatMode ? false : !!source.bulkAsZip,
+      bulkAsZip: false,
       skipPreviouslyDownloaded: (typeof source.skipPreviouslyDownloaded === "boolean")
         ? source.skipPreviouslyDownloaded
         : DEFAULT_USER_SETTINGS.downloads.skipPreviouslyDownloaded,
       amstramgramUrl: sanitizeAmstramgramUrl(source.amstramgramUrl),
-      useTypeSubfolders: androidCompatMode
-        ? false
-        : (typeof source.useTypeSubfolders === "boolean")
-          ? source.useTypeSubfolders
-          : DEFAULT_USER_SETTINGS.downloads.useTypeSubfolders,
-      saveMetadataJson: androidCompatMode
-        ? false
-        : (typeof source.saveMetadataJson === "boolean")
-          ? source.saveMetadataJson
-          : DEFAULT_USER_SETTINGS.downloads.saveMetadataJson,
-      saveMetadataXmp: androidCompatMode
-        ? false
-        : (typeof source.saveMetadataXmp === "boolean")
-          ? source.saveMetadataXmp
-          : DEFAULT_USER_SETTINGS.downloads.saveMetadataXmp,
-      saveMetadataIptc: androidCompatMode
-        ? false
-        : (typeof source.saveMetadataIptc === "boolean")
-          ? source.saveMetadataIptc
-          : DEFAULT_USER_SETTINGS.downloads.saveMetadataIptc,
-      saveMetadataXmpExif: androidCompatMode
-        ? false
-        : (typeof source.saveMetadataXmpExif === "boolean")
-          ? source.saveMetadataXmpExif
-          : DEFAULT_USER_SETTINGS.downloads.saveMetadataXmpExif,
-      videoContainer: (source.videoContainer === "mp4" || source.videoContainer === "mkv")
-        ? source.videoContainer
-        : DEFAULT_USER_SETTINGS.downloads.videoContainer
+      useTypeSubfolders: false,
+      saveMetadataJson: true,
+      videoContainer: "mp4"
     };
   }
 
@@ -391,8 +286,6 @@ const SETTINGS_SCHEMA_CORE = (() => {
     const legacySavedEnabled = savedDownloadSettings.enabled;
     return {
       settingsSchemaVersion: SETTINGS_SCHEMA_VERSION,
-      hotkey: sanitizeHotkey(source.hotkey),
-      showSettingsLauncher: sanitizeShowSettingsLauncher(source.showSettingsLauncher),
       theme: sanitizeTheme(source.theme),
       downloadSource: sanitizeDownloadSource(source.downloadSource, legacySavedEnabled),
       riskPreset: sanitizeRiskPreset(source.riskPreset),
@@ -437,19 +330,6 @@ const SETTINGS_SCHEMA_CORE = (() => {
     const hasLegacyMetadataKeys = legacyKeys.some((key) => Object.prototype.hasOwnProperty.call(downloads, key));
     const migratedDownloads = { ...downloads };
 
-    if (downloads.saveMetadataExif === true) {
-      migratedDownloads.saveMetadataJson = true;
-    }
-    if (downloads.saveMetadataExifXmp === true) {
-      migratedDownloads.saveMetadataXmp = true;
-    }
-    if (downloads.saveMetadataExifIptc === true) {
-      migratedDownloads.saveMetadataIptc = true;
-    }
-    if (downloads.saveMetadataExifExif === true) {
-      migratedDownloads.saveMetadataXmpExif = true;
-    }
-
     for (const key of legacyKeys) {
       delete migratedDownloads[key];
     }
@@ -470,7 +350,6 @@ const SETTINGS_SCHEMA_CORE = (() => {
     PROFILE_RESERVED_PATHS,
     DEFAULT_USER_SETTINGS,
     sanitizeRiskPreset,
-    sanitizeHotkey,
     sanitizeTheme,
     sanitizeProfileDownloadSelection,
     getProfileDownloadSelectionLabel,

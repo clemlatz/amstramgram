@@ -1,6 +1,6 @@
 const PAGE_HANDLERS_CORE = (() => {
   const { icons } = STYLES_CORE;
-  const { sleepMs, randomIntBetween, getPageWindow, isAndroidUserAgent } = UTILITIES_CORE;
+  const { sleepMs, randomIntBetween, getPageWindow } = UTILITIES_CORE;
   const { sanitizeAmstramgramUrl, PROFILE_RESERVED_PATHS } = SETTINGS_SCHEMA_CORE;
   const TAGGED_TRACE_ENABLED = false;
 
@@ -255,53 +255,6 @@ const PAGE_HANDLERS_CORE = (() => {
     return await response.blob();
   }
 
-  function createNamedBinaryFile(blob, filename) {
-    if (!(blob instanceof Blob)) return null;
-    if (typeof File !== "function") return blob;
-    try {
-      return new File(
-        [blob],
-        FILE_METADATA_CORE.sanitizeOutputFilename(filename || "instagram_media", "instagram_media"),
-        { type: blob.type || "application/octet-stream" }
-      );
-    } catch {
-      return blob;
-    }
-  }
-
-  function blobToDataUrl(blob) {
-    return new Promise((resolve, reject) => {
-      if (!(blob instanceof Blob)) {
-        reject(new Error("blobToDataUrl requires a Blob"));
-        return;
-      }
-      if (typeof FileReader !== "function") {
-        reject(new Error("FileReader unavailable"));
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result;
-        if (typeof result === "string" && result.startsWith("data:")) {
-          resolve(result);
-          return;
-        }
-        reject(new Error("Failed to read blob as data URL"));
-      };
-      reader.onerror = () => reject(new Error("FileReader failed"));
-      reader.readAsDataURL(blob);
-    });
-  }
-
-  function shouldUseAndroidCompatibilityDownloadPath() {
-    return !!_getSettings()?.downloads?.androidCompatMode && isAndroidUserAgent();
-  }
-
-  function isDownloadTimeoutError(err) {
-    return !!err && (err.code === "GM_DOWNLOAD_TIMEOUT" || String(err?.message || "").toLowerCase().includes("timed out"));
-  }
-
   async function downloadFile(url, filename, metaOrOptions = null, maybeOptions = null) {
     let meta = metaOrOptions;
     let options = maybeOptions && typeof maybeOptions === "object" ? maybeOptions : {};
@@ -316,92 +269,6 @@ const PAGE_HANDLERS_CORE = (() => {
     }
 
     const resolvedFilename = resolveDownloadFilenameForTransfer(url, filename, meta);
-
-    if (shouldUseAndroidCompatibilityDownloadPath()) {
-      const androidAllowsTabFallback = options?.allowOpenInTabFallback !== false;
-      let initialDownloadErr;
-      try {
-        await gmDownloadFile(url, resolvedFilename, {
-          saveAs: true,
-          timeoutMs: androidAllowsTabFallback ? 12000 : 7000
-        });
-        return true;
-      } catch (androidGmDownloadErr) {
-        initialDownloadErr = androidGmDownloadErr;
-        debugLog("[Amstragram] Android mode GM_download(saveAs) URL mode failed:", androidGmDownloadErr?.message || androidGmDownloadErr);
-      }
-
-      if (isDownloadTimeoutError(initialDownloadErr)) {
-        debugLog("[Amstragram] Android mode timeout treated as submitted request; skipping extra fallback attempts to avoid duplicate downloads.");
-        if (androidAllowsTabFallback) {
-          showToast("Android mode: download request sent. If no file appears, use Open in new tab once.");
-        }
-        return true;
-      }
-
-      if (!androidAllowsTabFallback) {
-        // Batch mode disallows tab fallback; fail fast so the queue can continue.
-        return false;
-      }
-
-      let androidBlob = null;
-      try {
-        androidBlob = await fetchMediaBlob(url);
-      } catch (androidBlobErr) {
-        debugLog("[Amstragram] Android mode media fetch failed:", androidBlobErr?.message || androidBlobErr);
-      }
-
-      const namedBinary = createNamedBinaryFile(androidBlob, resolvedFilename);
-      if (namedBinary instanceof Blob) {
-        try {
-          await gmDownloadFile(namedBinary, resolvedFilename, { saveAs: true, timeoutMs: 7000 });
-          return true;
-        } catch (binaryDirectErr) {
-          debugLog("[Amstragram] Android mode GM_download(File/Blob) failed:", binaryDirectErr?.message || binaryDirectErr);
-          if (isDownloadTimeoutError(binaryDirectErr)) {
-            return true;
-          }
-        }
-
-        let localBlobUrl = null;
-        try {
-          localBlobUrl = URL.createObjectURL(namedBinary);
-          await gmDownloadFile(localBlobUrl, resolvedFilename, { saveAs: true, timeoutMs: 7000 });
-          return true;
-        } catch (blobUrlErr) {
-          debugLog("[Amstragram] Android mode GM_download(blob URL) failed:", blobUrlErr?.message || blobUrlErr);
-          if (isDownloadTimeoutError(blobUrlErr)) {
-            return true;
-          }
-        } finally {
-          if (localBlobUrl) {
-            try {
-              URL.revokeObjectURL(localBlobUrl);
-            } catch {
-              // ignore revoke failures
-            }
-          }
-        }
-
-        try {
-          const dataUrl = await blobToDataUrl(namedBinary);
-          await gmDownloadFile(dataUrl, resolvedFilename, { saveAs: true, timeoutMs: 7000 });
-          return true;
-        } catch (dataUrlErr) {
-          debugLog("[Amstragram] Android mode GM_download(data URL) failed:", dataUrlErr?.message || dataUrlErr);
-          if (isDownloadTimeoutError(dataUrlErr)) {
-            return true;
-          }
-        }
-      }
-
-      if (androidAllowsTabFallback) {
-        openInNewTab(url);
-        showToast("Android mode: opened media in a new tab. Use the browser download option there.");
-        return true;
-      }
-      return false;
-    }
 
     try {
       const customFolderResult = await tryCustomFolderDownload(url, resolvedFilename, meta);
@@ -506,7 +373,7 @@ const PAGE_HANDLERS_CORE = (() => {
           if (isMuxedDash) {
             if (collectAvailable) {
               const collected = await DOWNLOAD_PIPELINE_CORE.collectResolvedVideoBytes(plan);
-              const mimeType = collected.container === "mkv" ? "video/x-matroska" : "video/mp4";
+              const mimeType = "video/mp4";
               const muxedBlob = new Blob([collected.bytes], { type: mimeType });
               customResult = await saveBlobToCustomFolderWithResult(muxedBlob, resolvedFilename, meta);
             }
@@ -1224,10 +1091,7 @@ const PAGE_HANDLERS_CORE = (() => {
     });
 
     function videoResolverOptionsFromSettings() {
-      const settings = (typeof _getSettings() !== "undefined" && _getSettings() && _getSettings().downloads) || {};
-      return {
-        container: settings.videoContainer === "mkv" ? "mkv" : "mp4"
-      };
+      return {};
     }
 
     const result = {
@@ -4719,8 +4583,6 @@ const PAGE_HANDLERS_CORE = (() => {
   }
 
   function getBestStoryItemMedia(item) {
-    const settings = (typeof _getSettings() !== "undefined" && _getSettings() && _getSettings().downloads) || {};
-    const container = settings.videoContainer === "mkv" ? "mkv" : "mp4";
     const selectedMedia = MEDIA_SELECTION_CORE.selectBestMedia({
       type: "story",
       mediaKindIntent: storyItemHasVideo(item) ? "video" : "unknown",
@@ -4728,7 +4590,7 @@ const PAGE_HANDLERS_CORE = (() => {
       item: item
     }, {
       videoResolver: typeof VIDEO_RESOLVER_CORE !== "undefined" ? VIDEO_RESOLVER_CORE : null,
-      videoResolverOptions: { container }
+      videoResolverOptions: {}
     });
 
     return {
@@ -5436,8 +5298,6 @@ const PAGE_HANDLERS_CORE = (() => {
   }
 
   function selectDirectMessageVideoMedia(dmItem, resolved) {
-    const settings = (typeof _getSettings() !== "undefined" && _getSettings() && _getSettings().downloads) || {};
-    const container = settings.videoContainer === "mkv" ? "mkv" : "mp4";
     return MEDIA_SELECTION_CORE.selectBestMedia({
       type: "direct_message",
       mediaKindIntent: "video",
@@ -5448,7 +5308,7 @@ const PAGE_HANDLERS_CORE = (() => {
       item: dmItem
     }, {
       videoResolver: typeof VIDEO_RESOLVER_CORE !== "undefined" ? VIDEO_RESOLVER_CORE : null,
-      videoResolverOptions: { container }
+      videoResolverOptions: {}
     });
   }
 
@@ -6515,7 +6375,7 @@ const PAGE_HANDLERS_CORE = (() => {
       showBatchProgressIndicator({
         jobId: savedBulkJobId,
         label: savedBatchLabel,
-        mode: _getSettings()?.downloads?.bulkAsZip ? "zip" : "download",
+        mode: "download",
         state: "running",
         phase: phase,
         total: 0,
@@ -6535,7 +6395,7 @@ const PAGE_HANDLERS_CORE = (() => {
       showBatchProgressIndicator({
         jobId: savedBulkJobId,
         label: savedBatchLabel,
-        mode: _getSettings()?.downloads?.bulkAsZip ? "zip" : "download",
+        mode: "download",
         state: "finished",
         status: status,
         phase: phase || "batch preparation finished",
@@ -6633,7 +6493,7 @@ const PAGE_HANDLERS_CORE = (() => {
         showBatchProgressIndicator({
           jobId: savedBulkJobId,
           label: savedBatchLabel,
-          mode: _getSettings()?.downloads?.bulkAsZip ? "zip" : "download",
+          mode: "download",
           state: "running",
           phase: "queued, starting downloads",
           total: Math.max(1, scopedTasks.length),

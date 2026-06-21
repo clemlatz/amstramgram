@@ -117,9 +117,7 @@ const APP_CORE = (() => {
   const OUTPUT_HANDLE_KEY = "selected_output_folder";
   const {
     PROFILE_RESERVED_PATHS,
-    DEFAULT_USER_SETTINGS,
     sanitizeRiskPreset,
-    sanitizeHotkey,
     sanitizeTheme,
     sanitizeProfileDownloadSelection,
     getProfileDownloadSelectionLabel,
@@ -513,21 +511,6 @@ const APP_CORE = (() => {
   }
 
 
-  function getArchiveTypeSubfolderOptions() {
-    return {
-      useTypeSubfolders: !!USER_SETTINGS?.downloads?.useTypeSubfolders
-    };
-  }
-
-  function applyTypeSubfolderToArchivePath(filename, meta) {
-    return FILE_METADATA_CORE.applyTypeSubfolderToArchivePath(
-      filename,
-      meta,
-      getArchiveTypeSubfolderOptions()
-    );
-  }
-
-
   function formatDateToken(date = new Date()) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -540,11 +523,6 @@ const APP_CORE = (() => {
     const mm = String(date.getMinutes()).padStart(2, "0");
     const ss = String(date.getSeconds()).padStart(2, "0");
     return `${hh}-${mm}-${ss}`;
-  }
-
-  function buildZipDownloadName(label = "") {
-    const safeLabel = FILE_METADATA_CORE.sanitizeFilenameToken(label || "instagram_media", "instagram_media");
-    return `${safeLabel}_${formatDateToken()}_${formatTimeToken()}.zip`;
   }
 
   function triggerBlobBrowserDownload(blob, filename) {
@@ -567,7 +545,7 @@ const APP_CORE = (() => {
 
   function getDownloadFilenameResolutionOptions() {
     return {
-      filenameTemplate: USER_SETTINGS?.downloads?.filenameTemplate || ""
+      filenameTemplate: "{username}_{shortcode}_{index}"
     };
   }
 
@@ -596,44 +574,11 @@ const APP_CORE = (() => {
 
   function resolveVideoDownloadFilename(plan, fallbackUrl, fallbackFilename, meta = null) {
     const sourceUrl = plan?.video?.url || fallbackUrl || "";
-    const planExt = plan?.container === "mkv" ? "mkv" : (plan ? "mp4" : "");
-    const effectiveMeta = (planExt && meta && typeof meta === "object")
-      ? { ...meta, ext: planExt }
-      : meta;
-    const baseName = resolveDownloadFilenameForTransfer(sourceUrl, fallbackFilename, effectiveMeta);
-    if (plan?.container !== "mkv") return baseName;
-    return /\.mkv$/i.test(baseName)
-      ? baseName
-      : baseName.replace(/\.[^.\\/]+$/, "") + ".mkv";
+    const effectiveMeta = (meta && typeof meta === "object") ? { ...meta, ext: "mp4" } : meta;
+    return resolveDownloadFilenameForTransfer(sourceUrl, fallbackFilename, effectiveMeta);
   }
 
 
-  function getXmpSidecarFlags() {
-    return {
-      xmp: !!USER_SETTINGS?.downloads?.saveMetadataXmp,
-      iptc: !!USER_SETTINGS?.downloads?.saveMetadataIptc,
-      exif: !!USER_SETTINGS?.downloads?.saveMetadataXmpExif
-    };
-  }
-
-  function getMetadataSidecarArchiveOptions() {
-    return {
-      saveMetadataJson: !!USER_SETTINGS?.downloads?.saveMetadataJson,
-      saveMetadataXmp: !!USER_SETTINGS?.downloads?.saveMetadataXmp,
-      saveMetadataIptc: !!USER_SETTINGS?.downloads?.saveMetadataIptc,
-      saveMetadataXmpExif: !!USER_SETTINGS?.downloads?.saveMetadataXmpExif
-    };
-  }
-
-  function buildMetadataSidecarArchiveEntries(sourceUrl, archivePath, meta = null, archivePaths = null) {
-    return FILE_METADATA_CORE.buildMetadataSidecarArchiveEntries(
-      sourceUrl,
-      archivePath,
-      meta,
-      archivePaths,
-      getMetadataSidecarArchiveOptions()
-    );
-  }
 
   async function fileExistsInDirectory(directoryHandle, fileName) {
     try {
@@ -662,10 +607,8 @@ const APP_CORE = (() => {
     throw new Error("Could not allocate a unique filename.");
   }
 
-  async function getCustomFolderTargetDirectory(rootHandle, meta = null) {
-    if (!USER_SETTINGS?.downloads?.useTypeSubfolders) return rootHandle;
-    const folderName = FILE_METADATA_CORE.sanitizeFilenameToken(FILE_METADATA_CORE.mapDownloadTypeToFolder(meta), "misc").replace(/\s+/g, "_");
-    return await rootHandle.getDirectoryHandle(folderName, { create: true });
+  async function getCustomFolderTargetDirectory(rootHandle) {
+    return rootHandle;
   }
 
   function showCustomFolderFallbackNotice() {
@@ -711,60 +654,24 @@ const APP_CORE = (() => {
   }
 
   async function saveMetadataSidecarsToCustomFolder(sourceUrl, mediaFilename, meta = null) {
-    const wantJson = !!USER_SETTINGS?.downloads?.saveMetadataJson;
-    const xmpFlags = getXmpSidecarFlags();
-    const wantXmpFile = xmpFlags.xmp || xmpFlags.iptc || xmpFlags.exif;
-    if (!wantJson && !wantXmpFile) return;
-
     const payload = FILE_METADATA_CORE.buildMetadataSidecarPayload(sourceUrl, mediaFilename, meta);
     const sidecarNames = FILE_METADATA_CORE.getMetadataSidecarFilenames(mediaFilename);
-
-    if (wantJson) {
-      try {
-        const jsonBlob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-        await saveBlobToCustomFolder(jsonBlob, sidecarNames.json, meta);
-      } catch (sidecarJsonErr) {
-        debugLog("[Amstragram] Metadata JSON sidecar save failed:", sidecarJsonErr?.message || sidecarJsonErr);
-      }
-    }
-
-    if (wantXmpFile) {
-      try {
-        const xmlText = FILE_METADATA_CORE.buildXmpSidecarDocument(payload, xmpFlags);
-        const xmpBlob = new Blob([xmlText], { type: "application/rdf+xml;charset=utf-8" });
-        await saveBlobToCustomFolder(xmpBlob, sidecarNames.xmp, meta);
-      } catch (sidecarXmpErr) {
-        debugLog("[Amstragram] Metadata XMP sidecar save failed:", sidecarXmpErr?.message || sidecarXmpErr);
-      }
+    try {
+      const jsonBlob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      await saveBlobToCustomFolder(jsonBlob, sidecarNames.json, meta);
+    } catch (sidecarJsonErr) {
+      debugLog("[Amstragram] Metadata JSON sidecar save failed:", sidecarJsonErr?.message || sidecarJsonErr);
     }
   }
 
   function triggerMetadataSidecarBrowserDownloads(sourceUrl, mediaFilename, meta = null) {
-    const wantJson = !!USER_SETTINGS?.downloads?.saveMetadataJson;
-    const xmpFlags = getXmpSidecarFlags();
-    const wantXmpFile = xmpFlags.xmp || xmpFlags.iptc || xmpFlags.exif;
-    if (!wantJson && !wantXmpFile) return;
-
     const payload = FILE_METADATA_CORE.buildMetadataSidecarPayload(sourceUrl, mediaFilename, meta);
     const sidecarNames = FILE_METADATA_CORE.getMetadataSidecarFilenames(mediaFilename);
-
-    if (wantJson) {
-      try {
-        const jsonBlob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-        triggerBlobBrowserDownload(jsonBlob, sidecarNames.json);
-      } catch (sidecarJsonErr) {
-        debugLog("[Amstragram] Metadata JSON sidecar browser download failed:", sidecarJsonErr?.message || sidecarJsonErr);
-      }
-    }
-
-    if (wantXmpFile) {
-      try {
-        const xmlText = FILE_METADATA_CORE.buildXmpSidecarDocument(payload, xmpFlags);
-        const xmpBlob = new Blob([xmlText], { type: "application/rdf+xml;charset=utf-8" });
-        triggerBlobBrowserDownload(xmpBlob, sidecarNames.xmp);
-      } catch (sidecarXmpErr) {
-        debugLog("[Amstragram] Metadata XMP sidecar browser download failed:", sidecarXmpErr?.message || sidecarXmpErr);
-      }
+    try {
+      const jsonBlob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      triggerBlobBrowserDownload(jsonBlob, sidecarNames.json);
+    } catch (sidecarJsonErr) {
+      debugLog("[Amstragram] Metadata JSON sidecar browser download failed:", sidecarJsonErr?.message || sidecarJsonErr);
     }
   }
 
@@ -1228,10 +1135,8 @@ const APP_CORE = (() => {
     const rerunController = new BatchJobController(queuedItems, {
       policy: controller.policy,
       label: `${record.label} (run again)`,
-      mode: controller.mode,
       onStateChange: controller._onStateChange,
-      onItemResult,
-      zipOptions: controller.zipOptions
+      onItemResult
     });
 
     if (skippedCount > 0) {
@@ -2553,19 +2458,16 @@ const APP_CORE = (() => {
      * @param {object} opts
      * @param {object}  opts.policy      — sanitized pacing policy
      * @param {string}  opts.label       — display label
-     * @param {string}  opts.mode        — "download" | "zip"
      * @param {string}  [opts.jobId]     — optional; auto-generated if omitted
      * @param {Function} [opts.onStateChange]  — (newState, oldState) => void
      * @param {Function} [opts.onItemResult]   — ({ index, url, filename, status, error, phase }) => void
-     * @param {object}  [opts.zipOptions]      — { zipName } forwarded for ZIP mode
      */
     constructor(items, opts = {}) {
       this.items = Array.isArray(items) ? items : [];
       this.policy = sanitizePolicy(opts.policy);
       this.label = typeof opts.label === "string" && opts.label.trim() ? opts.label.trim() : "Batch download";
-      this.mode = opts.mode === "zip" ? "zip" : "download";
+      this.mode = "download";
       this.jobId = typeof opts.jobId === "string" && opts.jobId.trim() ? opts.jobId.trim() : generateBatchJobId();
-      this.zipOptions = opts.zipOptions && typeof opts.zipOptions === "object" ? opts.zipOptions : {};
 
       // Callbacks
       this._onStateChange = typeof opts.onStateChange === "function" ? opts.onStateChange : null;
@@ -2693,11 +2595,9 @@ const APP_CORE = (() => {
       return new BatchJobController(retryItems, {
         policy: overrides.policy || this.policy,
         label: overrides.label || `${this.label} (retry)`,
-        mode: this.mode,
         jobId: overrides.jobId,
         onStateChange: overrides.onStateChange || this._onStateChange,
-        onItemResult: overrides.onItemResult || this._onItemResult,
-        zipOptions: this.zipOptions
+        onItemResult: overrides.onItemResult || this._onItemResult
       });
     }
 
@@ -2717,11 +2617,9 @@ const APP_CORE = (() => {
       return new BatchJobController(rerunItems, {
         policy: overrides.policy || this.policy,
         label: overrides.label || `${this.label} (run again)`,
-        mode: this.mode,
         jobId: overrides.jobId,
         onStateChange: overrides.onStateChange || this._onStateChange,
-        onItemResult: overrides.onItemResult || this._onItemResult,
-        zipOptions: this.zipOptions
+        onItemResult: overrides.onItemResult || this._onItemResult
       });
     }
 
@@ -2820,9 +2718,6 @@ const APP_CORE = (() => {
       activeBatchJobs.set(this.jobId, this);
 
       try {
-        if (this.mode === "zip") {
-          return await this._runZipMode();
-        }
         return await this._runDownloadMode();
       } finally {
         this._finishedAt = Date.now();
@@ -2978,221 +2873,8 @@ const APP_CORE = (() => {
       return this._buildResult();
     }
 
-    async _runZipMode() {
-      const { label, policy: safePolicy, total } = this;
-      const applySafetyPacing = total >= USER_SETTINGS.safetyThresholdCount;
-      const archivePaths = new Set();
-      const archiveEntries = [];
 
-      syncBatchManagerState(this, {
-        phase: "Collecting files for ZIP",
-        processed: 0,
-        total,
-        failed: 0,
-        indeterminate: false
-      });
 
-      showBatchToast(`${label}: collecting ${total} item(s) for ZIP...`, 2600);
-
-        for (let index = 0; index < total; index++) {
-          // --- Pause/cancel boundary ---
-          const shouldContinue = await this._waitIfPausedOrCancelled();
-          if (!shouldContinue) {
-            this._markRemainingCancelled(index);
-            break;
-          }
-
-          this._itemStates[index] = "active";
-          const item = this.items[index];
-          this._emitTaskDiagnostic(item);
-          // When a videoPlan is present, derive the filename from the plan so the
-          // extension matches the actual muxer output (e.g. .mkv when MKV mode is
-          // active). The plan's container also determines whether we fetch+mux
-          // DASH bytes or just download the progressive URL into the archive.
-          const usePlan = item.videoPlan
-            && typeof DOWNLOAD_PIPELINE_CORE !== "undefined"
-            && typeof DOWNLOAD_PIPELINE_CORE.collectResolvedVideoBytes === "function";
-          const effectiveDefault = usePlan
-            ? resolveVideoDownloadFilename(item.videoPlan, item.url, item.filename, item.meta)
-            : deriveDownloadDefaultFilename(item.url, item.filename, item.meta);
-          const resolvedFilename = usePlan
-            ? effectiveDefault
-            : resolveDownloadFilename(effectiveDefault, item.meta);
-          const archivePath = FILE_METADATA_CORE.makeUniqueArchivePath(
-            applyTypeSubfolderToArchivePath(resolvedFilename, item.meta),
-            archivePaths
-          );
-
-          let dataBytes = null;
-          let lastError = null;
-          for (let attempt = 0; attempt <= safePolicy.retryCount; attempt++) {
-            try {
-              if (usePlan) {
-                const collected = await DOWNLOAD_PIPELINE_CORE.collectResolvedVideoBytes(item.videoPlan);
-                dataBytes = collected.bytes;
-              } else {
-                const blob = await DOWNLOAD_PIPELINE_CORE.fetchMediaBlob(item.url);
-                // Firefox + Tampermonkey hand back cross-realm Blobs whose
-                // arrayBuffer() result throws "Accessing TypedArray data over
-                // Xrays..." when wrapped in a Uint8Array. Read via FileReader so
-                // the bytes land in the userscript realm.
-                dataBytes = await DOWNLOAD_PIPELINE_CORE.readBlobAsBytes(blob);
-              }
-              break;
-            } catch (err) {
-              lastError = err;
-              if (attempt < safePolicy.retryCount && safePolicy.retryBackoffMs > 0) {
-                const sleepOk = await this._interruptibleSleep(safePolicy.retryBackoffMs * (attempt + 1));
-                if (!sleepOk) {
-                  this._markRemainingCancelled(index);
-                  return this._buildResult();
-                }
-              }
-            }
-          }
-
-          if (dataBytes && dataBytes.length > 0) {
-            archiveEntries.push({ path: archivePath, data: dataBytes, lastModified: new Date() });
-            const sidecarEntries = buildMetadataSidecarArchiveEntries(item.url, archivePath, item.meta, archivePaths);
-            if (sidecarEntries.length > 0) {
-              archiveEntries.push(...sidecarEntries);
-            }
-            this.completed += 1;
-            this._itemStates[index] = "done";
-            this._emitItemResult({ index, url: item.url, filename: item.filename, status: "done", error: null, phase: "zip_collect" });
-          } else {
-            this.failed += 1;
-            this._itemStates[index] = "failed";
-            this.failedItems.push({
-              url: item.url,
-              filename: item.filename,
-              meta: item.meta || null,
-              diagnostic: item.diagnostic || null,
-              itemIndex: index,
-              timestamp: new Date().toISOString(),
-              error: lastError?.message || "Fetch failed",
-              phase: "zip_collect"
-            });
-            this._emitItemResult({ index, url: item.url, filename: item.filename, status: "failed", error: lastError?.message || "Fetch failed", phase: "zip_collect" });
-          }
-
-          const processed = index + 1;
-          syncBatchManagerState(this, {
-            phase: "Collecting files for ZIP",
-            processed,
-            total,
-            failed: this.failed,
-            indeterminate: false
-          });
-          if (processed >= total) continue;
-
-          // Cooldown
-          if (applySafetyPacing && safePolicy.cooldownEvery > 0 && processed % safePolicy.cooldownEvery === 0 && safePolicy.cooldownMs > 0) {
-            const cooldownSeconds = Math.round(safePolicy.cooldownMs / 1000);
-            showBatchToast(`${label}: cooldown (${cooldownSeconds}s)`, 2200);
-            syncBatchManagerState(this, {
-              phase: `Safety cooldown (${cooldownSeconds}s)`,
-              processed,
-              total,
-              failed: this.failed,
-              indeterminate: false
-            });
-            const cooldownOk = await this._interruptibleCooldownSleep(label, safePolicy.cooldownMs, { processed, total });
-            if (!cooldownOk) {
-              this._markRemainingCancelled(index + 1);
-              break;
-            }
-            syncBatchManagerState(this, {
-              phase: "Collecting files for ZIP",
-              processed,
-              total,
-              failed: this.failed,
-              indeterminate: false
-            });
-          }
-
-          // Inter-item delay
-          if (applySafetyPacing) {
-            const delayMs = randomIntBetween(safePolicy.minDelayMs, safePolicy.maxDelayMs);
-            if (delayMs > 0) {
-              const sleepOk = await this._interruptibleSleep(delayMs);
-              if (!sleepOk) {
-                this._markRemainingCancelled(index + 1);
-                break;
-              }
-            }
-          }
-        }
-
-        // If cancelled or all failed, skip ZIP creation
-        if (archiveEntries.length === 0) {
-          if (this.cancelled > 0) {
-            showBatchToast(`${label}: cancelled (${this.completed}/${total} collected, ${this.cancelled} skipped)`, 5000, { important: true });
-          } else {
-            showBatchToast(`${label}: ZIP export failed for all items.`, 6500, { important: true });
-          }
-          return this._buildResult();
-        }
-
-        // ZIP creation phase
-        try {
-          showBatchToast(`${label}: creating ZIP (${archiveEntries.length} file(s))...`, 3000);
-          syncBatchManagerState(this, {
-            phase: `Creating ZIP archive (${archiveEntries.length} file(s))`,
-            processed: total,
-            total,
-            failed: this.failed,
-            indeterminate: true
-          });
-          await sleepMs(16);
-          const zipBlob = await ZIP_CORE.createStoredZipBlob(archiveEntries);
-          const zipName = buildZipDownloadName(this.zipOptions?.zipName || this.label);
-          let savedToCustomFolder = false;
-          try {
-            savedToCustomFolder = await saveBlobToCustomFolder(zipBlob, zipName, { type: "archive" });
-          } catch (customSaveErr) {
-            debugLog("[Amstragram] ZIP custom folder save failed:", customSaveErr?.message || customSaveErr);
-          }
-          if (!savedToCustomFolder) {
-            triggerBlobBrowserDownload(zipBlob, zipName);
-          }
-        } catch (zipErr) {
-          console.error("[Amstragram] ZIP export failed:", zipErr);
-          showBatchToast(`${label}: ZIP export failed (${zipErr?.message || "Unknown error"}).`, 7000, { important: true });
-          // ZIP creation failed — all previously-completed items are now effectively failed
-          // because the ZIP couldn't be produced. Adjust counters accordingly.
-          this.failed += this.completed;
-          this.completed = 0;
-          // Re-mark all "done" items as "failed" in per-item tracking
-          for (let i = 0; i < this.total; i++) {
-            if (this._itemStates[i] === "done") {
-              this._itemStates[i] = "failed";
-              const item = this.items[i];
-              this.failedItems.push({
-                url: item.url,
-                filename: item.filename,
-                meta: item.meta || null,
-                diagnostic: item.diagnostic || null,
-                itemIndex: i,
-                timestamp: new Date().toISOString(),
-                error: zipErr?.message || "ZIP creation failed",
-                phase: "zip_create"
-              });
-            }
-          }
-          return this._buildResult();
-        }
-
-        if (this.cancelled > 0) {
-          showBatchToast(`${label}: ZIP ready (${archiveEntries.length}/${total}), ${this.cancelled} skipped`, 5000, { important: true });
-        } else if (this.failed === 0) {
-          showBatchToast(`${label}: ZIP ready (${this.completed}/${total})`, 5000, { important: true });
-        } else {
-          showBatchToast(`${label}: ZIP ready (${this.completed}/${total}), failed ${this.failed}`, 6500, { important: true });
-        }
-
-      return this._buildResult();
-    }
 
     _markRemainingCancelled(fromIndex) {
       for (let i = fromIndex; i < this.total; i++) {
@@ -3202,34 +2884,6 @@ const APP_CORE = (() => {
         }
       }
     }
-  }
-
-  async function runBatchZipExportTasks(items, policy, options = {}) {
-    const entries = Array.isArray(items) ? items : [];
-    if (entries.length === 0) {
-      return { total: 0, completed: 0, failed: 0, cancelled: 0, status: "completed", failedItems: [], timing: { startedAt: null, finishedAt: null, elapsedMs: 0 }, jobId: null };
-    }
-
-    const label = typeof options?.label === "string" && options.label.trim()
-      ? options.label.trim()
-      : "Batch download";
-
-    const controller = new BatchJobController(entries, {
-      policy,
-      label,
-      mode: "zip",
-      jobId: options.jobId,
-      onStateChange: options.onStateChange,
-      onItemResult: options.onItemResult,
-      zipOptions: { zipName: options.zipName }
-    });
-
-    const skippedZip = Math.max(0, Number(options.skipped) || 0);
-    if (skippedZip > 0) {
-      const rec = ensureBatchRunRecord({ jobId: controller.jobId });
-      rec.skipped = (Number(rec.skipped) || 0) + skippedZip;
-    }
-    return await controller.run();
   }
 
   async function runBatchDownloadTasks(tasks, policy = getActiveBulkPolicy(), options = {}) {
@@ -3304,22 +2958,9 @@ const APP_CORE = (() => {
       }
     };
 
-    if (USER_SETTINGS?.downloads?.bulkAsZip && queued.length > 1) {
-      const zipResult = await runBatchZipExportTasks(queued, safePolicy, {
-        ...options,
-        onItemResult: onItemResult,
-        skipped: skippedByHistory
-      });
-      if (zipResult?.completed > 0 && completedHistoryKeys.size > 0) {
-        rememberDownloadedHistoryKeys(Array.from(completedHistoryKeys));
-      }
-      return zipResult;
-    }
-
     const controller = new BatchJobController(queued, {
       policy: safePolicy,
       label,
-      mode: "download",
       jobId: options.jobId,
       onStateChange: options.onStateChange,
       onItemResult: onItemResult
@@ -3346,83 +2987,6 @@ const APP_CORE = (() => {
     const candidate = (parts[0] || "").trim();
     if (!candidate || PROFILE_RESERVED_PATHS.has(candidate.toLowerCase())) return "";
     return /^[A-Za-z0-9._]+$/.test(candidate) ? candidate : "";
-  }
-
-  const profileFullNameCache = new Map();
-  const profileFullNameFetchInFlight = new Set();
-  let profileFullNameTitleObserverStarted = false;
-
-  function captureProfileFullNameFromText(text) {
-    const match = String(text || "").match(/^(.+?)\s*\(@([A-Za-z0-9._]+)\)/);
-    if (!match?.[1] || !match[2]) return false;
-    const key = match[2].toLowerCase();
-    const value = match[1].trim();
-    if (!value) return false;
-    if (profileFullNameCache.get(key) === value) return false;
-    profileFullNameCache.set(key, value);
-    try {
-      window.dispatchEvent(new CustomEvent("amstragram:profile-fullname-update", { detail: { username: key } }));
-    } catch (_err) { /* ignore */ }
-    return true;
-  }
-
-  function ensureProfileFullNameTitleObserver() {
-    if (profileFullNameTitleObserverStarted) return;
-    const titleEl = document.querySelector("title");
-    if (!titleEl || typeof MutationObserver !== "function") return;
-    profileFullNameTitleObserverStarted = true;
-    captureProfileFullNameFromText(document.title || "");
-    const observer = new MutationObserver(() => {
-      captureProfileFullNameFromText(document.title || "");
-    });
-    observer.observe(titleEl, { childList: true, characterData: true, subtree: true });
-  }
-
-  function requestProfileFullNameFromApi(username) {
-    const normalized = String(username || "").trim().toLowerCase();
-    if (!normalized) return;
-    if (profileFullNameCache.has(normalized)) return;
-    if (profileFullNameFetchInFlight.has(normalized)) return;
-    profileFullNameFetchInFlight.add(normalized);
-    Promise.resolve()
-      .then(() => PAGE_HANDLERS_CORE.fetchProfileInfoDirect(username, PAGE_HANDLERS_CORE.getAppID()))
-      .then((response) => {
-        const fullName = response?.fullName ? String(response.fullName).trim() : "";
-        if (!fullName) return;
-        profileFullNameCache.set(normalized, fullName);
-        try {
-          window.dispatchEvent(new CustomEvent("amstragram:profile-fullname-update", { detail: { username: normalized } }));
-        } catch (_err) { /* ignore */ }
-      })
-      .catch((err) => {
-        if (typeof debugLog === "function") {
-          debugLog("[Amstragram] Full name API fetch failed:", err?.message || err);
-        }
-      })
-      .finally(() => {
-        profileFullNameFetchInFlight.delete(normalized);
-      });
-  }
-
-  function getCurrentProfileFullName() {
-    const currentUsername = getCurrentProfileUsername();
-    if (!currentUsername) return "";
-    ensureProfileFullNameTitleObserver();
-    const normalizedCurrent = currentUsername.toLowerCase();
-
-    const cached = profileFullNameCache.get(normalizedCurrent);
-    if (cached) return cached;
-
-    captureProfileFullNameFromText(document.title || "");
-    captureProfileFullNameFromText(
-      document.querySelector('meta[property="og:title"]')?.getAttribute("content") || ""
-    );
-
-    const fresh = profileFullNameCache.get(normalizedCurrent);
-    if (fresh) return fresh;
-
-    requestProfileFullNameFromApi(currentUsername);
-    return "";
   }
 
   function createSettingsModalAutosaveController({
@@ -3946,8 +3510,7 @@ const APP_CORE = (() => {
 
   function syncSettingsLauncherButton() {
     refreshSettingsLauncherThemeObserver();
-    const shouldShowLauncher = USER_SETTINGS?.showSettingsLauncher !== false;
-    if (!shouldShowLauncher || shouldSuppressSettingsLauncher()) {
+    if (shouldSuppressSettingsLauncher()) {
       removeSettingsLauncherButton();
       return;
     }
@@ -4031,35 +3594,6 @@ const APP_CORE = (() => {
         <!-- Tab 1: Preferences -->
         <div class="ig-hd-settings-tab-panel active" data-tab-panel="preferences">
           <div class="ig-hd-settings-group">
-            <div class="ig-hd-settings-subheading">Interface</div>
-            <div class="ig-hd-settings-card">
-              <div class="ig-hd-settings-card-inner">
-                <div class="ig-hd-settings-row">
-                  <label class="ig-hd-settings-label" for="ig-hd-hotkey">Settings hotkey</label>
-                  <input id="ig-hd-hotkey" class="ig-hd-settings-input" type="text" value="${escapeHtml(currentSettings.hotkey)}" />
-                  <span class="ig-hd-token-actions">
-                    <button id="ig-hd-hotkey-record" class="ig-hd-settings-btn text-action" type="button">Record</button>
-                    <span class="ig-hd-token-actions-sep">|</span>
-                    <button id="ig-hd-hotkey-default" class="ig-hd-settings-btn text-action" type="button">Default</button>
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div class="ig-hd-settings-help">Click <strong>Record</strong> and press any key combination to set it as the hotkey. You can also type it manually.</div>
-            <div class="ig-hd-settings-card">
-              <div class="ig-hd-settings-card-inner">
-                <div class="ig-hd-settings-item">
-                  <div class="ig-hd-settings-toggle">
-                    <input id="ig-hd-show-settings-launcher" type="checkbox"${currentSettings.showSettingsLauncher ? " checked" : ""} />
-                    <span>Show floating settings button on the page</span>
-                    <label class="ig-hd-toggle-track" for="ig-hd-show-settings-launcher"></label>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="ig-hd-settings-help">Turn this off if you prefer opening settings with only the hotkey.</div>
-          </div>
-          <div class="ig-hd-settings-group">
             <div class="ig-hd-settings-subheading">Downloads</div>
             <div class="ig-hd-settings-card">
               <div class="ig-hd-settings-card-inner">
@@ -4086,145 +3620,16 @@ const APP_CORE = (() => {
             </div>
             <div class="ig-hd-settings-help">Enter your Amstramgram server URL to sync posts already in its database into the skip list.</div>
           </div>
-          <div class="ig-hd-settings-group">
-            <div class="ig-hd-settings-subheading">Compatibility</div>
-            <div class="ig-hd-settings-card">
-              <div class="ig-hd-settings-card-inner">
-                <div class="ig-hd-settings-item">
-                  <div class="ig-hd-settings-toggle">
-                    <input id="ig-hd-android-compat-mode" type="checkbox"${currentSettings.downloads.androidCompatMode ? " checked" : ""} />
-                    <span>Android compatibility mode</span>
-                    <label class="ig-hd-toggle-track" for="ig-hd-android-compat-mode"></label>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="ig-hd-settings-help">Recommended for Android browsers/userscript managers. Disables custom folder, ZIP export, metadata sidecars, and type subfolders.</div>
-          </div>
+        </div>
         </div>
         <!-- Tab 2: Export -->
         <div class="ig-hd-settings-tab-panel" data-tab-panel="export">
-          <!-- ═══ Section 1: Filename ═══ -->
-          <div class="ig-hd-settings-group">
-            <h3 class="ig-hd-settings-subheading">Filename</h3>
-            <p class="ig-hd-settings-section-desc">Customize how downloaded files are named.</p>
-            <!-- Card 1: Naming pattern input -->
-            <div class="ig-hd-settings-card">
-              <div class="ig-hd-settings-card-inner">
-                <div style="padding:12px 0">
-                  <label class="ig-hd-filename-pattern-label" for="ig-hd-filename-template">Naming pattern</label>
-                  <div id="ig-hd-pattern-editor-wrap" class="ig-hd-pattern-editor-wrap">
-                    <div class="ig-hd-pattern-editor-pencil">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ig-hd-text-tertiary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-                    </div>
-                    <div id="ig-hd-pattern-overlay" class="ig-hd-pattern-editor-overlay"></div>
-                    <input id="ig-hd-filename-template" class="ig-hd-pattern-editor-input" type="text" value="${escapeHtml(currentSettings.downloads.filenameTemplate || "")}" spellcheck="false" autocomplete="off" />
-                    <div id="ig-hd-pattern-clear" class="ig-hd-pattern-editor-clear" style="display:none">
-                      <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="var(--ig-hd-text-tertiary)"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="#262626" stroke-width="2" stroke-linecap="round"/></svg>
-                    </div>
-                    <div id="ig-hd-pattern-autocomplete" class="ig-hd-pattern-autocomplete" style="display:none"></div>
-                  </div>
-                  <p class="ig-hd-settings-help ig-hd-filename-pattern-help">Type freely to build your pattern. Use <span class="ig-hd-settings-inline-code">{</span> to browse tokens, or click one below.</p>
-                </div>
-              </div>
-            </div>
-            <!-- Card 2: Token catalog + separator + preview + actions -->
-            <div class="ig-hd-settings-card">
-              <div class="ig-hd-settings-card-inner">
-                <!-- Tokens section -->
-                <div style="padding:12px 0">
-                  <div class="ig-hd-token-catalog">
-                    <div class="ig-hd-filename-group-label">Identity</div>
-                    <div class="ig-hd-token-group-row" data-group="identity">
-                      <button type="button" class="ig-hd-token-btn" data-token="{source}" data-group="identity">Source</button>
-                      <button type="button" class="ig-hd-token-btn" data-token="{username}" data-group="identity">Username</button>
-                      <button type="button" class="ig-hd-token-btn" data-token="{full_name}" data-group="identity">Full name</button>
-                      <button type="button" class="ig-hd-token-btn" data-token="{shortcode}" data-group="identity">Shortcode</button>
-                    </div>
-                    <div class="ig-hd-filename-group-label sub">Content</div>
-                    <div class="ig-hd-token-group-row" data-group="content">
-                      <button type="button" class="ig-hd-token-btn" data-token="{id}" data-group="content">ID</button>
-                      <button type="button" class="ig-hd-token-btn" data-token="{type}" data-group="content">Type</button>
-                      <button type="button" class="ig-hd-token-btn" data-token="{index}" data-group="content">Index</button>
-                    </div>
-                    <div class="ig-hd-filename-group-label sub">Downloaded</div>
-                    <div class="ig-hd-token-group-row" data-group="download-time">
-                      <button type="button" class="ig-hd-token-btn" data-token="{date}" data-group="download-time">Date</button>
-                      <button type="button" class="ig-hd-token-btn" data-token="{time}" data-group="download-time">Time</button>
-                    </div>
-                    <div class="ig-hd-filename-group-label sub">Uploaded</div>
-                    <div class="ig-hd-token-group-row" data-group="upload-time">
-                      <button type="button" class="ig-hd-token-btn" data-token="{upload_date}" data-group="upload-time">Date uploaded</button>
-                      <button type="button" class="ig-hd-token-btn" data-token="{upload_time}" data-group="upload-time">Time uploaded</button>
-                    </div>
-                  </div>
-                  <p class="ig-hd-settings-help ig-hd-token-catalog-help">Click a token to insert it. Right-click to remove it.</p>
-                </div>
-                <!-- Separator section -->
-                <div style="padding:12px 0">
-                  <div class="ig-hd-filename-group-label">Separator</div>
-                  <div id="ig-hd-separator-grid" class="ig-hd-separator-grid">
-                    <button type="button" class="ig-hd-sep-btn${(currentSettings.downloads.filenameSeparator || "_") === "_" ? " active" : ""}" data-sep="_" data-label="Underscore">Underscore</button>
-                    <button type="button" class="ig-hd-sep-btn${(currentSettings.downloads.filenameSeparator) === "-" ? " active" : ""}" data-sep="-" data-label="Dash">Dash</button>
-                    <button type="button" class="ig-hd-sep-btn${(currentSettings.downloads.filenameSeparator) === "." ? " active" : ""}" data-sep="." data-label="Dot">Dot</button>
-                    <button type="button" class="ig-hd-sep-btn${(currentSettings.downloads.filenameSeparator) === " " ? " active" : ""}" data-sep=" " data-label="Space">Space</button>
-                  </div>
-                  <p class="ig-hd-settings-help ig-hd-separator-help">Click inserts at cursor. Right-click locks or unlocks auto-separator.</p>
-                </div>
-                <!-- Preview section -->
-                <div style="padding:12px 0">
-                  <div class="ig-hd-filename-group-label">Preview</div>
-                  <div class="ig-hd-export-preview">
-                    <div class="ig-hd-export-preview-row">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" id="ig-hd-preview-doc-fill" fill="var(--ig-hd-text-tertiary)" opacity="0.3"/>
-                        <path d="M14 2v6h6" id="ig-hd-preview-doc-fold" stroke="var(--ig-hd-text-tertiary)" stroke-width="1" fill="none" opacity="0.3"/>
-                      </svg>
-                      <div id="ig-hd-template-preview" class="ig-hd-export-preview-text empty">Original filename will be used</div>
-                    </div>
-                    <p id="ig-hd-preview-note" class="ig-hd-settings-help ig-hd-preview-note" style="display:none">Leaving the pattern empty downloads files with their original Instagram filename.</p>
-                  </div>
-                </div>
-                <!-- Actions row -->
-                <div class="ig-hd-filename-actions">
-                  <button id="ig-hd-filename-clear" class="ig-hd-filename-action-link" type="button">Clear</button>
-                  <button id="ig-hd-filename-reset" class="ig-hd-filename-action-link accent" type="button">Reset to default</button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <!-- ═══ Section 2: Video container ═══ -->
-          <div class="ig-hd-settings-group" style="margin-top:10px">
-            <h3 class="ig-hd-settings-subheading">Video container</h3>
-            <p class="ig-hd-settings-section-desc">Pick the file format for video downloads — universal playback (MP4) or better preservation of modern codecs (MKV).</p>
-            <div class="ig-hd-settings-choice-list" style="margin-top:6px">
-              <label class="ig-hd-settings-choice" for="ig-hd-video-container-mp4">
-                <input id="ig-hd-video-container-mp4" type="checkbox" data-video-container="mp4"${currentSettings.downloads.videoContainer === "mp4" ? " checked" : ""} />
-                <span class="ig-hd-settings-choice-text">
-                  <span class="ig-hd-settings-choice-title">MP4 <i id="ig-hd-tip-video-container-mp4" class="ig-hd-info-tip" data-tip="">?</i></span>
-                  <span class="ig-hd-settings-choice-subtitle">Plays anywhere — iPhone Photos, every browser, every player. Best when you'll share files or move them between devices.</span>
-                </span>
-              </label>
-              <label class="ig-hd-settings-choice" for="ig-hd-video-container-mkv">
-                <input id="ig-hd-video-container-mkv" type="checkbox" data-video-container="mkv"${currentSettings.downloads.videoContainer === "mkv" ? " checked" : ""} />
-                <span class="ig-hd-settings-choice-text">
-                  <span class="ig-hd-settings-choice-title">MKV <i id="ig-hd-tip-video-container-mkv" class="ig-hd-info-tip" data-tip="">?</i></span>
-                  <span class="ig-hd-settings-choice-subtitle">Better for media collections — Matroska is the native container for modern codecs like VP9 and AV1, with less risk of subtle quality loss. Currently muxes VP9 only; falls back to MP4 when the source isn't VP9.</span>
-                </span>
-              </label>
-            </div>
-          </div>
           <!-- ═══ Section 3: Save location ═══ -->
           <div id="ig-hd-save-location-group" class="ig-hd-settings-group" style="margin-top:10px">
             <h3 class="ig-hd-settings-subheading">Save location</h3>
             <div class="ig-hd-settings-card" style="margin-top:18px">
               <div class="ig-hd-settings-card-inner">
-                <div class="ig-hd-settings-toggle" style="padding:12px 0">
-                  <input id="ig-hd-use-custom-folder" type="checkbox"${currentSettings.downloads.useCustomFolder ? " checked" : ""} />
-                  <span>Save downloads to a custom folder</span>
-                  <label class="ig-hd-toggle-track" for="ig-hd-use-custom-folder"></label>
-                </div>
-                <div id="ig-hd-custom-folder-body" style="padding:12px 0;display:${currentSettings.downloads.useCustomFolder ? "block" : "none"}">
+                <div id="ig-hd-custom-folder-body" style="padding:12px 0">
                   <div id="ig-hd-folder-wrap" class="ig-hd-export-folder-wrap">
                     <div class="ig-hd-export-folder-icon" aria-hidden="true">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
@@ -4240,73 +3645,8 @@ const APP_CORE = (() => {
             </div>
             <p id="ig-hd-folder-help" class="ig-hd-settings-help" style="margin-top:8px;padding:0 4px">Chromium only (Chrome, Edge, Brave). Firefox always uses the default download folder.</p>
           </div>
-          <!-- ═══ Section 4: File organization ═══ -->
-          <div class="ig-hd-settings-group" style="margin-top:10px">
-            <h3 class="ig-hd-settings-subheading">File organization</h3>
-            <div class="ig-hd-settings-card" style="margin-top:18px">
-              <div class="ig-hd-settings-card-inner">
-                <div id="ig-hd-bulk-zip-group" class="ig-hd-settings-toggle" style="padding:12px 0">
-                  <input id="ig-hd-bulk-zip" type="checkbox"${currentSettings.downloads.bulkAsZip ? " checked" : ""} />
-                  <span>Export batches as ZIP</span>
-                  <label class="ig-hd-toggle-track" for="ig-hd-bulk-zip"></label>
-                </div>
-              </div>
-            </div>
-            <p class="ig-hd-settings-help" style="margin-top:8px;padding:0 4px">Bundle batch downloads into a single ZIP file instead of saving each file individually.</p>
-            <div class="ig-hd-settings-card" style="margin-top:18px">
-              <div class="ig-hd-settings-card-inner">
-                <div id="ig-hd-type-subfolders-group" class="ig-hd-settings-toggle" style="padding:12px 0">
-                  <input id="ig-hd-type-subfolders" type="checkbox"${currentSettings.downloads.useTypeSubfolders ? " checked" : ""} />
-                  <span>Group files by type into subfolders</span>
-                  <label class="ig-hd-toggle-track" for="ig-hd-type-subfolders"></label>
-                </div>
-              </div>
-            </div>
-            <p class="ig-hd-settings-help" style="margin-top:8px;padding:0 4px">Subfolders apply to ZIP exports and Chromium custom-folder saves.</p>
-          </div>
-          <!-- ═══ Section 5: Metadata ═══ -->
-          <div class="ig-hd-settings-group" style="margin-top:10px">
-            <h3 class="ig-hd-settings-subheading">Metadata</h3>
-            <p class="ig-hd-settings-section-desc">Save metadata for each download in formats other apps can read. Options are independent, so pick any combination.</p>
-            <div class="ig-hd-settings-card" style="margin-top:12px">
-              <div class="ig-hd-settings-card-inner">
-                <div id="ig-hd-save-metadata-json-group" class="ig-hd-settings-toggle ig-hd-toggle-with-subtitle">
-                  <input id="ig-hd-save-metadata-json" type="checkbox"${currentSettings.downloads.saveMetadataJson ? " checked" : ""} />
-                  <span>
-                    <span class="ig-hd-toggle-row-title">JSON sidecar <span class="ig-hd-toggle-applies-to">· Pictures and Videos</span></span>
-                    <span class="ig-hd-toggle-row-subtitle">A .json file beside each download with the full metadata payload: caption, hashtags, timestamp, author, and post URL. For scripts, archival, or feeding into other tools.</span>
-                  </span>
-                  <label class="ig-hd-toggle-track" for="ig-hd-save-metadata-json"></label>
-                </div>
-                <div id="ig-hd-save-metadata-xmp-group" class="ig-hd-settings-toggle ig-hd-toggle-with-subtitle">
-                  <input id="ig-hd-save-metadata-xmp" type="checkbox"${currentSettings.downloads.saveMetadataXmp ? " checked" : ""} />
-                  <span>
-                    <span class="ig-hd-toggle-row-title">XMP sidecar <span class="ig-hd-toggle-applies-to">· Pictures and Videos</span></span>
-                    <span class="ig-hd-toggle-row-subtitle">A standalone .xmp file that Lightroom, Bridge, Photo Mechanic, Capture One, and most photo apps read the moment they open the file. Carries the caption, attribution, hashtags, and timestamp.</span>
-                  </span>
-                  <label class="ig-hd-toggle-track" for="ig-hd-save-metadata-xmp"></label>
-                </div>
-                <div id="ig-hd-save-metadata-iptc-group" class="ig-hd-settings-toggle ig-hd-toggle-with-subtitle">
-                  <input id="ig-hd-save-metadata-iptc" type="checkbox"${currentSettings.downloads.saveMetadataIptc ? " checked" : ""} />
-                  <span>
-                    <span class="ig-hd-toggle-row-title">IPTC sidecar <span class="ig-hd-toggle-applies-to">· Pictures and Videos</span></span>
-                    <span class="ig-hd-toggle-row-subtitle">Adds IPTC Core fields for headline, caption, keywords, credit, and accessibility alt text to the .xmp file. If XMP is also on, both sets of fields share the same .xmp file; if XMP is off, this writes IPTC fields only.</span>
-                  </span>
-                  <label class="ig-hd-toggle-track" for="ig-hd-save-metadata-iptc"></label>
-                </div>
-                <div id="ig-hd-save-metadata-exif-group" class="ig-hd-settings-toggle ig-hd-toggle-with-subtitle">
-                  <input id="ig-hd-save-metadata-exif" type="checkbox"${currentSettings.downloads.saveMetadataXmpExif ? " checked" : ""} />
-                  <span>
-                    <span class="ig-hd-toggle-row-title">EXIF sidecar <span class="ig-hd-toggle-applies-to">· Pictures</span></span>
-                    <span class="ig-hd-toggle-row-subtitle">Adds photo-only EXIF fields for original capture date, creator, and image description to the .xmp file. Video downloads ignore this toggle.</span>
-                  </span>
-                  <label class="ig-hd-toggle-track" for="ig-hd-save-metadata-exif"></label>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
-        <!-- Tab 3: Downloader -->
+                <!-- Tab 3: Downloader -->
         <div class="ig-hd-settings-tab-panel" data-tab-panel="downloader">
           <div class="ig-hd-settings-group">
             <div class="ig-hd-settings-subheading">Download source</div>
@@ -4544,13 +3884,7 @@ const APP_CORE = (() => {
 
     const presetSelect = modal.querySelector("#ig-hd-risk-preset");
     const customPolicyWrap = modal.querySelector("#ig-hd-custom-policy");
-    const hotkeyInput = modal.querySelector("#ig-hd-hotkey");
-    const hotkeyRecordButton = modal.querySelector("#ig-hd-hotkey-record");
-    const hotkeyDefaultButton = modal.querySelector("#ig-hd-hotkey-default");
-    const showSettingsLauncherToggle = modal.querySelector("#ig-hd-show-settings-launcher");
-    const androidCompatModeToggle = modal.querySelector("#ig-hd-android-compat-mode");
     const saveLocationGroup = modal.querySelector("#ig-hd-save-location-group");
-    const customFolderToggle = modal.querySelector("#ig-hd-use-custom-folder");
     const customFolderBody = modal.querySelector("#ig-hd-custom-folder-body");
     const folderLabelInput = modal.querySelector("#ig-hd-folder-label");
     const folderInputWrap = modal.querySelector("#ig-hd-folder-wrap");
@@ -4560,29 +3894,6 @@ const APP_CORE = (() => {
       folderInputWrap?.classList.toggle("has-value", !!folderLabelInput?.value?.trim());
     }
     syncFolderInputPathPrefix();
-    const filenameTemplateInput = modal.querySelector("#ig-hd-filename-template");
-    const patternEditorWrap = modal.querySelector("#ig-hd-pattern-editor-wrap");
-    const patternOverlay = modal.querySelector("#ig-hd-pattern-overlay");
-    const patternClearBtn = modal.querySelector("#ig-hd-pattern-clear");
-    const patternResetAction = modal.querySelector("#ig-hd-filename-reset");
-    const patternClearAction = modal.querySelector("#ig-hd-filename-clear");
-    const patternAutocomplete = modal.querySelector("#ig-hd-pattern-autocomplete");
-    const templatePreview = modal.querySelector("#ig-hd-template-preview");
-    const templatePreviewNote = modal.querySelector("#ig-hd-preview-note");
-    const previewDocFill = modal.querySelector("#ig-hd-preview-doc-fill");
-    const previewDocFold = modal.querySelector("#ig-hd-preview-doc-fold");
-    const bulkZipGroup = modal.querySelector("#ig-hd-bulk-zip-group");
-    const bulkZipToggle = modal.querySelector("#ig-hd-bulk-zip");
-    const typeSubfoldersGroup = modal.querySelector("#ig-hd-type-subfolders-group");
-    const typeSubfoldersToggle = modal.querySelector("#ig-hd-type-subfolders");
-    const saveMetadataJsonGroup = modal.querySelector("#ig-hd-save-metadata-json-group");
-    const saveMetadataJsonToggle = modal.querySelector("#ig-hd-save-metadata-json");
-    const saveMetadataXmpGroup = modal.querySelector("#ig-hd-save-metadata-xmp-group");
-    const saveMetadataXmpToggle = modal.querySelector("#ig-hd-save-metadata-xmp");
-    const saveMetadataIptcGroup = modal.querySelector("#ig-hd-save-metadata-iptc-group");
-    const saveMetadataIptcToggle = modal.querySelector("#ig-hd-save-metadata-iptc");
-    const saveMetadataExifGroup = modal.querySelector("#ig-hd-save-metadata-exif-group");
-    const saveMetadataExifToggle = modal.querySelector("#ig-hd-save-metadata-exif");
     const skipPreviouslyDownloadedToggle = modal.querySelector("#ig-hd-skip-previously-downloaded");
     const amstramgramUrlInput = modal.querySelector("#ig-hd-amstramgram-url");
     const amstramgramSyncButton = modal.querySelector("#ig-hd-amstramgram-sync");
@@ -4639,27 +3950,6 @@ const APP_CORE = (() => {
       skipDownloaded: modal.querySelector("#ig-hd-tip-skip-downloaded"),
       taggedCarousel: modal.querySelector("#ig-hd-tip-tagged-carousel")
     };
-
-    const videoContainerCheckboxes = [
-      modal.querySelector("#ig-hd-video-container-mp4"),
-      modal.querySelector("#ig-hd-video-container-mkv")
-    ];
-    const videoContainerTipNodes = {
-      mp4: modal.querySelector("#ig-hd-tip-video-container-mp4"),
-      mkv: modal.querySelector("#ig-hd-tip-video-container-mkv")
-    };
-    if (videoContainerTipNodes.mp4) {
-      videoContainerTipNodes.mp4.setAttribute("data-tip", "Why pick MP4: universal compatibility. Every device, every app, every browser opens .mp4 without thought — iPhone Photos, Android gallery, Discord, web uploads, ancient TVs. Trade-off: AV1 and VP9 inside MP4 are technically valid but slightly less standard than putting them in MKV. If your goal is sharing or quick viewing, this is the right pick.");
-    }
-    if (videoContainerTipNodes.mkv) {
-      videoContainerTipNodes.mkv.setAttribute("data-tip", "Why pick MKV: better media preservation. Matroska is the container modern codecs (VP9, AV1) were designed for — it's the standard format in Plex, Jellyfin, mpv, and home-media archives. Trade-off: iPhone Photos and some older devices can't open .mkv directly, so it's a worse choice if you'll share or quickly view the files. Pick this if you're building a collection.");
-    }
-
-    function getCheckedVideoContainer() {
-      const checked = videoContainerCheckboxes.find((cb) => cb && cb.checked);
-      const value = checked ? checked.getAttribute("data-video-container") : "";
-      return value === "mkv" ? "mkv" : "mp4";
-    }
 
     let activeInfoTip = null;
 
@@ -4718,10 +4008,7 @@ const APP_CORE = (() => {
       window.removeEventListener("scroll", handleTooltipViewportChange, true);
     };
 
-    [
-      ...Object.values(speedTipNodes),
-      ...Object.values(videoContainerTipNodes)
-    ].forEach((node) => {
+    Object.values(speedTipNodes).forEach((node) => {
       if (!node) return;
       node.setAttribute("tabindex", "0");
       node.addEventListener("mouseenter", () => showInfoTooltip(node));
@@ -4952,39 +4239,18 @@ const APP_CORE = (() => {
       customPolicyWrap.style.display = "grid";
     }
 
-    function setToggleGroupDimmed(group, dimmed) {
-      if (group) {
-        group.style.opacity = dimmed ? "0.6" : "1";
-      }
-    }
-
     function isCustomFolderActive() {
-      return !!customFolderToggle?.checked && !androidCompatModeToggle?.checked && supportsDirectoryPicker();
+      return supportsDirectoryPicker();
     }
 
-    function syncTypeSubfoldersControls() {
-      if (!typeSubfoldersToggle || !typeSubfoldersGroup) return;
-      const androidCompatEnabled = !!androidCompatModeToggle?.checked;
-      const effective = !!bulkZipToggle?.checked || isCustomFolderActive();
-      typeSubfoldersToggle.disabled = androidCompatEnabled || !effective;
-      setToggleGroupDimmed(typeSubfoldersGroup, typeSubfoldersToggle.disabled);
-    }
 
     function syncCustomFolderControls() {
-      const androidCompatEnabled = !!androidCompatModeToggle?.checked;
       const pickerSupported = supportsDirectoryPicker();
       const isFirefox = !pickerSupported && /Firefox\//.test(navigator.userAgent);
-      if (androidCompatEnabled) {
-        customFolderToggle.checked = false;
-      }
-      if (!pickerSupported) {
-        customFolderToggle.checked = false;
-      }
       const enabled = isCustomFolderActive();
-      customFolderToggle.disabled = androidCompatEnabled || !pickerSupported;
-      folderClearButton.disabled = androidCompatEnabled || !enabled;
+      folderClearButton.disabled = !enabled;
       if (customFolderBody) {
-        customFolderBody.style.display = customFolderToggle.checked ? "block" : "none";
+        customFolderBody.style.display = enabled ? "block" : "none";
       }
       if (isFirefox && saveLocationGroup) {
         const originalCard = saveLocationGroup.querySelector(".ig-hd-settings-card:not(.ig-hd-firefox-info-card)");
@@ -5011,42 +4277,15 @@ const APP_CORE = (() => {
       } else {
         if (folderHelpText) {
           folderHelpText.style.display = "";
-          if (!pickerSupported && !androidCompatEnabled && navigator.brave) {
+          if (!pickerSupported && navigator.brave) {
             folderHelpText.textContent = "Brave may block this API. Go to brave://flags/#file-system-access-api, set it to Enabled, and restart Brave.";
           } else {
             folderHelpText.textContent = "Chromium only (Chrome, Edge, Brave). Firefox always uses the default download folder.";
           }
         }
       }
-      syncTypeSubfoldersControls();
     }
 
-    function syncAndroidCompatibilityControls() {
-      const enabled = !!androidCompatModeToggle?.checked;
-      const metadataPairs = [
-        [saveMetadataJsonToggle, saveMetadataJsonGroup],
-        [saveMetadataXmpToggle, saveMetadataXmpGroup],
-        [saveMetadataIptcToggle, saveMetadataIptcGroup],
-        [saveMetadataExifToggle, saveMetadataExifGroup]
-      ];
-      if (enabled) {
-        customFolderToggle.checked = false;
-        bulkZipToggle.checked = false;
-        if (typeSubfoldersToggle) typeSubfoldersToggle.checked = false;
-        for (const [toggle] of metadataPairs) {
-          if (toggle) toggle.checked = false;
-        }
-      }
-      bulkZipToggle.disabled = enabled;
-      setToggleGroupDimmed(bulkZipGroup, bulkZipToggle.disabled);
-      for (const [toggle, group] of metadataPairs) {
-        if (toggle && group) {
-          toggle.disabled = enabled;
-          setToggleGroupDimmed(group, enabled);
-        }
-      }
-      syncCustomFolderControls();
-    }
 
     function readProfileSelectionFromInputs() {
       return sanitizeProfileDownloadSelection({
@@ -5379,27 +4618,15 @@ const APP_CORE = (() => {
       const resolvedSelection = profileSelection || getProfileDownloadSelectionForSave();
       return normalizeUserSettings({
         ...USER_SETTINGS,
-        hotkey: hotkeyInput.value,
-        showSettingsLauncher: !!showSettingsLauncherToggle?.checked,
         theme: "auto",
         riskPreset: presetSelect.value,
         downloadSource: activeDownloadSource,
         safetyThresholdCount: safetyThresholdInput?.value ?? currentSettings.safetyThresholdCount,
         downloads: {
-          androidCompatMode: !!androidCompatModeToggle?.checked,
           useCustomFolder: isCustomFolderActive(),
           folderLabel: folderLabelInput.value,
-          filenameTemplate: filenameTemplateInput.value,
-          bulkAsZip: bulkZipToggle.checked,
           skipPreviouslyDownloaded: !!skipPreviouslyDownloadedToggle?.checked,
-          amstramgramUrl: amstramgramUrlInput?.value?.trim() ?? "",
-          useTypeSubfolders: typeSubfoldersToggle ? !!typeSubfoldersToggle.checked : (USER_SETTINGS?.downloads?.useTypeSubfolders ?? true),
-          saveMetadataJson: !!saveMetadataJsonToggle?.checked,
-          saveMetadataXmp: !!saveMetadataXmpToggle?.checked,
-          saveMetadataIptc: !!saveMetadataIptcToggle?.checked,
-          saveMetadataXmpExif: !!saveMetadataExifToggle?.checked,
-          videoContainer: getCheckedVideoContainer(),
-          filenameSeparator: activeFilenameSeparator
+          amstramgramUrl: amstramgramUrlInput?.value?.trim() ?? ""
         },
         customPolicy: getPolicyForSettingsSave(),
         profileDownload: {
@@ -5414,7 +4641,7 @@ const APP_CORE = (() => {
 
     const modalAutosave = createSettingsModalAutosaveController({
       buildNormalizedSettingsFromModal,
-      getCustomFolderEnabled: () => !!customFolderToggle.checked,
+      getCustomFolderEnabled: () => isCustomFolderActive(),
       getFolderLabel: () => folderLabelInput.value,
       persistUserSettings,
       setUserSettings: (nextSettings) => {
@@ -5423,9 +4650,7 @@ const APP_CORE = (() => {
       showToast,
       supportsDirectoryPicker,
       syncCustomFolderControls,
-      setCustomFolderEnabled: (enabled) => {
-        customFolderToggle.checked = !!enabled;
-      },
+      setCustomFolderEnabled: () => {},
       applyTheme,
       syncSettingsLauncherButton,
       renderBatchProgressIndicator
@@ -5452,536 +4677,14 @@ const APP_CORE = (() => {
 
     settingsModalCloseRequest = closeSettingsModalWithAutosave;
 
-    /* ── Export tab: token definitions ── */
-    const EXPORT_TOKENS = [
-      { key: "source", label: "Source", group: "identity", tip: "Original Instagram filename", preview: "592384710_17921038472019384_8273649102847562910_n" },
-      { key: "username", label: "Username", group: "identity", tip: "Profile that owns the post", preview: "username" },
-      { key: "full_name", label: "Full name", group: "identity", tip: "Profile display name", preview: "Full Name" },
-      { key: "shortcode", label: "Shortcode", group: "identity", tip: "Short ID from the post URL", preview: "CxR4kLmN" },
-      { key: "id", label: "ID", group: "content", tip: "Unique number Instagram assigns to each media", preview: "3210987654" },
-      { key: "type", label: "Type", group: "content", tip: "Media type: post, reel, story, etc.", preview: "post" },
-      { key: "index", label: "Index", group: "content", tip: "Position in carousel (1, 2, 3\u2026)", preview: "1" },
-      { key: "date", label: "Date", group: "download-time", tip: "Date you downloaded the file", preview: formatDateToken(new Date()) },
-      { key: "time", label: "Time", group: "download-time", tip: "Time you downloaded the file", preview: "14-30-00" },
-      { key: "upload_date", label: "Date uploaded", group: "upload-time", tip: "Date the post was published", preview: "2026-04-12" },
-      { key: "upload_time", label: "Time uploaded", group: "upload-time", tip: "Time the post was published", preview: "09-15-00" },
-    ];
-    const EXPORT_TOKEN_MAP = Object.fromEntries(EXPORT_TOKENS.map((t) => [t.key, t]));
-    const EXPORT_DEFAULT_PATTERN = "{username}_{type}_{id}_{index}";
-    const EXPORT_TOKEN_COLORS = {
-      "identity": "var(--ig-hd-token-identity)",
-      "content": "var(--ig-hd-token-content)",
-      "download-time": "var(--ig-hd-token-download-time)",
-      "upload-time": "var(--ig-hd-token-upload-time)",
-    };
 
-    /* ── Separator state ── */
-    let activeFilenameSeparator = currentSettings.downloads.filenameSeparator ?? "_";
-    let primedSepClearTimer = null;
-
-    /* ── Pattern overlay rendering ── */
-    function renderPatternOverlay() {
-      if (!patternOverlay) return;
-      const pattern = filenameTemplateInput.value || "";
-      if (!pattern) {
-        patternOverlay.innerHTML = '<span class="placeholder-text">Type a pattern or use tokens below\u2026</span>';
-        return;
-      }
-      const re = /(\{[^}]*\})/g;
-      let html = "";
-      let last = 0;
-      let m;
-      while ((m = re.exec(pattern)) !== null) {
-        if (m.index > last) {
-          html += `<span class="text-seg">${escapeHtml(pattern.slice(last, m.index))}</span>`;
-        }
-        const key = m[1].slice(1, -1);
-        const tk = EXPORT_TOKEN_MAP[key];
-        if (tk) {
-          html += `<span class="token-seg">${escapeHtml(m[1])}</span>`;
-        } else {
-          html += `<span class="token-seg invalid">${escapeHtml(m[1])}</span>`;
-        }
-        last = re.lastIndex;
-      }
-      if (last < pattern.length) {
-        html += `<span class="text-seg">${escapeHtml(pattern.slice(last))}</span>`;
-      }
-      patternOverlay.innerHTML = html;
-    }
-
-    /* ── Preview update ── */
-    const EXPORT_ORIGINAL_EXAMPLE = "592384710_17921038472019384_8273649102847562910_n.jpg";
-    function updateTemplatePreview() {
-      if (!templatePreview) return;
-      const pattern = (filenameTemplateInput.value || "").trim();
-      if (!pattern) {
-        templatePreview.textContent = EXPORT_ORIGINAL_EXAMPLE;
-        templatePreview.className = "ig-hd-export-preview-text empty";
-        if (templatePreviewNote) templatePreviewNote.style.display = "block";
-        if (previewDocFill) { previewDocFill.setAttribute("fill", "var(--ig-hd-text-tertiary)"); previewDocFill.setAttribute("opacity", "0.3"); }
-        if (previewDocFold) { previewDocFold.setAttribute("stroke", "var(--ig-hd-text-tertiary)"); previewDocFold.setAttribute("opacity", "0.3"); }
-        return;
-      }
-      let result = pattern;
-      const previewUsername = FILE_METADATA_CORE.sanitizeFilenameToken(
-        (profileUsernameInput?.value || defaultUsername || "").trim(),
-        "username"
-      );
-      const previewFullName = FILE_METADATA_CORE.sanitizeFilenameToken(
-        getCurrentProfileFullName().trim(),
-        "Full Name"
-      );
-      const sampleValues = {};
-      for (const tk of EXPORT_TOKENS) {
-        if (tk.key === "username") sampleValues[tk.key] = previewUsername;
-        else if (tk.key === "full_name") sampleValues[tk.key] = previewFullName;
-        else sampleValues[tk.key] = tk.preview;
-      }
-      for (const [key, val] of Object.entries(sampleValues)) {
-        result = result.replaceAll(`{${key}}`, val);
-      }
-      const hasUnknown = /\{[^}]+\}/.test(result);
-      const state = hasUnknown ? "invalid" : "valid";
-      templatePreview.textContent = result + ".jpg";
-      templatePreview.className = "ig-hd-export-preview-text " + state;
-      if (templatePreviewNote) templatePreviewNote.style.display = "none";
-      // Doc icon stays neutral — text color already conveys validation state.
-      if (previewDocFill) { previewDocFill.setAttribute("fill", "var(--ig-hd-text-tertiary)"); previewDocFill.setAttribute("opacity", "0.4"); }
-      if (previewDocFold) { previewDocFold.setAttribute("stroke", "var(--ig-hd-text-tertiary)"); previewDocFold.setAttribute("opacity", "0.4"); }
-    }
-
-    /* ── Re-render preview when full name resolves asynchronously (title update or API fetch) ── */
-    if (typeof settingsPreviewFullNameCleanup === "function") {
-      settingsPreviewFullNameCleanup();
-      settingsPreviewFullNameCleanup = null;
-    }
-    const fullNameUpdateListener = () => { updateTemplatePreview(); };
-    window.addEventListener("amstragram:profile-fullname-update", fullNameUpdateListener);
-    settingsPreviewFullNameCleanup = () => {
-      window.removeEventListener("amstragram:profile-fullname-update", fullNameUpdateListener);
-    };
-
-    /* ── Sync all editor UI elements ── */
-    function syncPatternEditorUI() {
-      const pattern = filenameTemplateInput.value || "";
-      renderPatternOverlay();
-      updateTemplatePreview();
-      syncTokenPillStates();
-      // "Reset to default" action: hidden when pattern is empty or already the default
-      if (patternResetAction) {
-        patternResetAction.style.display = (pattern !== EXPORT_DEFAULT_PATTERN) ? "inline-block" : "none";
-      }
-      // Clear X button inside the input: hidden when the pattern is empty
-      if (patternClearBtn) {
-        patternClearBtn.style.display = pattern ? "flex" : "none";
-      }
-    }
-
-    /* ── Scroll sync ── */
-    function syncEditorScroll() {
-      if (patternOverlay && filenameTemplateInput) {
-        patternOverlay.scrollLeft = filenameTemplateInput.scrollLeft;
-      }
-    }
-
-    /* ── Token insertion ── */
-    function insertTokenAtCursor(tokenKey) {
-      const input = filenameTemplateInput;
-      input.focus();
-      const value = input.value;
-      let pos = typeof input.selectionStart === "number" ? input.selectionStart : value.length;
-      const before = value.slice(0, pos);
-      const after = value.slice(pos);
-      const inserted = `{${tokenKey}}`;
-
-      let prefix = "";
-      let suffix = "";
-      if (activeFilenameSeparator) {
-        if (before.length > 0 && before[before.length - 1] !== activeFilenameSeparator && before[before.length - 1] !== "{") {
-          if (before[before.length - 1] === "}") {
-            prefix = activeFilenameSeparator;
-          } else {
-            prefix = activeFilenameSeparator;
-          }
-        }
-        if (after.length > 0 && after[0] !== activeFilenameSeparator && after[0] !== "}") {
-          suffix = activeFilenameSeparator;
-        }
-      }
-
-      input.value = before + prefix + inserted + suffix + after;
-      const newPos = pos + prefix.length + inserted.length + suffix.length;
-      input.setSelectionRange(newPos, newPos);
-      syncPatternEditorUI();
-      triggerImmediateAutosave();
-    }
-
-    function isFilenameTemplateSeparatorChar(char) {
-      return char === "_" || char === "-" || char === "." || char === " ";
-    }
-
-    function removeTokenOccurrenceAt(value, token, tokenIndex) {
-      const tokenEnd = tokenIndex + token.length;
-      const beforeChar = tokenIndex > 0 ? value[tokenIndex - 1] : "";
-      const afterChar = tokenEnd < value.length ? value[tokenEnd] : "";
-      const beforeIsSeparator = isFilenameTemplateSeparatorChar(beforeChar);
-      const afterIsSeparator = isFilenameTemplateSeparatorChar(afterChar);
-
-      if (beforeIsSeparator && afterIsSeparator) {
-        return value.slice(0, tokenIndex) + value.slice(tokenEnd + 1);
-      }
-      if (beforeIsSeparator && tokenEnd === value.length) {
-        return value.slice(0, tokenIndex - 1) + value.slice(tokenEnd);
-      }
-      if (afterIsSeparator && tokenIndex === 0) {
-        return value.slice(0, tokenIndex) + value.slice(tokenEnd + 1);
-      }
-      return value.slice(0, tokenIndex) + value.slice(tokenEnd);
-    }
-
-    function removeLastTokenOccurrence(token) {
-      if (!token) return false;
-      const input = filenameTemplateInput;
-      const value = input.value || "";
-      const tokenIndex = value.lastIndexOf(token);
-      if (tokenIndex === -1) return false;
-
-      input.value = removeTokenOccurrenceAt(value, token, tokenIndex);
-      const nextCursorPos = Math.min(tokenIndex, input.value.length);
-      input.setSelectionRange(nextCursorPos, nextCursorPos);
-      input.focus();
-      syncPatternEditorUI();
-      triggerImmediateAutosave();
-      return true;
-    }
-
-    function syncTokenPillStates() {
-      const tpl = filenameTemplateInput.value || "";
-      modal.querySelectorAll(".ig-hd-token-btn").forEach((btn) => {
-        const token = btn.getAttribute("data-token");
-        btn.classList.toggle("active", token && tpl.includes(token));
-      });
-    }
-
-    syncCustomPolicyVisibility();
-    syncAndroidCompatibilityControls();
-    syncProfileTargetControls();
-    applyPresetSelection(activePreset);
-
-    /* ── Autocomplete ── */
-    let acAnchorPos = -1;
-    let acHighlight = 0;
-
-    function openAutocomplete(anchorPos) {
-      acAnchorPos = anchorPos;
-      acHighlight = 0;
-      updateAutocompleteList();
-    }
-
-    function closeAutocomplete() {
-      acAnchorPos = -1;
-      if (patternAutocomplete) patternAutocomplete.style.display = "none";
-    }
-
-    function updateAutocompleteList() {
-      if (!patternAutocomplete) return;
-      const value = filenameTemplateInput.value || "";
-      const partial = value.slice(acAnchorPos + 1, filenameTemplateInput.selectionStart || value.length).toLowerCase();
-      const filtered = EXPORT_TOKENS.filter((tk) =>
-        tk.key.startsWith(partial) || tk.label.toLowerCase().startsWith(partial)
-      );
-      if (filtered.length === 0) { closeAutocomplete(); return; }
-      if (acHighlight >= filtered.length) acHighlight = filtered.length - 1;
-
-      const charWidth = 8.4;
-      const leftPx = Math.max(0, Math.min(300, (acAnchorPos * charWidth) - (filenameTemplateInput.scrollLeft || 0) + 34));
-      patternAutocomplete.style.cssText = `display:block;top:48px;left:${leftPx}px`;
-
-      let html = "";
-      filtered.forEach((tk, i) => {
-        const hl = i === acHighlight ? " highlighted" : "";
-        html += `<button type="button" class="ig-hd-pattern-ac-item${hl}" data-ac-key="${tk.key}">` +
-          `<span class="ig-hd-pattern-ac-dot" style="background:${EXPORT_TOKEN_COLORS[tk.group]}"></span>` +
-          `<span style="flex:1">${escapeHtml(tk.label)}</span>` +
-          `<span class="ig-hd-pattern-ac-key">{${tk.key}}</span>` +
-          `</button>`;
-      });
-      patternAutocomplete.innerHTML = html;
-
-      patternAutocomplete.querySelectorAll(".ig-hd-pattern-ac-item").forEach((item, i) => {
-        item.addEventListener("mouseenter", () => {
-          acHighlight = i;
-          patternAutocomplete.querySelectorAll(".ig-hd-pattern-ac-item").forEach((el, j) =>
-            el.classList.toggle("highlighted", j === i)
-          );
-        });
-        item.addEventListener("mousedown", (e) => {
-          e.preventDefault();
-          insertAutocompleteToken(item.dataset.acKey);
-        });
-      });
-    }
-
-    function insertAutocompleteToken(tokenKey) {
-      const value = filenameTemplateInput.value || "";
-      const before = value.slice(0, acAnchorPos);
-      const afterAnchor = value.slice(acAnchorPos);
-      const partialMatch = afterAnchor.match(/^\{[a-z_]*/);
-      const partialLen = partialMatch ? partialMatch[0].length : 1;
-      const after = value.slice(acAnchorPos + partialLen);
-      const inserted = `{${tokenKey}}`;
-
-      let suffix = "";
-      if (activeFilenameSeparator && after.length > 0 && after[0] !== activeFilenameSeparator && after[0] !== "{") {
-        suffix = activeFilenameSeparator;
-      }
-
-      filenameTemplateInput.value = before + inserted + suffix + after;
-      const newPos = before.length + inserted.length + suffix.length;
-      filenameTemplateInput.setSelectionRange(newPos, newPos);
-      closeAutocomplete();
-      filenameTemplateInput.focus();
-      syncPatternEditorUI();
-      triggerImmediateAutosave();
-    }
-
-    /* ── Pattern editor event handlers ── */
-    filenameTemplateInput.addEventListener("input", () => {
-      syncPatternEditorUI();
-      // Check for autocomplete trigger
-      const pos = filenameTemplateInput.selectionStart || 0;
-      const before = (filenameTemplateInput.value || "").slice(0, pos);
-      const braceMatch = before.match(/\{([a-z_]*)$/);
-      if (braceMatch) {
-        openAutocomplete(before.lastIndexOf("{"));
-      } else {
-        closeAutocomplete();
-      }
-    });
-
-    filenameTemplateInput.addEventListener("keydown", (e) => {
-      if (acAnchorPos < 0) {
-        if (e.key === "Enter") e.preventDefault();
-        return;
-      }
-      const value = filenameTemplateInput.value || "";
-      const partial = value.slice(acAnchorPos + 1, filenameTemplateInput.selectionStart || value.length).toLowerCase();
-      const filtered = EXPORT_TOKENS.filter((tk) =>
-        tk.key.startsWith(partial) || tk.label.toLowerCase().startsWith(partial)
-      );
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        acHighlight = Math.min(acHighlight + 1, filtered.length - 1);
-        updateAutocompleteList();
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        acHighlight = Math.max(acHighlight - 1, 0);
-        updateAutocompleteList();
-      } else if (e.key === "Enter" || e.key === "Tab") {
-        e.preventDefault();
-        if (filtered[acHighlight]) insertAutocompleteToken(filtered[acHighlight].key);
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        closeAutocomplete();
-      }
-    });
-
-    filenameTemplateInput.addEventListener("focus", () => {
-      if (patternEditorWrap) patternEditorWrap.classList.add("focused");
-    });
-
-    filenameTemplateInput.addEventListener("blur", () => {
-      if (patternEditorWrap) patternEditorWrap.classList.remove("focused");
-      setTimeout(() => closeAutocomplete(), 150);
-    });
-
-    filenameTemplateInput.addEventListener("scroll", syncEditorScroll);
-    filenameTemplateInput.addEventListener("select", syncEditorScroll);
-
-    /* ── Pattern clear & reset buttons ── */
-    function clearFilenamePattern() {
-      filenameTemplateInput.value = "";
-      syncPatternEditorUI();
-      filenameTemplateInput.focus();
-      triggerImmediateAutosave();
-    }
-    function resetFilenamePattern() {
-      filenameTemplateInput.value = EXPORT_DEFAULT_PATTERN;
-      syncPatternEditorUI();
-      filenameTemplateInput.focus();
-      triggerImmediateAutosave();
-    }
-    patternClearBtn?.addEventListener("click", clearFilenamePattern);
-    patternClearAction?.addEventListener("click", clearFilenamePattern);
-    patternResetAction?.addEventListener("click", resetFilenamePattern);
-
-    /* ── Separator button handlers (click inserts, right-click locks) ── */
-    modal.querySelectorAll(".ig-hd-sep-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const sepKey = btn.dataset.sep;
-        if (primedSepClearTimer !== null) {
-          clearTimeout(primedSepClearTimer);
-          primedSepClearTimer = null;
-        }
-        // Left click inserts at cursor only; locking is handled by right-click.
-        const input = filenameTemplateInput;
-        const pos = typeof input.selectionStart === "number" ? input.selectionStart : input.value.length;
-        const before = input.value.slice(0, pos);
-        const after = input.value.slice(pos);
-        input.value = before + sepKey + after;
-        input.setSelectionRange(pos + sepKey.length, pos + sepKey.length);
-        input.focus();
-        modal.querySelectorAll(".ig-hd-sep-btn").forEach((b) => b.classList.remove("primed"));
-        btn.classList.add("primed");
-        btn.classList.remove("flash");
-        void btn.offsetWidth;
-        btn.classList.add("flash");
-        setTimeout(() => btn.classList.remove("flash"), 400);
-        primedSepClearTimer = setTimeout(() => {
-          btn.classList.remove("primed");
-          primedSepClearTimer = null;
-        }, 2000);
-        syncPatternEditorUI();
-        triggerImmediateAutosave();
-      });
-      btn.addEventListener("contextmenu", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const sepKey = btn.dataset.sep;
-        if (primedSepClearTimer !== null) {
-          clearTimeout(primedSepClearTimer);
-          primedSepClearTimer = null;
-        }
-        if (btn.classList.contains("active")) {
-          modal.querySelectorAll(".ig-hd-sep-btn").forEach((b) => b.classList.remove("active", "primed"));
-          activeFilenameSeparator = null;
-          triggerImmediateAutosave();
-          return;
-        }
-        modal.querySelectorAll(".ig-hd-sep-btn").forEach((b) => b.classList.remove("active", "primed"));
-        btn.classList.add("active");
-        activeFilenameSeparator = sepKey;
-        triggerImmediateAutosave();
-      });
-    });
-
-    /* ── Token pill handlers ── */
-    let tokenTooltipTimer = null;
-    modal.querySelectorAll(".ig-hd-token-btn").forEach((btn) => {
-      const token = btn.getAttribute("data-token");
-      const tokenKey = token ? token.slice(1, -1) : "";
-      const meta = EXPORT_TOKEN_MAP[tokenKey];
-      if (meta?.tip) btn.setAttribute("data-tip", meta.tip);
-
-      btn.addEventListener("mouseenter", () => {
-        clearTimeout(tokenTooltipTimer);
-        tokenTooltipTimer = setTimeout(() => showInfoTooltip(btn), 300);
-      });
-      btn.addEventListener("mouseleave", () => {
-        clearTimeout(tokenTooltipTimer);
-        tokenTooltipTimer = null;
-        hideInfoTooltip();
-      });
-      btn.addEventListener("click", () => {
-        clearTimeout(tokenTooltipTimer);
-        tokenTooltipTimer = null;
-        hideInfoTooltip();
-        if (!token) return;
-        insertTokenAtCursor(tokenKey);
-      });
-      btn.addEventListener("contextmenu", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        clearTimeout(tokenTooltipTimer);
-        tokenTooltipTimer = null;
-        hideInfoTooltip();
-        if (!token) return;
-        removeLastTokenOccurrence(token);
-      });
-    });
-
-    /* ── Initialize export tab UI ── */
-    syncPatternEditorUI();
-
-    presetSelect.addEventListener("change", () => {
+        presetSelect.addEventListener("change", () => {
       applyPresetSelection(presetSelect.value);
       triggerImmediateAutosave();
     });
 
-    showSettingsLauncherToggle?.addEventListener("change", () => {
-      if (!showSettingsLauncherToggle.checked && window.innerWidth <= 700) {
-        const confirmed = confirm(
-          "Hide the settings button?\n\nYou can reopen settings by long-pressing anywhere on the page."
-        );
-        if (!confirmed) {
-          showSettingsLauncherToggle.checked = true;
-          return;
-        }
-      }
+    skipPreviouslyDownloadedToggle?.addEventListener("change", () => {
       triggerImmediateAutosave();
-    });
-
-    [
-      {
-        input: androidCompatModeToggle,
-        onChange: syncAndroidCompatibilityControls
-      },
-      {
-        input: bulkZipToggle,
-        onChange: syncTypeSubfoldersControls
-      },
-      {
-        input: typeSubfoldersToggle
-      },
-      {
-        input: saveMetadataJsonToggle
-      },
-      {
-        input: saveMetadataXmpToggle
-      },
-      {
-        input: saveMetadataIptcToggle
-      },
-      {
-        input: saveMetadataExifToggle
-      },
-      {
-        input: skipPreviouslyDownloadedToggle
-      }
-    ].forEach(({ input, onChange }) => {
-      input?.addEventListener("change", () => {
-        onChange?.();
-        triggerImmediateAutosave();
-      });
-    });
-    videoContainerCheckboxes.forEach((cb) => {
-      cb?.addEventListener("change", () => {
-        if (cb.checked) {
-          videoContainerCheckboxes.forEach((other) => { if (other && other !== cb) other.checked = false; });
-        } else {
-          // Radio group — keep one selected.
-          cb.checked = true;
-        }
-        triggerImmediateAutosave();
-      });
-    });
-    customFolderToggle?.addEventListener("change", async () => {
-      syncCustomFolderControls();
-      if (customFolderToggle.checked && !folderLabelInput.value.trim()) {
-        try {
-          await openFolderPickerAndUpdate();
-        } catch (err) {
-          customFolderToggle.checked = false;
-          syncCustomFolderControls();
-          if (err?.name !== "AbortError") {
-            console.error("[Amstragram] Failed to choose output folder:", err);
-            showToast(`Could not choose folder: ${err?.message || "Unknown error"}`, 5000);
-          }
-        }
-      } else {
-        triggerImmediateAutosave();
-      }
     });
     riskAckInput?.addEventListener("change", () => {
       setRiskAckSessionAcknowledged(!!riskAckInput.checked);
@@ -6011,8 +4714,6 @@ const APP_CORE = (() => {
     amstramgramUrlInput?.addEventListener("input", scheduleDebouncedAutosave);
 
     [
-      hotkeyInput,
-      filenameTemplateInput,
       profileMaxItemsInput,
       safetyThresholdInput,
       ...policyInputs
@@ -6022,83 +4723,6 @@ const APP_CORE = (() => {
       });
     });
 
-    hotkeyInput?.addEventListener("input", scheduleDebouncedAutosave);
-
-    // --- Hotkey recording ---
-    if (hotkeyInput && hotkeyRecordButton) {
-      let hotkeyRecording = false;
-      let hotkeyValueBeforeRecord = "";
-
-      function stopRecording(restore) {
-        hotkeyRecording = false;
-        hotkeyInput.classList.remove("ig-hd-hotkey-recording");
-        hotkeyInput.placeholder = "";
-        hotkeyInput.readOnly = false;
-        hotkeyRecordButton.textContent = "Record";
-        if (restore) {
-          hotkeyInput.value = hotkeyValueBeforeRecord;
-        }
-      }
-
-      function startRecording() {
-        hotkeyRecording = true;
-        hotkeyValueBeforeRecord = hotkeyInput.value;
-        hotkeyInput.value = "";
-        hotkeyInput.placeholder = "Press keys\u2026";
-        hotkeyInput.readOnly = true;
-        hotkeyInput.classList.add("ig-hd-hotkey-recording");
-        hotkeyRecordButton.textContent = "Cancel";
-        hotkeyInput.focus();
-      }
-
-      hotkeyRecordButton.addEventListener("click", () => {
-        if (hotkeyRecording) {
-          stopRecording(true);
-        } else {
-          startRecording();
-        }
-      });
-
-      hotkeyInput.addEventListener("keydown", (e) => {
-        if (!hotkeyRecording) return;
-        e.preventDefault();
-        e.stopPropagation();
-
-        const MODIFIER_KEYS = new Set(["Control", "Alt", "Shift", "Meta"]);
-        const parts = [];
-        if (e.ctrlKey) parts.push("Ctrl");
-        if (e.altKey) parts.push("Alt");
-        if (e.shiftKey) parts.push("Shift");
-        if (e.metaKey) parts.push("Meta");
-
-        if (MODIFIER_KEYS.has(e.key)) {
-          // Still holding modifiers — show live preview
-          hotkeyInput.value = parts.length > 0 ? parts.join("+") + "+\u2026" : "";
-          return;
-        }
-
-        if (e.key === "Escape" && parts.length === 0) {
-          stopRecording(true);
-          return;
-        }
-
-        parts.push(e.key);
-        const raw = parts.join("+");
-        const normalized = sanitizeHotkey(raw);
-        hotkeyInput.value = normalized;
-        stopRecording(false);
-        scheduleDebouncedAutosave();
-      });
-
-      hotkeyInput.addEventListener("blur", () => {
-        if (hotkeyRecording) stopRecording(true);
-      });
-    }
-
-    hotkeyDefaultButton?.addEventListener("click", () => {
-      hotkeyInput.value = DEFAULT_USER_SETTINGS.hotkey;
-      scheduleDebouncedAutosave();
-    });
 
     safetyThresholdInput?.addEventListener("input", () => {
       refreshSpeedTooltips();
@@ -6145,10 +4769,6 @@ const APP_CORE = (() => {
         void flushPendingAutosave();
       });
     });
-    filenameTemplateInput.addEventListener("input", () => {
-      scheduleDebouncedAutosave();
-    });
-    profileUsernameInput?.addEventListener("input", updateTemplatePreview);
     for (const input of policyInputs) {
       input.addEventListener("input", () => {
         handleManualPolicyEdit();
@@ -6169,7 +4789,6 @@ const APP_CORE = (() => {
       const selectedHandle = await pickAndStoreOutputDirectoryHandle();
       folderLabelInput.value = sanitizeOutputFolderLabel(selectedHandle?.name || "");
       syncFolderInputPathPrefix();
-      customFolderToggle.checked = true;
       syncCustomFolderControls();
       await modalAutosave.commitImmediately();
     }
@@ -6188,7 +4807,6 @@ const APP_CORE = (() => {
       await clearOutputDirectorySelection();
       folderLabelInput.value = "";
       syncFolderInputPathPrefix();
-      customFolderToggle.checked = false;
       syncCustomFolderControls();
       await modalAutosave.commitImmediately();
     });
@@ -6204,14 +4822,6 @@ const APP_CORE = (() => {
         return;
       }
 
-      if (customFolderToggle.checked && !supportsDirectoryPicker()) {
-        showToast("Custom folders need Chromium (Chrome/Edge/Brave). Firefox uses the default download folder.");
-        return;
-      }
-      if (customFolderToggle.checked && !folderLabelInput.value.trim()) {
-        showToast("Choose an output folder or disable custom folder.");
-        return;
-      }
       const profileSelectionForStart = getProfileDownloadSelectionForStart();
       const persisted = await modalAutosave.commitImmediately({
         profileSelection: profileSelectionForStart
@@ -6327,51 +4937,18 @@ const APP_CORE = (() => {
     return HOTKEY_CORE.isEditableTarget(target);
   }
 
-  function hotkeyMatchesEvent(event, hotkey) {
-    return HOTKEY_CORE.hotkeyMatchesEvent(event, hotkey);
-  }
-
   function handleGlobalHotkeys(event) {
     const isSettingsOpen = !!document.getElementById("ig-hd-settings-overlay");
-    const editableTarget = isEditableTarget(event.target);
     if (event.key === "Escape" && isSettingsOpen) {
-      if (editableTarget) return;
+      if (isEditableTarget(event.target)) return;
       event.preventDefault();
       event.stopPropagation();
       const requestClose = typeof settingsModalCloseRequest === "function"
         ? settingsModalCloseRequest
         : removeSettingsModal;
       void requestClose();
-      return;
-    }
-    if (editableTarget) return;
-
-    if (hotkeyMatchesEvent(event, USER_SETTINGS.hotkey)) {
-      event.preventDefault();
-      event.stopPropagation();
-      openSettingsModal();
     }
   }
-
-  // Long-press to open settings (fallback when launcher is hidden on mobile)
-  let longPressTimer = null;
-  document.addEventListener("touchstart", (e) => {
-    if (USER_SETTINGS?.showSettingsLauncher !== false) return;
-    if (e.touches.length !== 1) return;
-    const tag = e.target?.tagName;
-    if (tag === "A" || tag === "BUTTON" || tag === "INPUT" || tag === "TEXTAREA" || tag === "IMG" || tag === "VIDEO") return;
-    if (e.target?.closest?.('a,button,[role="button"],input,textarea,img,video,#ig-hd-settings-overlay')) return;
-    longPressTimer = setTimeout(() => {
-      longPressTimer = null;
-      openSettingsModal();
-    }, 700);
-  }, { passive: true });
-  document.addEventListener("touchend", () => {
-    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-  }, { passive: true });
-  document.addEventListener("touchmove", () => {
-    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-  }, { passive: true });
 
   document.addEventListener("keydown", handleGlobalHotkeys, true);
   GramPlatform.registerMenuCommand("Amstragram: Settings", openSettingsModal);

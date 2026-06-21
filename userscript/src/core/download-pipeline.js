@@ -236,13 +236,10 @@ const DOWNLOAD_PIPELINE_CORE = (() => {
     return !!err && (err.code === "GM_DOWNLOAD_TIMEOUT" || String(err?.message || "").toLowerCase().includes("timed out"));
   }
 
-  // Like downloadResolvedVideo, but returns the bytes instead of triggering a
-  // browser download. Used by the batch ZIP collector to embed muxed DASH
-  // output directly in the archive instead of pulling 720p progressive.
+  // Returns the bytes for a video plan — used by the custom-folder save path to
+  // embed muxed DASH output into a Blob instead of triggering a browser download.
   async function collectResolvedVideoBytes(plan) {
     if (!plan) throw new Error("collectResolvedVideoBytes: no plan provided");
-
-    const container = plan.container === "mkv" ? "mkv" : "mp4";
 
     if (plan.source === "progressive" || (plan.source === "dash" && !plan.muxRequired)) {
       const url = plan.video && plan.video.url;
@@ -251,7 +248,7 @@ const DOWNLOAD_PIPELINE_CORE = (() => {
       const bytes = await readBlobAsBytes(blob);
       return {
         bytes,
-        container,
+        container: "mp4",
         muxed: false,
         diagnostics: plan.diagnostics || null
       };
@@ -262,14 +259,8 @@ const DOWNLOAD_PIPELINE_CORE = (() => {
       const audioUrl = plan.audio && plan.audio.url;
       if (!videoUrl || !audioUrl) throw new Error("collectResolvedVideoBytes: dash split plan missing video or audio url");
 
-      if (container === "mkv") {
-        if (typeof MKV_MUX_CORE === "undefined" || typeof MKV_MUX_CORE.mux !== "function") {
-          throw new Error("MKV_MUX_CORE unavailable");
-        }
-      } else {
-        if (typeof MP4_REMUX_CORE === "undefined" || typeof MP4_REMUX_CORE.remux !== "function") {
-          throw new Error("MP4_REMUX_CORE unavailable");
-        }
+      if (typeof MP4_REMUX_CORE === "undefined" || typeof MP4_REMUX_CORE.remux !== "function") {
+        throw new Error("MP4_REMUX_CORE unavailable");
       }
 
       const [videoBlob, audioBlob] = await Promise.all([
@@ -283,13 +274,11 @@ const DOWNLOAD_PIPELINE_CORE = (() => {
       const videoBuf = videoBytes.buffer.slice(videoBytes.byteOffset, videoBytes.byteOffset + videoBytes.byteLength);
       const audioBuf = audioBytes.buffer.slice(audioBytes.byteOffset, audioBytes.byteOffset + audioBytes.byteLength);
 
-      const muxResult = container === "mkv"
-        ? MKV_MUX_CORE.mux(videoBuf, audioBuf)
-        : MP4_REMUX_CORE.remux(videoBuf, audioBuf);
+      const muxResult = MP4_REMUX_CORE.remux(videoBuf, audioBuf);
 
       return {
         bytes: new Uint8Array(muxResult.output),
-        container,
+        container: "mp4",
         muxed: true,
         diagnostics: { ...(plan.diagnostics || {}), mux: muxResult.diagnostics || null }
       };
@@ -298,19 +287,12 @@ const DOWNLOAD_PIPELINE_CORE = (() => {
     throw new Error(`collectResolvedVideoBytes: unsupported plan shape (source=${plan.source}, muxRequired=${plan.muxRequired})`);
   }
 
-  // VideoPlan dispatcher. Three shapes today:
-  //   { source: "progressive" }                              → GM_download passthrough
-  //   { source: "dash", muxRequired: false }                  → GM_download passthrough (single rep)
-  //   { source: "dash", muxRequired: true, container: ... }   → fetch both, mux, blob-download
-  //
-  // The container field decides which muxer runs ("mp4" → MP4_REMUX_CORE,
-  // "mkv" → MKV_MUX_CORE) and what MIME type the blob carries. The caller is
-  // responsible for the filename's extension; we only use plan.container for
-  // the fallback name.
+  // VideoPlan dispatcher:
+  //   { source: "progressive" }               → GM_download passthrough
+  //   { source: "dash", muxRequired: false }   → GM_download passthrough
+  //   { source: "dash", muxRequired: true }    → fetch both, MP4 remux, blob-download
   async function downloadResolvedVideo(plan, filename, _meta) {
     if (!plan) throw new Error("downloadResolvedVideo: no plan provided");
-
-    const container = plan.container === "mkv" ? "mkv" : "mp4";
 
     if (plan.source === "progressive" || (plan.source === "dash" && !plan.muxRequired)) {
       const url = plan.video && plan.video.url;
@@ -319,7 +301,7 @@ const DOWNLOAD_PIPELINE_CORE = (() => {
       return {
         source: plan.source,
         tier: plan.tier,
-        container,
+        container: "mp4",
         muxed: false,
         diagnostics: plan.diagnostics || null
       };
@@ -331,14 +313,8 @@ const DOWNLOAD_PIPELINE_CORE = (() => {
       if (!videoUrl || !audioUrl) throw new Error("downloadResolvedVideo: dash split plan missing video or audio url");
 
       // Fail fast on missing muxer before pulling 20+ MB across the wire.
-      if (container === "mkv") {
-        if (typeof MKV_MUX_CORE === "undefined" || typeof MKV_MUX_CORE.mux !== "function") {
-          throw new Error("MKV_MUX_CORE unavailable");
-        }
-      } else {
-        if (typeof MP4_REMUX_CORE === "undefined" || typeof MP4_REMUX_CORE.remux !== "function") {
-          throw new Error("MP4_REMUX_CORE unavailable");
-        }
+      if (typeof MP4_REMUX_CORE === "undefined" || typeof MP4_REMUX_CORE.remux !== "function") {
+        throw new Error("MP4_REMUX_CORE unavailable");
       }
 
       const [videoBlob, audioBlob] = await Promise.all([
@@ -352,26 +328,14 @@ const DOWNLOAD_PIPELINE_CORE = (() => {
       const videoBuf = videoBytes.buffer.slice(videoBytes.byteOffset, videoBytes.byteOffset + videoBytes.byteLength);
       const audioBuf = audioBytes.buffer.slice(audioBytes.byteOffset, audioBytes.byteOffset + audioBytes.byteLength);
 
-      let muxResult;
-      let mimeType;
-      let fallbackName;
-      if (container === "mkv") {
-        muxResult = MKV_MUX_CORE.mux(videoBuf, audioBuf);
-        mimeType = "video/x-matroska";
-        fallbackName = "video.mkv";
-      } else {
-        muxResult = MP4_REMUX_CORE.remux(videoBuf, audioBuf);
-        mimeType = "video/mp4";
-        fallbackName = "video.mp4";
-      }
-
-      const muxedBlob = new Blob([muxResult.output], { type: mimeType });
-      triggerBlobBrowserDownload(muxedBlob, filename, fallbackName);
+      const muxResult = MP4_REMUX_CORE.remux(videoBuf, audioBuf);
+      const muxedBlob = new Blob([muxResult.output], { type: "video/mp4" });
+      triggerBlobBrowserDownload(muxedBlob, filename, "video.mp4");
 
       return {
         source: "dash",
         tier: plan.tier,
-        container,
+        container: "mp4",
         muxed: true,
         diagnostics: { ...(plan.diagnostics || {}), mux: muxResult.diagnostics || null }
       };

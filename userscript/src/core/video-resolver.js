@@ -35,10 +35,6 @@ const VIDEO_RESOLVER_CORE = (() => {
     return String(codecsAttr || "").trim().slice(0, 4).toLowerCase();
   }
 
-  function pickContainer(container) {
-    return container === "mkv" ? "mkv" : "mp4";
-  }
-
   function pickDashVideo(reps, allowedCodecs) {
     if (!Array.isArray(reps)) return null;
     const allowed = (allowedCodecs || []).map((c) => String(c).toLowerCase());
@@ -58,12 +54,11 @@ const VIDEO_RESOLVER_CORE = (() => {
   }
 
   const ALL_SUPPORTED_VIDEO_CODECS = ["avc1", "hvc1", "vp09", "av01"];
-  const MKV_SUPPORTED_VIDEO_CODECS = ["vp09"];
   const DEFAULT_AUDIO_CODECS = ["mp4a"];
 
-  function allowedVideoCodecs(container, override) {
+  function allowedVideoCodecs(override) {
     if (Array.isArray(override) && override.length > 0) return override;
-    return container === "mkv" ? MKV_SUPPORTED_VIDEO_CODECS : ALL_SUPPORTED_VIDEO_CODECS;
+    return ALL_SUPPORTED_VIDEO_CODECS;
   }
 
   function describeRep(rep) {
@@ -82,7 +77,7 @@ const VIDEO_RESOLVER_CORE = (() => {
       .sort(compareVideoQuality);
   }
 
-  function buildProgressivePlan(item, options, fallbackReason) {
+  function buildProgressivePlan(item, fallbackReason = null) {
     const ranked = toRankedProgressive(item && item.video_versions);
     const best = ranked[0] || null;
     if (!best) return null;
@@ -110,14 +105,14 @@ const VIDEO_RESOLVER_CORE = (() => {
     };
   }
 
-  function buildDashPlan(videoRep, audioRep, container) {
+  function buildDashPlan(videoRep, audioRep) {
     const tier = (videoRep.height && videoRep.height >= 1080) || (videoRep.width && videoRep.width >= 1080)
       ? "dash_hq"
       : "dash_sd";
     return {
       source: "dash",
       tier,
-      container: pickContainer(container),
+      container: "mp4",
       video: {
         url: videoRep.baseUrl,
         bandwidth: videoRep.bandwidth || null,
@@ -150,8 +145,7 @@ const VIDEO_RESOLVER_CORE = (() => {
     if (!input || typeof input !== "object") return null;
     const item = input.item || {};
     const options = input.options || {};
-    const container = options.container === "mkv" ? "mkv" : "mp4";
-    const allowedVideo = allowedVideoCodecs(container, options.allowedVideoCodecs);
+    const allowedVideo = allowedVideoCodecs(options.allowedVideoCodecs);
     const allowedAudio = options.allowedAudioCodecs || DEFAULT_AUDIO_CODECS;
 
     const progressiveVersions = item.video_versions;
@@ -164,7 +158,7 @@ const VIDEO_RESOLVER_CORE = (() => {
         : "";
 
     if (!manifestXml) {
-      return hasProgressive ? buildProgressivePlan(item, options, null) : null;
+      return hasProgressive ? buildProgressivePlan(item, null) : null;
     }
 
     let parsed;
@@ -172,7 +166,7 @@ const VIDEO_RESOLVER_CORE = (() => {
       parsed = DASH_MANIFEST_CORE.parse(manifestXml);
     } catch (e) {
       return hasProgressive
-        ? buildProgressivePlan(item, options, `manifest parse: ${e.message}`)
+        ? buildProgressivePlan(item, `manifest parse: ${e.message}`)
         : null;
     }
 
@@ -181,23 +175,20 @@ const VIDEO_RESOLVER_CORE = (() => {
 
     if (!videoSet) {
       return hasProgressive
-        ? buildProgressivePlan(item, options, "no video AdaptationSet")
+        ? buildProgressivePlan(item, "no video AdaptationSet")
         : null;
     }
 
     const videoRep = pickDashVideo(videoSet.representations, allowedVideo);
     if (!videoRep) {
-      const reason = container === "mkv"
-        ? "no VP9 in DASH (MKV requires VP9)"
-        : "no supported video codec in DASH";
       return hasProgressive
-        ? buildProgressivePlan(item, options, reason)
+        ? buildProgressivePlan(item, "no supported video codec in DASH")
         : null;
     }
 
     const audioRep = audioSet ? pickDashAudio(audioSet.representations, allowedAudio) : null;
 
-    return buildDashPlan(videoRep, audioRep, container);
+    return buildDashPlan(videoRep, audioRep);
   }
 
   return {
@@ -205,7 +196,6 @@ const VIDEO_RESOLVER_CORE = (() => {
     __test_pickProgressive: pickProgressive,
     __test_pickDashVideo: pickDashVideo,
     __test_pickDashAudio: pickDashAudio,
-    __test_pickContainer: pickContainer,
     __test_allowedVideoCodecs: allowedVideoCodecs,
     __test_ALL_SUPPORTED_VIDEO_CODECS: ALL_SUPPORTED_VIDEO_CODECS
   };
