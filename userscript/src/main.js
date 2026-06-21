@@ -9711,6 +9711,85 @@
     };
   }
 
+  // =========================================
+  // PROFILE GRID — DOWNLOADED POST OVERLAY
+  // =========================================
+  let _profileGridObserver = null;
+  let _profileGridSeenLinks = new Set();
+
+  function _markProfileGridLink(link) {
+    const overlay = document.createElement("div");
+    overlay.className = "ig-hd-grid-overlay";
+    const badge = document.createElement("div");
+    badge.className = "ig-hd-grid-badge";
+    badge.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+    link.setAttribute("data-ig-hd-downloaded", "1");
+    link.appendChild(overlay);
+    link.appendChild(badge);
+  }
+
+  function _processProfileGridLinks(links) {
+    for (const link of links) {
+      if (_profileGridSeenLinks.has(link)) continue;
+      _profileGridSeenLinks.add(link);
+      const href = link.getAttribute("href") || "";
+      const shortcode = extractInstagramPostShortcodeFromHref(href);
+      if (!shortcode) continue;
+      if (hasDownloadedHistoryKey(`shortcode:${shortcode}`)) {
+        _markProfileGridLink(link);
+      }
+    }
+  }
+
+  function _startProfileGridObserver() {
+    const root = document.querySelector("main") || document.body;
+    if (!root || typeof MutationObserver !== "function") return;
+
+    const selector = "a[href*='/p/'], a[href*='/reel/'], a[href*='/reels/']";
+
+    const initialLinks = root.querySelectorAll(selector);
+    _processProfileGridLinks(initialLinks);
+
+    _profileGridObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType !== 1) continue;
+          const links = [];
+          if (node.matches?.(selector)) links.push(node);
+          const nested = node.querySelectorAll?.(selector);
+          if (nested) links.push(...nested);
+          if (links.length > 0) _processProfileGridLinks(links);
+        }
+      }
+    });
+
+    _profileGridObserver.observe(root, { childList: true, subtree: true });
+  }
+
+  function _stopProfileGridObserver() {
+    if (_profileGridObserver) {
+      _profileGridObserver.disconnect();
+      _profileGridObserver = null;
+    }
+    _profileGridSeenLinks = new Set();
+    const marked = document.querySelectorAll("[data-ig-hd-downloaded]");
+    for (const el of marked) {
+      el.removeAttribute("data-ig-hd-downloaded");
+      el.querySelector(".ig-hd-grid-overlay")?.remove();
+      el.querySelector(".ig-hd-grid-badge")?.remove();
+    }
+  }
+
+  function syncProfileGridObserver() {
+    const username = getCurrentProfileUsername();
+    if (!username) {
+      _stopProfileGridObserver();
+      return;
+    }
+    _stopProfileGridObserver();
+    _startProfileGridObserver();
+  }
+
   installSettingsLauncherRouteHooks();
   installSettingsLauncherThemeHooks();
   if (document.body) {
@@ -20035,85 +20114,6 @@ const STORY_MATCHING_CORE = (() => {
       }
       throw err;
     }
-  }
-
-  // =========================================
-  // PROFILE GRID — DOWNLOADED POST OVERLAY
-  // =========================================
-  let _profileGridObserver = null;
-  let _profileGridSeenLinks = new Set();
-
-  function _markProfileGridLink(link) {
-    const overlay = document.createElement("div");
-    overlay.className = "ig-hd-grid-overlay";
-    const badge = document.createElement("div");
-    badge.className = "ig-hd-grid-badge";
-    badge.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
-    link.setAttribute("data-ig-hd-downloaded", "1");
-    link.appendChild(overlay);
-    link.appendChild(badge);
-  }
-
-  function _processProfileGridLinks(links) {
-    for (const link of links) {
-      if (_profileGridSeenLinks.has(link)) continue;
-      _profileGridSeenLinks.add(link);
-      const href = link.getAttribute("href") || "";
-      const shortcode = extractInstagramPostShortcodeFromHref(href);
-      if (!shortcode) continue;
-      if (hasDownloadedHistoryKey(`shortcode:${shortcode}`)) {
-        _markProfileGridLink(link);
-      }
-    }
-  }
-
-  function _startProfileGridObserver() {
-    const root = document.querySelector("main") || document.body;
-    if (!root || typeof MutationObserver !== "function") return;
-
-    const selector = "a[href*='/p/'], a[href*='/reel/'], a[href*='/reels/']";
-
-    const initialLinks = root.querySelectorAll(selector);
-    _processProfileGridLinks(initialLinks);
-
-    _profileGridObserver = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        for (const node of mutation.addedNodes) {
-          if (node.nodeType !== 1) continue;
-          const links = [];
-          if (node.matches?.(selector)) links.push(node);
-          const nested = node.querySelectorAll?.(selector);
-          if (nested) links.push(...nested);
-          if (links.length > 0) _processProfileGridLinks(links);
-        }
-      }
-    });
-
-    _profileGridObserver.observe(root, { childList: true, subtree: true });
-  }
-
-  function _stopProfileGridObserver() {
-    if (_profileGridObserver) {
-      _profileGridObserver.disconnect();
-      _profileGridObserver = null;
-    }
-    _profileGridSeenLinks = new Set();
-    const marked = document.querySelectorAll("[data-ig-hd-downloaded]");
-    for (const el of marked) {
-      el.removeAttribute("data-ig-hd-downloaded");
-      el.querySelector(".ig-hd-grid-overlay")?.remove();
-      el.querySelector(".ig-hd-grid-badge")?.remove();
-    }
-  }
-
-  function syncProfileGridObserver() {
-    const username = getCurrentProfileUsername();
-    if (!username) {
-      _stopProfileGridObserver();
-      return;
-    }
-    _stopProfileGridObserver();
-    _startProfileGridObserver();
   }
 
   // =========================================
