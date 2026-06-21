@@ -31,6 +31,7 @@ const FILES = [
   "core/story-matching.js",
   "core/settings-schema.js",
   "core/styles.js",
+  "core/page-handlers.js",
   "main.js",
 ];
 
