@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Amstragram — An Actual Good Instagram Downloader
-// @version      1.6.8
+// @version      __VERSION__
 // @description  Bulk download Instagram profiles with safe pacing, ZIP exports, and custom file naming. Or, right-click to save individual high-res posts, reels, stories, highlights, and profile pictures.
 // @author       sprtnq
 // @license      LicenseRef-Amstragram-NonCommercial-1.0
