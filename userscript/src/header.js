@@ -21,8 +21,6 @@
 // @namespace https://greasyfork.org/users/1570854
 // ==/UserScript==
 
-/* eslint-env browser, es2020 */
-
 // =========================================
 // GRAM PLATFORM
 // =========================================
