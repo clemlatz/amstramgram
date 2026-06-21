@@ -5139,10 +5139,19 @@ const PAGE_HANDLERS_CORE = (() => {
 `;
 
     try {
+      const blob = new Blob([hookSource], { type: "text/javascript" });
+      const blobUrl = URL.createObjectURL(blob);
       const script = document.createElement("script");
-      script.textContent = hookSource;
+      script.src = blobUrl;
+      script.addEventListener("load", () => {
+        URL.revokeObjectURL(blobUrl);
+        if (script.parentNode) script.parentNode.removeChild(script);
+      }, { once: true });
+      script.addEventListener("error", () => {
+        URL.revokeObjectURL(blobUrl);
+        debugLog("[Amstragram] DM Lightspeed blob script failed to load");
+      }, { once: true });
       root.appendChild(script);
-      if (script.parentNode) script.parentNode.removeChild(script);
     } catch (err) {
       debugLog("[Amstragram] Failed to install DM Lightspeed page hook:", err?.message || err);
     }
