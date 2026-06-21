@@ -27,7 +27,6 @@ const FILES = [
   "core/dm-lightspeed.js",
   "core/download-pipeline.js",
   "core/file-metadata.js",
-  "core/date-filter.js",
   "core/story-matching.js",
   "core/settings-schema.js",
   "core/styles.js",

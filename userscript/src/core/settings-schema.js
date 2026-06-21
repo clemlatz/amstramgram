@@ -48,13 +48,7 @@ const SETTINGS_SCHEMA_CORE = (() => {
       includeHighlights: false,
       includeTagged: false,
       includeProfilePicture: false,
-      taggedIncludeAllCarouselMedia: false,
-      dateFilter: {
-        enabled: false,
-        mode: "after",
-        startDate: "",
-        endDate: ""
-      }
+      taggedIncludeAllCarouselMedia: false
     },
     downloads: {
       useCustomFolder: true,
@@ -227,49 +221,6 @@ const SETTINGS_SCHEMA_CORE = (() => {
     };
   }
 
-  function normalizeDateFilter(raw) {
-    const source = raw && typeof raw === "object" ? raw : {};
-    const validModes = ["before", "after", "between"];
-    const modeIsValid = validModes.includes(source.mode);
-    // Unknown or legacy mode (e.g. "off") → force enabled false and fall back to "after".
-    const mode = modeIsValid ? source.mode : DEFAULT_USER_SETTINGS.profileDownload.dateFilter.mode;
-    const enabled = modeIsValid ? (source.enabled === true) : false;
-
-    const dateStringPattern = /^\d{4}-\d{2}-\d{2}$/;
-    const startDate = (typeof source.startDate === "string" && dateStringPattern.test(source.startDate))
-      ? source.startDate
-      : DEFAULT_USER_SETTINGS.profileDownload.dateFilter.startDate;
-    const endDate = (typeof source.endDate === "string" && dateStringPattern.test(source.endDate))
-      ? source.endDate
-      : DEFAULT_USER_SETTINGS.profileDownload.dateFilter.endDate;
-
-    return { enabled, mode, startDate, endDate };
-  }
-
-  // Pure — given a dateFilter-shaped input, returns which visual elements of
-  // the settings card should be hidden and whether the two-date grid should
-  // collapse to a single column. Kept free of DOM access so it is unit-testable
-  // without a real modal.
-  function computeDateFilterVisibilityState({ enabled, mode, startDate, endDate }) {
-    const bodyHidden = !enabled;
-    const showStart = mode === "after" || mode === "between";
-    const showEnd = mode === "before" || mode === "between";
-    const single = (showStart && !showEnd) || (showEnd && !showStart);
-    const hasStart = typeof startDate === "string" && startDate.length > 0;
-    const hasEnd = typeof endDate === "string" && endDate.length > 0;
-    const reversed = enabled
-      && mode === "between"
-      && hasStart && hasEnd
-      && endDate < startDate;
-    return {
-      bodyHidden,
-      startHidden: !showStart,
-      endHidden: !showEnd,
-      single,
-      warningHidden: !reversed
-    };
-  }
-
   function normalizeUserSettings(raw) {
     const source = raw && typeof raw === "object" ? raw : {};
     const profileSettings = source.profileDownload && typeof source.profileDownload === "object"
@@ -299,8 +250,7 @@ const SETTINGS_SCHEMA_CORE = (() => {
         includeHighlights: normalizedProfileSelection.includeHighlights,
         includeTagged: normalizedProfileSelection.includeTagged,
         includeProfilePicture: normalizedProfileSelection.includeProfilePicture,
-        taggedIncludeAllCarouselMedia: normalizedProfileSelection.taggedIncludeAllCarouselMedia,
-        dateFilter: normalizeDateFilter(profileSettings.dateFilter)
+        taggedIncludeAllCarouselMedia: normalizedProfileSelection.taggedIncludeAllCarouselMedia
       },
       downloads: sanitizeDownloadSettings(downloadSettings),
       savedDownload: sanitizeSavedDownloadSettings(savedDownloadSettings)
@@ -357,8 +307,6 @@ const SETTINGS_SCHEMA_CORE = (() => {
     sanitizeAmstramgramUrl,
     sanitizeSavedDownloadSettings,
     sanitizePolicy,
-    normalizeDateFilter,
-    computeDateFilterVisibilityState,
     normalizeUserSettings,
     migrateLegacyMetadataSettings
   };

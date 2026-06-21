@@ -125,8 +125,6 @@ const APP_CORE = (() => {
     sanitizeAmstramgramUrl,
     sanitizeSavedDownloadSettings,
     sanitizePolicy,
-    normalizeDateFilter,
-    computeDateFilterVisibilityState,
     normalizeUserSettings,
     migrateLegacyMetadataSettings
   } = SETTINGS_SCHEMA_CORE;
@@ -3722,64 +3720,6 @@ const APP_CORE = (() => {
               </div>
             </div>
           </div>
-          <div class="ig-hd-settings-group" id="ig-hd-date-filter-group">
-            <div class="ig-hd-settings-subheading">Date filter</div>
-            <div class="ig-hd-settings-section-desc">Restrict bulk downloads to media posted within a specific time window. When disabled, all matching posts are downloaded regardless of date.</div>
-            <div class="ig-hd-settings-card">
-              <div class="ig-hd-settings-card-inner">
-                <div class="ig-hd-settings-item">
-                  <div class="ig-hd-settings-toggle">
-                    <input id="ig-hd-date-filter-enabled" type="checkbox"${currentSettings.profileDownload.dateFilter.enabled ? " checked" : ""} />
-                    <span>Enable date filter</span>
-                    <label class="ig-hd-toggle-track" for="ig-hd-date-filter-enabled"></label>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="ig-hd-date-filter-body${currentSettings.profileDownload.dateFilter.enabled ? "" : " collapsed"}">
-              <div class="ig-hd-date-filter-body-inner">
-                <div class="ig-hd-settings-card">
-                  <div class="ig-hd-settings-card-inner">
-                    <div class="ig-hd-settings-item">
-                      <label class="ig-hd-settings-circle" for="ig-hd-date-filter-mode-after">
-                        <span>After a date</span>
-                        <input id="ig-hd-date-filter-mode-after" type="checkbox" data-filter-mode="after"${currentSettings.profileDownload.dateFilter.mode === "after" ? " checked" : ""} />
-                      </label>
-                    </div>
-                    <div class="ig-hd-settings-item">
-                      <label class="ig-hd-settings-circle" for="ig-hd-date-filter-mode-before">
-                        <span>Before a date</span>
-                        <input id="ig-hd-date-filter-mode-before" type="checkbox" data-filter-mode="before"${currentSettings.profileDownload.dateFilter.mode === "before" ? " checked" : ""} />
-                      </label>
-                    </div>
-                    <div class="ig-hd-settings-item">
-                      <label class="ig-hd-settings-circle" for="ig-hd-date-filter-mode-between">
-                        <span>Between two dates</span>
-                        <input id="ig-hd-date-filter-mode-between" type="checkbox" data-filter-mode="between"${currentSettings.profileDownload.dateFilter.mode === "between" ? " checked" : ""} />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                <div id="ig-hd-date-filter-mode-help" class="ig-hd-settings-help"></div>
-                <div class="ig-hd-settings-card">
-                  <div class="ig-hd-settings-card-inner">
-                    <div class="ig-hd-settings-row two-col ig-hd-date-filter-dates-row">
-                      <div class="ig-hd-settings-row ig-hd-date-filter-fields--start">
-                        <label class="ig-hd-settings-label" for="ig-hd-date-filter-start">Start date</label>
-                        <input id="ig-hd-date-filter-start" class="ig-hd-settings-input" type="date" value="${escapeHtml(currentSettings.profileDownload.dateFilter.startDate)}" />
-                      </div>
-                      <div class="ig-hd-settings-row ig-hd-date-filter-fields--end">
-                        <label class="ig-hd-settings-label" for="ig-hd-date-filter-end">End date</label>
-                        <input id="ig-hd-date-filter-end" class="ig-hd-settings-input" type="date" value="${escapeHtml(currentSettings.profileDownload.dateFilter.endDate)}" />
-                      </div>
-                    </div>
-                    <p class="ig-hd-date-filter-warning" hidden>End date is before start date — no items will match.</p>
-                  </div>
-                </div>
-                <div class="ig-hd-settings-help">Dates use your local timezone. Media is filtered by its upload timestamp on Instagram.</div>
-              </div>
-            </div>
-          </div>
           <div class="ig-hd-settings-group" id="ig-hd-skip-history-group"${currentSettings.downloads.skipPreviouslyDownloaded ? "" : " hidden"}>
             <div class="ig-hd-skip-history-note">
               <span class="ig-hd-skip-history-count" id="ig-hd-skip-history-count">—</span>
@@ -3907,20 +3847,6 @@ const APP_CORE = (() => {
     const includeTaggedToggle = modal.querySelector("#ig-hd-profile-include-tagged");
     const taggedIncludeCarouselWrap = modal.querySelector("#ig-hd-tagged-include-carousel-wrap");
     const taggedIncludeCarouselToggle = modal.querySelector("#ig-hd-tagged-include-carousel");
-    const dateFilterGroup = modal.querySelector("#ig-hd-date-filter-group");
-    const dateFilterEnabledToggle = modal.querySelector("#ig-hd-date-filter-enabled");
-    const dateFilterModeAfter = modal.querySelector("#ig-hd-date-filter-mode-after");
-    const dateFilterModeBefore = modal.querySelector("#ig-hd-date-filter-mode-before");
-    const dateFilterModeBetween = modal.querySelector("#ig-hd-date-filter-mode-between");
-    const dateFilterModeCheckboxes = [dateFilterModeAfter, dateFilterModeBefore, dateFilterModeBetween];
-    const dateFilterStartInput = modal.querySelector("#ig-hd-date-filter-start");
-    const dateFilterEndInput = modal.querySelector("#ig-hd-date-filter-end");
-    const dateFilterBody = modal.querySelector(".ig-hd-date-filter-body");
-    const dateFilterStartWrap = modal.querySelector(".ig-hd-date-filter-fields--start");
-    const dateFilterEndWrap = modal.querySelector(".ig-hd-date-filter-fields--end");
-    const dateFilterDatesRow = modal.querySelector(".ig-hd-date-filter-dates-row");
-    const dateFilterWarning = modal.querySelector(".ig-hd-date-filter-warning");
-    const dateFilterModeHelp = modal.querySelector("#ig-hd-date-filter-mode-help");
     const riskAckInput = modal.querySelector("#ig-hd-risk-ack");
     const sourceSegToggle = modal.querySelector("#ig-hd-source-seg");
     const sourceSegThumb = modal.querySelector("#ig-hd-source-seg-thumb");
@@ -4115,8 +4041,6 @@ const APP_CORE = (() => {
       // Toggle content areas
       if (sourceProfileContent) sourceProfileContent.classList.toggle("visible", !isSaved);
       if (sourceSavedContent) sourceSavedContent.classList.toggle("visible", isSaved);
-      // Hide date filter section in saved mode
-      if (dateFilterGroup) dateFilterGroup.style.display = isSaved ? "none" : "";
       // Update download button label
       if (profileDownloadButton) {
         profileDownloadButton.textContent = "Start Download";
@@ -4290,46 +4214,6 @@ const APP_CORE = (() => {
         includeProfilePicture: !!includeProfilePictureToggle?.checked,
         taggedIncludeAllCarouselMedia: !!taggedIncludeCarouselToggle?.checked
       });
-    }
-
-    function getDateFilterMode() {
-      if (dateFilterModeAfter?.checked) return "after";
-      if (dateFilterModeBefore?.checked) return "before";
-      if (dateFilterModeBetween?.checked) return "between";
-      return "after";
-    }
-
-    const DATE_FILTER_MODE_HELP = {
-      after: "Download only media posted after your chosen date.",
-      before: "Download only media posted before your chosen date.",
-      between: "Download only media posted within your chosen date range."
-    };
-
-    function readDateFilterFromInputs() {
-      return normalizeDateFilter({
-        enabled: !!dateFilterEnabledToggle?.checked,
-        mode: getDateFilterMode(),
-        startDate: dateFilterStartInput?.value,
-        endDate: dateFilterEndInput?.value
-      });
-    }
-
-    function syncDateFilterVisibility() {
-      const mode = getDateFilterMode();
-      const state = computeDateFilterVisibilityState({
-        enabled: !!dateFilterEnabledToggle?.checked,
-        mode,
-        startDate: dateFilterStartInput?.value || "",
-        endDate: dateFilterEndInput?.value || ""
-      });
-      if (dateFilterBody) dateFilterBody.classList.toggle("collapsed", state.bodyHidden);
-      if (dateFilterStartWrap) dateFilterStartWrap.hidden = state.startHidden;
-      if (dateFilterEndWrap) dateFilterEndWrap.hidden = state.endHidden;
-      if (dateFilterDatesRow) {
-        dateFilterDatesRow.classList.toggle("ig-hd-date-filter-dates-row--single", state.single);
-      }
-      if (dateFilterWarning) dateFilterWarning.hidden = state.warningHidden;
-      if (dateFilterModeHelp) dateFilterModeHelp.textContent = DATE_FILTER_MODE_HELP[mode] || "";
     }
 
     function syncProfileDownloadButtonLabel() {
@@ -4626,8 +4510,7 @@ const APP_CORE = (() => {
         profileDownload: {
           maxItems: profileMaxItemsInput.value,
           requireWarningAck: true,
-          ...resolvedSelection,
-          dateFilter: readDateFilterFromInputs()
+          ...resolvedSelection
         },
         savedDownload: sanitizeSavedDownloadSettings(readSavedDownloadSettingsFromInputs())
       });
@@ -4735,42 +4618,12 @@ const APP_CORE = (() => {
         triggerImmediateAutosave();
       });
     });
-    dateFilterEnabledToggle?.addEventListener("change", () => {
-      syncDateFilterVisibility();
-      triggerImmediateAutosave();
-    });
-    dateFilterModeCheckboxes.forEach((cb) => {
-      cb?.addEventListener("change", () => {
-        if (cb.checked) {
-          dateFilterModeCheckboxes.forEach((other) => { if (other && other !== cb) other.checked = false; });
-        } else {
-          cb.checked = true;
-        }
-        syncDateFilterVisibility();
-        triggerImmediateAutosave();
-      });
-    });
-    [dateFilterStartInput, dateFilterEndInput].forEach((input) => {
-      input?.addEventListener("input", () => {
-        syncDateFilterVisibility();
-        scheduleDebouncedAutosave();
-      });
-      input?.addEventListener("change", () => {
-        syncDateFilterVisibility();
-        triggerImmediateAutosave();
-      });
-      input?.addEventListener("blur", () => {
-        void flushPendingAutosave();
-      });
-    });
     for (const input of policyInputs) {
       input.addEventListener("input", () => {
         handleManualPolicyEdit();
         scheduleDebouncedAutosave();
       });
     }
-    syncDateFilterVisibility();
-
     void (async () => {
       const storedHandle = await getStoredOutputDirectoryHandle();
       if (storedHandle?.name) {

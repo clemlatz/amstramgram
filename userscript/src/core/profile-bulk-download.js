@@ -341,25 +341,12 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
     return tasks;
   }
 
-  async function collectProfileHighlightDownloadTasks(username, userId, appId, policy, maxItems = 0, options = {}) {
-    function createDateFilterCounters() {
-      return { scanned: 0, matched: 0, outOfRange: 0, noDateSkipped: 0 };
-    }
-
+  async function collectProfileHighlightDownloadTasks(username, userId, appId, policy, maxItems = 0) {
     const collected = [];
     const seen = new Set();
     const limit = Number(maxItems) > 0 ? Number(maxItems) : 0;
-    const onProgressText = typeof options?.onProgressText === "function" ? options.onProgressText : null;
-    const dateFilter = (_getSettings()?.profileDownload?.dateFilter) || { enabled: false };
-    const dateFilterCounters = createDateFilterCounters();
 
-    const buildResult = () => ({
-      tasks: collected,
-      dateFilterCounters,
-      // Highlights never early-terminate (items are not guaranteed to be
-      // time-ordered), but include the flag for caller shape consistency.
-      dateFilterTerminatedEarly: false
-    });
+    const buildResult = () => ({ tasks: collected });
 
     const trayUrl = `https://i.instagram.com/api/v1/highlights/${userId}/highlights_tray/`;
     const trayData = await gmFetch(trayUrl, {
@@ -382,27 +369,7 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
         ? response.allItemsData
         : (Array.isArray(response?.data?.items) ? response.data.items : []);
 
-      // Per-item filter gate: highlights items are NOT guaranteed to be
-      // time-ordered, so we skip out-of-range items individually and never
-      // terminate early. Filtered items are dropped before task construction
-      // so they don't consume the maxItems budget.
-      const filteredHighlightItems = [];
-      for (const highlightItem of highlightItems) {
-        const dateCheck = DATE_FILTER_CORE.itemPassesDateFilter(highlightItem?.taken_at, dateFilter);
-        dateFilterCounters.scanned += 1;
-        if (!dateCheck.pass) {
-          if (dateCheck.reason === "no-date") {
-            dateFilterCounters.noDateSkipped += 1;
-          } else if (dateCheck.reason === "out-of-range") {
-            dateFilterCounters.outOfRange += 1;
-          }
-          continue; // skip this item, NEVER break
-        }
-        dateFilterCounters.matched += 1;
-        filteredHighlightItems.push(highlightItem);
-      }
-
-      const highlightTasks = buildProfileHighlightDownloadTasks(filteredHighlightItems, username, highlight.id, highlight.title);
+      const highlightTasks = buildProfileHighlightDownloadTasks(highlightItems, username, highlight.id, highlight.title);
 
       for (const task of highlightTasks) {
         const key = `${task.url}|${task.filename}`;
@@ -412,10 +379,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
         if (limit > 0 && collected.length >= limit) {
           return buildResult();
         }
-      }
-
-      if (dateFilter && dateFilter.enabled === true && onProgressText) {
-        onProgressText(`Filtering highlights... ${dateFilterCounters.matched} matched / ${dateFilterCounters.scanned} scanned`);
       }
 
       if (collected.length >= _getSettings().safetyThresholdCount && i < highlights.length - 1) {
@@ -428,17 +391,10 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
   }
 
   async function collectProfileDownloadTasks(username, userId, appId, policy, maxItems = 0, options = {}) {
-    function createDateFilterCounters() {
-      return { scanned: 0, matched: 0, outOfRange: 0, noDateSkipped: 0 };
-    }
-
     const collected = [];
     const seen = new Set();
     const limit = Number(maxItems) > 0 ? Number(maxItems) : 0;
     const onProgressText = typeof options?.onProgressText === "function" ? options.onProgressText : null;
-    const dateFilter = (_getSettings()?.profileDownload?.dateFilter) || { enabled: false };
-    const dateFilterCounters = createDateFilterCounters();
-    let dateFilterTerminatedEarly = false;
     const deltaSyncEnabled = POSTS_FEED_SUPPORTS_DELTA_SYNC
       && !!_getSettings()?.downloads?.skipPreviouslyDownloaded;
     let deltaSyncConsecutiveHits = 0;
@@ -450,8 +406,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
 
     const buildResult = () => ({
       tasks: collected,
-      dateFilterCounters,
-      dateFilterTerminatedEarly,
       deltaSyncTerminatedEarly,
       deltaSyncSkippedCount
     });
@@ -481,28 +435,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
         emptyPageStreak = 0;
       }
       for (const item of items) {
-        const dateCheck = DATE_FILTER_CORE.itemPassesDateFilter(item?.taken_at, dateFilter);
-        dateFilterCounters.scanned += 1;
-        if (!dateCheck.pass) {
-          if (dateCheck.reason === "no-date") {
-            dateFilterCounters.noDateSkipped += 1;
-          } else if (dateCheck.reason === "out-of-range") {
-            dateFilterCounters.outOfRange += 1;
-          }
-          // Early termination: the posts feed is newest-first for non-pinned items.
-          // Pinned posts (up to 3) sit at the top regardless of age and must not
-          // trigger termination — otherwise an old pinned post kills pagination
-          // before we ever see recent uploads.
-          if (dateCheck.belowLowerBound
-              && !isPinnedPost(item)
-              && DATE_FILTER_CORE.canEarlyTerminate(dateFilter)) {
-            dateFilterTerminatedEarly = true;
-            break;
-          }
-          continue;
-        }
-        dateFilterCounters.matched += 1;
-
         const hydratedItem = await hydrateMediaItemForDesktopDash(item);
         const itemTasks = buildProfileItemDownloadTasks(hydratedItem, username);
         for (const task of itemTasks) {
@@ -526,10 +458,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
         }
       }
 
-      if (dateFilter && dateFilter.enabled === true && onProgressText) {
-        onProgressText(`Filtering posts... ${dateFilterCounters.matched} matched / ${dateFilterCounters.scanned} scanned`);
-      }
-
       if (deltaSyncEnabled
           && deltaSyncConsecutiveHits >= DELTA_SYNC_CONSECUTIVE_HIT_THRESHOLD) {
         deltaSyncTerminatedEarly = true;
@@ -543,8 +471,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
       }
 
       if (deltaSyncTerminatedEarly) break;
-
-      if (dateFilterTerminatedEarly) break;
 
       const hasMore = !!page?.more_available;
       const nextMaxId = page?.next_max_id;
@@ -564,45 +490,18 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
     return buildResult();
   }
 
-  // Early termination on these endpoints is pending empirical verification.
-  // Until we confirm reels and tagged return items in strictly descending
-  // taken_at order via cursor pagination, filtering is applied per-item
-  // but termination is disabled — the full pagination runs to its usual cap.
-  const REELS_FEED_SUPPORTS_EARLY_TERMINATION = false;
-  const TAGGED_FEED_SUPPORTS_EARLY_TERMINATION = false;
   const DELTA_SYNC_CONSECUTIVE_HIT_THRESHOLD = 66;
   const POSTS_FEED_SUPPORTS_DELTA_SYNC = true;
 
-  // Instagram pins up to 3 posts at the top of the profile feed regardless of age.
-  // Pinned posts break the newest-first ordering the date filter's early-termination
-  // relies on, so they must be skipped when deciding whether to stop pagination.
-  function isPinnedPost(item) {
-    const pinnedIds = item?.timeline_pinned_user_ids;
-    if (Array.isArray(pinnedIds) && pinnedIds.length > 0) return true;
-    return item?.is_pinned === true || item?.is_pinned_for_account === true;
-  }
-
-  async function collectProfileReelDownloadTasks(username, userId, appId, policy, maxItems = 0, options = {}) {
-    function createDateFilterCounters() {
-      return { scanned: 0, matched: 0, outOfRange: 0, noDateSkipped: 0 };
-    }
-
+  async function collectProfileReelDownloadTasks(username, userId, appId, policy, maxItems = 0) {
     const collected = [];
     const seen = new Set();
     const limit = Number(maxItems) > 0 ? Number(maxItems) : 0;
-    const onProgressText = typeof options?.onProgressText === "function" ? options.onProgressText : null;
-    const dateFilter = (_getSettings()?.profileDownload?.dateFilter) || { enabled: false };
-    const dateFilterCounters = createDateFilterCounters();
-    let dateFilterTerminatedEarly = false;
     let maxId = null;
     let pageCount = 0;
     let emptyPageStreak = 0;
 
-    const buildResult = () => ({
-      tasks: collected,
-      dateFilterCounters,
-      dateFilterTerminatedEarly
-    });
+    const buildResult = () => ({ tasks: collected });
 
     while (true) {
       pageCount += 1;
@@ -630,28 +529,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
       }
       for (const item of items) {
         if (item?.product_type !== "clips") continue;
-        const dateCheck = DATE_FILTER_CORE.itemPassesDateFilter(item?.taken_at, dateFilter);
-        dateFilterCounters.scanned += 1;
-        if (!dateCheck.pass) {
-          if (dateCheck.reason === "no-date") {
-            dateFilterCounters.noDateSkipped += 1;
-          } else if (dateCheck.reason === "out-of-range") {
-            dateFilterCounters.outOfRange += 1;
-          }
-          // Early termination only fires when the feature flag is on AND the item
-          // is below the lower bound. The reels endpoint is not yet empirically
-          // confirmed to return items in strict descending taken_at order via
-          // cursor pagination, so the flag stays false until verified.
-          if (REELS_FEED_SUPPORTS_EARLY_TERMINATION
-              && dateCheck.belowLowerBound
-              && DATE_FILTER_CORE.canEarlyTerminate(dateFilter)) {
-            dateFilterTerminatedEarly = true;
-            break;
-          }
-          continue;
-        }
-        dateFilterCounters.matched += 1;
-
         const hydratedItem = await hydrateMediaItemForDesktopDash(item);
         const itemTasks = buildProfileItemDownloadTasks(hydratedItem, username);
         for (const task of itemTasks) {
@@ -664,12 +541,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
           }
         }
       }
-
-      if (dateFilter && dateFilter.enabled === true && onProgressText) {
-        onProgressText(`Filtering reels... ${dateFilterCounters.matched} matched / ${dateFilterCounters.scanned} scanned`);
-      }
-
-      if (dateFilterTerminatedEarly) break;
 
       const hasMore = !!page?.more_available;
       const nextMaxId = page?.next_max_id;
@@ -686,18 +557,11 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
   }
 
   async function collectTaggedProfileDownloadTasks(username, userId, appId, policy, maxItems = 0, options = {}) {
-    function createDateFilterCounters() {
-      return { scanned: 0, matched: 0, outOfRange: 0, noDateSkipped: 0 };
-    }
-
     const collected = [];
     const seen = new Set();
     const limit = Number(maxItems) > 0 ? Number(maxItems) : 0;
     const includeAllCarouselMedia = options?.includeAllCarouselMedia === true;
     const onProgress = typeof options?.onProgress === "function" ? options.onProgress : null;
-    const dateFilter = (_getSettings()?.profileDownload?.dateFilter) || { enabled: false };
-    const dateFilterCounters = createDateFilterCounters();
-    let dateFilterTerminatedEarly = false;
     const retryCount = UTILITIES_CORE.toBoundedPositiveInt(policy?.retryCount, 0, 0, 8);
     const retryBackoffMs = UTILITIES_CORE.toBoundedPositiveInt(policy?.retryBackoffMs, 0, 0, 600000);
     const traceSampleLimit = 5;
@@ -710,35 +574,7 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
     let showedBlockedByClientNotice = false;
     let lastProgressEmitAt = 0;
 
-    const buildResult = () => ({
-      tasks: collected,
-      dateFilterCounters,
-      dateFilterTerminatedEarly
-    });
-    // Shared gate used before building tasks from any tagged item. Returns true
-    // if the item passes the filter. Updates counters and, when the feature
-    // flag is enabled, flips dateFilterTerminatedEarly when we see an item
-    // below the lower bound. Caller must check dateFilterTerminatedEarly to
-    // break out of the surrounding loops.
-    const passesTaggedDateFilter = (item) => {
-      const dateCheck = DATE_FILTER_CORE.itemPassesDateFilter(item?.taken_at, dateFilter);
-      dateFilterCounters.scanned += 1;
-      if (!dateCheck.pass) {
-        if (dateCheck.reason === "no-date") {
-          dateFilterCounters.noDateSkipped += 1;
-        } else if (dateCheck.reason === "out-of-range") {
-          dateFilterCounters.outOfRange += 1;
-        }
-        if (TAGGED_FEED_SUPPORTS_EARLY_TERMINATION
-            && dateCheck.belowLowerBound
-            && DATE_FILTER_CORE.canEarlyTerminate(dateFilter)) {
-          dateFilterTerminatedEarly = true;
-        }
-        return false;
-      }
-      dateFilterCounters.matched += 1;
-      return true;
-    };
+    const buildResult = () => ({ tasks: collected });
     const addUniqueCollectedTask = (task) => {
       const key = `${task.url}|${task.filename}`;
       if (seen.has(key)) return false;
@@ -832,10 +668,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
           // Tagged Relay feed nodes often contain grid-sized media URLs.
           // Prefer shortcode resolution (post fetch path) whenever a shortcode is available.
           for (const item of graphQlItemsWithoutShortcodes) {
-            if (!passesTaggedDateFilter(item)) {
-              if (dateFilterTerminatedEarly) break;
-              continue;
-            }
             const hydratedItem = await hydrateMediaItemForDesktopDash(item);
             const itemTasks = buildProfileItemDownloadTasks(hydratedItem, username, {
               includeAllCarouselMedia: includeAllCarouselMedia,
@@ -850,7 +682,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
               }
             }
           }
-          if (dateFilterTerminatedEarly) break;
 
           const graphQlShortcodes = Array.from(new Set([
             ...graphQlDirectShortcodes,
@@ -924,11 +755,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
               itemSummary: summarizeTaggedItemForTrace(mediaItem, userId, username)
             });
 
-            if (!passesTaggedDateFilter(mediaItem)) {
-              if (dateFilterTerminatedEarly) break;
-              continue;
-            }
-
             const itemTasks = buildProfileItemDownloadTasks(mediaItem, username, {
               includeAllCarouselMedia: includeAllCarouselMedia,
               taggedUserId: userId,
@@ -947,7 +773,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
               if (delayMs > 0) await sleepMs(delayMs);
             }
           }
-          if (dateFilterTerminatedEarly) break;
           emitTaggedCollectionProgress({
             stage: "graphql-page-done",
             source: "graphql",
@@ -1211,10 +1036,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
         message: `Legacy tagged page ${pageCount}: ${items.length} item(s) found`
       }, true);
       for (const item of items) {
-        if (!passesTaggedDateFilter(item)) {
-          if (dateFilterTerminatedEarly) break;
-          continue;
-        }
         const hydratedItem = await hydrateMediaItemForDesktopDash(item);
         const itemTasks = buildProfileItemDownloadTasks(hydratedItem, username, {
           includeAllCarouselMedia: includeAllCarouselMedia,
@@ -1231,7 +1052,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
           }
         }
       }
-      if (dateFilterTerminatedEarly) break;
 
       const hasMore = !!page?.more_available;
       const nextMaxId = page?.next_max_id;
@@ -1456,23 +1276,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
         scopedTasks.push(task);
       };
 
-      // Shared counters merged from all four collectors in this bulk run.
-      // Step 5.6: a single object reflects the combined totals used for
-      // the consolidated summary log at the end.
-      const combinedDateFilterCounters = { scanned: 0, matched: 0, outOfRange: 0, noDateSkipped: 0 };
-      let combinedDateFilterTerminatedEarly = false;
-      const mergeDateFilterCounters = (result) => {
-        const counters = result && result.dateFilterCounters;
-        if (counters) {
-          combinedDateFilterCounters.scanned += Number(counters.scanned) || 0;
-          combinedDateFilterCounters.matched += Number(counters.matched) || 0;
-          combinedDateFilterCounters.outOfRange += Number(counters.outOfRange) || 0;
-          combinedDateFilterCounters.noDateSkipped += Number(counters.noDateSkipped) || 0;
-        }
-        if (result && result.dateFilterTerminatedEarly === true) {
-          combinedDateFilterTerminatedEarly = true;
-        }
-      };
       let combinedDeltaSyncSkippedCount = 0;
       let combinedDeltaSyncTerminatedEarly = false;
       const mergeDeltaSyncCounters = (result) => {
@@ -1508,7 +1311,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
             }
           );
           addUniqueScopedTasks(postResult.tasks);
-          mergeDateFilterCounters(postResult);
           mergeDeltaSyncCounters(postResult);
         }
       }
@@ -1527,19 +1329,9 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
             userId,
             appId,
             policy,
-            remainingLimit,
-            {
-              onProgressText: (text) => {
-                updateProfileBulkSetupProgress({
-                  stage: "reels",
-                  phase: text,
-                  collected: scopedTasks.length
-                });
-              }
-            }
+            remainingLimit
           );
           addUniqueScopedTasks(reelResult.tasks);
-          mergeDateFilterCounters(reelResult);
         }
       }
 
@@ -1557,19 +1349,9 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
             userId,
             appId,
             policy,
-            remainingLimit,
-            {
-              onProgressText: (text) => {
-                updateProfileBulkSetupProgress({
-                  stage: "highlights",
-                  phase: text,
-                  collected: scopedTasks.length
-                });
-              }
-            }
+            remainingLimit
           );
           addUniqueScopedTasks(highlightResult.tasks);
-          mergeDateFilterCounters(highlightResult);
         }
       }
 
@@ -1606,26 +1388,9 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
             }
           );
           addUniqueScopedTasks(taggedResult.tasks);
-          mergeDateFilterCounters(taggedResult);
         }
       }
 
-      // Consolidated date-filter summary (Step 5.7). Emitted once per bulk run,
-      // after every collector has completed, reflecting combined totals across
-      // posts + reels + highlights + tagged.
-      const activeDateFilter = _getSettings()?.profileDownload?.dateFilter;
-      if (activeDateFilter && activeDateFilter.enabled === true) {
-        let summary = `[Amstragram] Date filter: collected ${combinedDateFilterCounters.matched} items across all content types`
-          + ` (${combinedDateFilterCounters.matched} of ${combinedDateFilterCounters.scanned} scanned`;
-        if (combinedDateFilterCounters.noDateSkipped > 0) {
-          summary += `; ${combinedDateFilterCounters.noDateSkipped} skipped: no date`;
-        }
-        summary += `)`;
-        if (combinedDateFilterTerminatedEarly) {
-          summary += ` — one or more feeds stopped early (remaining items are older than start date)`;
-        }
-        debugLog(summary);
-      }
       if (combinedDeltaSyncSkippedCount > 0) {
         debugLog(`[Amstragram] Delta sync: skipped ${combinedDeltaSyncSkippedCount} already-downloaded item(s)${combinedDeltaSyncTerminatedEarly ? " (terminated early)" : ""}.`);
       }

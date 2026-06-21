@@ -37,7 +37,6 @@ core/media-selection.js← Selects best representation from a DASH manifest
 core/dm-lightspeed.js  ← Parses Instagram DM Lightspeed GraphQL payloads
 core/download-pipeline.js ← Orchestrates all downloads (GM_download passthrough, DASH fetch+mux, blob saves)
 core/file-metadata.js  ← Filename templating, sanitization, metadata sidecar building (JSON/XMP)
-core/date-filter.js    ← Pure date-range filter helpers for bulk downloads
 core/story-matching.js ← Matches story items to DOM/API signals
 core/settings-schema.js ← Settings schema: DEFAULT_USER_SETTINGS, all sanitize*/normalize* functions
 core/styles.js         ← CSS injection (appended to DOM at load), icons object, SETTINGS_LAUNCHER_ICON_SVG

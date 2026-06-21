@@ -2553,34 +2553,6 @@ const STYLES_CORE = (() => {
       font-weight: 600;
       color: var(--ig-hd-text-primary);
     }
-    .ig-hd-date-filter-body {
-      display: grid;
-      grid-template-rows: 1fr;
-      transition: grid-template-rows 0.2s ease, opacity 0.2s ease;
-      opacity: 1;
-      overflow: hidden;
-    }
-    .ig-hd-date-filter-body.collapsed {
-      grid-template-rows: 0fr;
-      opacity: 0;
-    }
-    .ig-hd-date-filter-body-inner {
-      min-height: 0;
-      display: grid;
-      gap: 0;
-    }
-    .ig-hd-date-filter-dates-row.ig-hd-date-filter-dates-row--single {
-      grid-template-columns: 1fr;
-    }
-    .ig-hd-date-filter-fields--start[hidden],
-    .ig-hd-date-filter-fields--end[hidden] {
-      display: none;
-    }
-    .ig-hd-date-filter-warning {
-      color: var(--ig-hd-warning-fg, #c43);
-      font-size: 12px;
-      margin: 4px 0 0;
-    }
     .ig-hd-download-btn {
       width: 100%;
       text-align: center;

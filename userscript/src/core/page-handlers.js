@@ -6196,22 +6196,15 @@ const PAGE_HANDLERS_CORE = (() => {
    * @param {string} appId - Instagram app ID
    * @param {object} policy - Pacing policy (for randomIntBetween delays)
    * @param {number} maxItems - 0 = unlimited
-   * @param {object} options - { onProgressText, useCollectionSubfolder, dateFilter }
-   * @returns {{ tasks, dateFilterCounters, dateFilterTerminatedEarly, deltaSyncSkippedCount, deltaSyncTerminatedEarly }}
+   * @param {object} options - { onProgressText, useCollectionSubfolder }
+   * @returns {{ tasks, deltaSyncSkippedCount, deltaSyncTerminatedEarly }}
    */
   async function collectSavedDownloadTasks(collectionId, collectionName, appId, policy, maxItems = 0, options = {}) {
-    function createDateFilterCounters() {
-      return { scanned: 0, matched: 0, outOfRange: 0, noDateSkipped: 0 };
-    }
-
     const collected = [];
     const seen = new Set();
     const limit = Number(maxItems) > 0 ? Number(maxItems) : 0;
     const onProgressText = typeof options?.onProgressText === "function" ? options.onProgressText : null;
-    const dateFilter = options?.dateFilter || (_getSettings()?.profileDownload?.dateFilter) || { enabled: false };
     const useCollectionSubfolder = options?.useCollectionSubfolder === true;
-    const dateFilterCounters = createDateFilterCounters();
-    let dateFilterTerminatedEarly = false;
     const deltaSyncEnabled = !!_getSettings()?.downloads?.skipPreviouslyDownloaded;
     let deltaSyncConsecutiveHits = 0;
     let deltaSyncSkippedCount = 0;
@@ -6222,8 +6215,6 @@ const PAGE_HANDLERS_CORE = (() => {
 
     const buildResult = () => ({
       tasks: collected,
-      dateFilterCounters,
-      dateFilterTerminatedEarly,
       deltaSyncTerminatedEarly,
       deltaSyncSkippedCount
     });
@@ -6254,22 +6245,6 @@ const PAGE_HANDLERS_CORE = (() => {
       }
 
       for (const mediaItem of items) {
-        const dateCheck = DATE_FILTER_CORE.itemPassesDateFilter(mediaItem?.taken_at, dateFilter);
-        dateFilterCounters.scanned += 1;
-        if (!dateCheck.pass) {
-          if (dateCheck.reason === "no-date") {
-            dateFilterCounters.noDateSkipped += 1;
-          } else if (dateCheck.reason === "out-of-range") {
-            dateFilterCounters.outOfRange += 1;
-          }
-          if (dateCheck.belowLowerBound && DATE_FILTER_CORE.canEarlyTerminate(dateFilter)) {
-            dateFilterTerminatedEarly = true;
-            break;
-          }
-          continue;
-        }
-        dateFilterCounters.matched += 1;
-
         // Saved items come from many users — use each item's owner username
         const itemUsername = mediaItem?.user?.username || "unknown";
         const isReel = mediaItem?.product_type === "clips";
@@ -6307,7 +6282,7 @@ const PAGE_HANDLERS_CORE = (() => {
         }
       }
 
-      if (dateFilterTerminatedEarly || deltaSyncTerminatedEarly) break;
+      if (deltaSyncTerminatedEarly) break;
 
       if (feedPage.moreAvailable && feedPage.nextMaxId) {
         maxId = feedPage.nextMaxId;
@@ -6355,7 +6330,6 @@ const PAGE_HANDLERS_CORE = (() => {
       : getActiveBulkPolicy();
     const maxItems = UTILITIES_CORE.toBoundedPositiveInt(options?.maxItems, _getSettings().profileDownload.maxItems, 0, 20000);
     const useCollectionSubfolder = options?.useCollectionSubfolder !== false;
-    const dateFilter = _getSettings()?.profileDownload?.dateFilter || { enabled: false };
     const appId = getAppID();
 
     const collectionNames = collections.map(c => c.name || c.id).join(", ");
@@ -6428,7 +6402,6 @@ const PAGE_HANDLERS_CORE = (() => {
         }
       };
 
-      const combinedDateFilterCounters = { scanned: 0, matched: 0, outOfRange: 0, noDateSkipped: 0 };
       let combinedDeltaSyncSkippedCount = 0;
 
       for (const collection of collections) {
@@ -6449,7 +6422,6 @@ const PAGE_HANDLERS_CORE = (() => {
           remainingLimit,
           {
             useCollectionSubfolder,
-            dateFilter,
             onProgressText: (text) => {
               updateSavedBulkSetupProgress({
                 phase: text,
@@ -6460,24 +6432,12 @@ const PAGE_HANDLERS_CORE = (() => {
         );
 
         addUniqueScopedTasks(result.tasks);
-
-        // Merge counters
-        const counters = result.dateFilterCounters;
-        if (counters) {
-          combinedDateFilterCounters.scanned += Number(counters.scanned) || 0;
-          combinedDateFilterCounters.matched += Number(counters.matched) || 0;
-          combinedDateFilterCounters.outOfRange += Number(counters.outOfRange) || 0;
-          combinedDateFilterCounters.noDateSkipped += Number(counters.noDateSkipped) || 0;
-        }
         combinedDeltaSyncSkippedCount += Number(result.deltaSyncSkippedCount) || 0;
       }
 
       if (scopedTasks.length === 0) {
         finishSavedBulkSetupProgress("completed", "no downloadable content found");
         let noContentMsg = "Saved: no downloadable content found.";
-        if (combinedDateFilterCounters.outOfRange > 0) {
-          noContentMsg += ` (${combinedDateFilterCounters.outOfRange} filtered by date)`;
-        }
         if (combinedDeltaSyncSkippedCount > 0) {
           noContentMsg += ` (${combinedDeltaSyncSkippedCount} skipped as previously downloaded)`;
         }
