@@ -3587,7 +3587,6 @@ const APP_CORE = (() => {
       </div>
       <div class="ig-hd-settings-tabs">
         <button class="ig-hd-settings-tab active" data-tab="preferences" type="button">Preferences</button>
-        <button class="ig-hd-settings-tab" data-tab="export" type="button">Export</button>
         <button class="ig-hd-settings-tab" data-tab="downloader" type="button">Downloader</button>
       </div>
       <div class="ig-hd-settings-body">
@@ -3620,11 +3619,6 @@ const APP_CORE = (() => {
             </div>
             <div class="ig-hd-settings-help">Enter your Amstramgram server URL to sync posts already in its database into the skip list.</div>
           </div>
-        </div>
-        </div>
-        <!-- Tab 2: Export -->
-        <div class="ig-hd-settings-tab-panel" data-tab-panel="export">
-          <!-- ═══ Section 3: Save location ═══ -->
           <div id="ig-hd-save-location-group" class="ig-hd-settings-group" style="margin-top:10px">
             <h3 class="ig-hd-settings-subheading">Save location</h3>
             <div class="ig-hd-settings-card" style="margin-top:18px">
