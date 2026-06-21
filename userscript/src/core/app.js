@@ -4032,7 +4032,7 @@ const APP_CORE = (() => {
   }
 
   function openSettingsModal() {
-    removeMenu();
+    CONTEXT_MENU_CORE.removeMenu();
     removeSettingsModal();
 
     USER_SETTINGS = readStoredUserSettings();

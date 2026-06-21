@@ -687,10 +687,6 @@ const PAGE_HANDLERS_CORE = (() => {
   // =========================================
   // CONTEXT MENU
   // =========================================
-  function removeMenu() {
-    return CONTEXT_MENU_CORE.removeMenu();
-  }
-
   function createMenu(x, y, items) {
     return CONTEXT_MENU_CORE.createMenu(x, y, items, {
       menuId: "ig-hd-context-menu",
