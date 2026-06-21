@@ -153,18 +153,20 @@ const PAGE_HANDLERS_CORE = (() => {
     _startProfileGridObserver();
   }
 
-  installSettingsLauncherRouteHooks();
-  installSettingsLauncherThemeHooks();
-  if (document.body) {
-    applyTheme();
-    syncSettingsLauncherButton();
-    syncProfileGridObserver();
-  } else {
-    document.addEventListener("DOMContentLoaded", () => {
+  function _setup() {
+    installSettingsLauncherRouteHooks();
+    installSettingsLauncherThemeHooks();
+    if (document.body) {
       applyTheme();
       syncSettingsLauncherButton();
       syncProfileGridObserver();
-    }, { once: true });
+    } else {
+      document.addEventListener("DOMContentLoaded", () => {
+        applyTheme();
+        syncSettingsLauncherButton();
+        syncProfileGridObserver();
+      }, { once: true });
+    }
   }
 
   // =========================================
@@ -7908,6 +7910,7 @@ const PAGE_HANDLERS_CORE = (() => {
 
   return {
     _init,
+    _setup,
     collectTaggedTasksFromProfilePageFallback,
     extractHttpStatusCodeFromError,
     extractTaggedFeedMediaItems,

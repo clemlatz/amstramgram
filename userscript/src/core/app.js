@@ -6525,6 +6525,7 @@ const APP_CORE = (() => {
     tryCustomFolderDownload,
     applyTheme,
   });
+  PAGE_HANDLERS_CORE._setup();
 
   const { startProfileBulkDownload } = PROFILE_BULK_DOWNLOAD_CORE;
   PROFILE_BULK_DOWNLOAD_CORE._init({
