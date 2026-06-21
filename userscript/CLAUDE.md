@@ -43,7 +43,8 @@ core/settings-schema.js ← Settings schema: DEFAULT_USER_SETTINGS, all sanitize
 core/styles.js         ← CSS injection (appended to DOM at load), icons object, SETTINGS_LAUNCHER_ICON_SVG
 core/page-handlers.js  ← All page handlers (right-click, story, DM, profile pic) and their API/helper infrastructure; injected with batch fns via PAGE_HANDLERS_CORE._init()
 core/profile-bulk-download.js ← Profile bulk download orchestration (collect tasks, run batch per content type); injected via PROFILE_BULK_DOWNLOAD_CORE._init()
-main.js                ← Main IIFE: runtime config, settings storage, batch controller, init wiring
+core/app.js            ← Settings storage, batch controller UI, batch download loop, settings modal, cooldown indicator; initializes PAGE_HANDLERS_CORE and PROFILE_BULK_DOWNLOAD_CORE via _init()
+main.js                ← Thin outer IIFE (~74 lines): global contextmenu listener + window diagnostic exports
 ```
 
 Each `core/*.js` file exports a single `const X_CORE = (() => { ... })();` IIFE that returns a plain object of functions.

@@ -33,6 +33,7 @@ const FILES = [
   "core/styles.js",
   "core/page-handlers.js",
   "core/profile-bulk-download.js",
+  "core/app.js",
   "main.js",
 ];
 
