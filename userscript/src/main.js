@@ -2594,6 +2594,41 @@
       opacity: 1;
       cursor: not-allowed;
     }
+    /* Profile grid — downloaded post markers */
+    a[data-ig-hd-downloaded] { position: relative; }
+    .ig-hd-grid-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      pointer-events: none;
+      z-index: 1;
+    }
+    .ig-hd-grid-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .ig-hd-grid-badge svg {
+      width: 12px;
+      height: 12px;
+      stroke: #fff;
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    [data-ig-hd-theme="light"] .ig-hd-grid-overlay { background: rgba(0, 0, 0, 0.25); }
+    [data-ig-hd-theme="light"] .ig-hd-grid-badge { background: rgba(255, 255, 255, 0.7); }
+    [data-ig-hd-theme="light"] .ig-hd-grid-badge svg { stroke: #333; }
     @media (max-width: 700px) {
       .ig-hd-settings-row.two-col {
         grid-template-columns: 1fr;
@@ -7124,6 +7159,7 @@
       settingsLauncherSyncLastRun = Date.now();
       if (USER_SETTINGS?.theme === "auto") applyTheme();
       syncSettingsLauncherButton();
+      syncProfileGridObserver();
     };
 
     if (elapsed >= THROTTLE_MS) {
@@ -9680,10 +9716,12 @@
   if (document.body) {
     applyTheme();
     syncSettingsLauncherButton();
+    syncProfileGridObserver();
   } else {
     document.addEventListener("DOMContentLoaded", () => {
       applyTheme();
       syncSettingsLauncherButton();
+      syncProfileGridObserver();
     }, { once: true });
   }
 
@@ -19997,6 +20035,85 @@ const STORY_MATCHING_CORE = (() => {
       }
       throw err;
     }
+  }
+
+  // =========================================
+  // PROFILE GRID — DOWNLOADED POST OVERLAY
+  // =========================================
+  let _profileGridObserver = null;
+  let _profileGridSeenLinks = new Set();
+
+  function _markProfileGridLink(link) {
+    const overlay = document.createElement("div");
+    overlay.className = "ig-hd-grid-overlay";
+    const badge = document.createElement("div");
+    badge.className = "ig-hd-grid-badge";
+    badge.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+    link.setAttribute("data-ig-hd-downloaded", "1");
+    link.appendChild(overlay);
+    link.appendChild(badge);
+  }
+
+  function _processProfileGridLinks(links) {
+    for (const link of links) {
+      if (_profileGridSeenLinks.has(link)) continue;
+      _profileGridSeenLinks.add(link);
+      const href = link.getAttribute("href") || "";
+      const shortcode = extractInstagramPostShortcodeFromHref(href);
+      if (!shortcode) continue;
+      if (hasDownloadedHistoryKey(`shortcode:${shortcode}`)) {
+        _markProfileGridLink(link);
+      }
+    }
+  }
+
+  function _startProfileGridObserver() {
+    const root = document.querySelector("main") || document.body;
+    if (!root || typeof MutationObserver !== "function") return;
+
+    const selector = "a[href*='/p/'], a[href*='/reel/'], a[href*='/reels/']";
+
+    const initialLinks = root.querySelectorAll(selector);
+    _processProfileGridLinks(initialLinks);
+
+    _profileGridObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType !== 1) continue;
+          const links = [];
+          if (node.matches?.(selector)) links.push(node);
+          const nested = node.querySelectorAll?.(selector);
+          if (nested) links.push(...nested);
+          if (links.length > 0) _processProfileGridLinks(links);
+        }
+      }
+    });
+
+    _profileGridObserver.observe(root, { childList: true, subtree: true });
+  }
+
+  function _stopProfileGridObserver() {
+    if (_profileGridObserver) {
+      _profileGridObserver.disconnect();
+      _profileGridObserver = null;
+    }
+    _profileGridSeenLinks = new Set();
+    const marked = document.querySelectorAll("[data-ig-hd-downloaded]");
+    for (const el of marked) {
+      el.removeAttribute("data-ig-hd-downloaded");
+      el.querySelector(".ig-hd-grid-overlay")?.remove();
+      el.querySelector(".ig-hd-grid-badge")?.remove();
+    }
+  }
+
+  function syncProfileGridObserver() {
+    const username = getCurrentProfileUsername();
+    if (!username) {
+      _stopProfileGridObserver();
+      return;
+    }
+    _stopProfileGridObserver();
+    _startProfileGridObserver();
   }
 
   // =========================================
