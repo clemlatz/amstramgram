@@ -30,6 +30,7 @@ const FILES = [
   "core/date-filter.js",
   "core/story-matching.js",
   "core/settings-schema.js",
+  "core/styles.js",
   "main.js",
 ];
 

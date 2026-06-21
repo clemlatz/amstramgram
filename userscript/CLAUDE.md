@@ -40,7 +40,8 @@ core/file-metadata.js  ← Filename templating, sanitization, metadata sidecar b
 core/date-filter.js    ← Pure date-range filter helpers for bulk downloads
 core/story-matching.js ← Matches story items to DOM/API signals
 core/settings-schema.js ← Settings schema: DEFAULT_USER_SETTINGS, all sanitize*/normalize* functions
-main.js                ← Main IIFE: CSS, settings storage, batch controller, page handlers
+core/styles.js         ← CSS injection (appended to DOM at load), icons object, SETTINGS_LAUNCHER_ICON_SVG
+main.js                ← Main IIFE: settings storage, batch controller, page handlers
 ```
 
 Each `core/*.js` file exports a single `const X_CORE = (() => { ... })();` IIFE that returns a plain object of functions.
