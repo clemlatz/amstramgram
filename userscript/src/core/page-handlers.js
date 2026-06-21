@@ -1,6 +1,7 @@
 const PAGE_HANDLERS_CORE = (() => {
   const { icons } = STYLES_CORE;
   const { sleepMs, randomIntBetween, getPageWindow, isAndroidUserAgent } = UTILITIES_CORE;
+  const { sanitizeAmstramgramUrl, PROFILE_RESERVED_PATHS } = SETTINGS_SCHEMA_CORE;
   const TAGGED_TRACE_ENABLED = false;
 
   function showToast(message, durationMs = 3500) {
@@ -1400,9 +1401,7 @@ const PAGE_HANDLERS_CORE = (() => {
     if (!candidate) return "";
     if (!/^[A-Za-z0-9._]+$/.test(candidate)) return "";
 
-    const reservedPaths = (typeof PROFILE_RESERVED_PATHS !== "undefined" && PROFILE_RESERVED_PATHS?.has)
-      ? PROFILE_RESERVED_PATHS
-      : new Set(["stories", "highlights", "explore", "reels", "direct", "accounts", "p", "reel", "tv"]);
+    const reservedPaths = PROFILE_RESERVED_PATHS;
 
     if (reservedPaths.has(candidate.toLowerCase())) return "";
     return candidate;
@@ -6467,8 +6466,8 @@ const PAGE_HANDLERS_CORE = (() => {
         // Saved items come from many users — use each item's owner username
         const itemUsername = mediaItem?.user?.username || "unknown";
         const isReel = mediaItem?.product_type === "clips";
-        const hydratedMediaItem = await hydrateMediaItemForDesktopDash(mediaItem);
-        const itemTasks = buildProfileItemDownloadTasks(hydratedMediaItem, itemUsername, { isReel });
+        const hydratedMediaItem = await PROFILE_BULK_DOWNLOAD_CORE.hydrateMediaItemForDesktopDash(mediaItem);
+        const itemTasks = PROFILE_BULK_DOWNLOAD_CORE.buildProfileItemDownloadTasks(hydratedMediaItem, itemUsername, { isReel });
 
         for (const task of itemTasks) {
           const key = `${task.url}|${task.filename}`;
@@ -7408,7 +7407,7 @@ const PAGE_HANDLERS_CORE = (() => {
       const item = coerceTaggedFeedCandidateToProfileItem(node, fallbackCode);
       if (!item) continue;
 
-      const itemTasks = buildProfileItemDownloadTasks(item, username, {
+      const itemTasks = PROFILE_BULK_DOWNLOAD_CORE.buildProfileItemDownloadTasks(item, username, {
         includeAllCarouselMedia: includeAllCarouselMedia,
         taggedUserId: userId,
         taggedUsername: username
@@ -7819,7 +7818,7 @@ const PAGE_HANDLERS_CORE = (() => {
           if (!mediaItem) {
             mediaItem = await fetchPostInfoFromHtml(shortcode);
           }
-          const itemTasks = buildProfileItemDownloadTasks(mediaItem, username, {
+          const itemTasks = PROFILE_BULK_DOWNLOAD_CORE.buildProfileItemDownloadTasks(mediaItem, username, {
             includeAllCarouselMedia: includeAllCarouselMedia,
             taggedUserId: userId,
             taggedUsername: username
@@ -7933,5 +7932,9 @@ const PAGE_HANDLERS_CORE = (() => {
     summarizeTaggedItemForTrace,
     syncProfileGridObserver,
     tryGraphQLTaggedFeed,
+    dispatchVideoDownload,
+    downloadFile,
+    fetchSavedCollections,
+    startSavedBulkDownload,
   };
 })();

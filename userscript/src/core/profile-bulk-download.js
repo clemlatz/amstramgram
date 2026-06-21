@@ -53,6 +53,7 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
   }
 
   let getDownloadHistoryKeyForTask = () => "";
+  let hasDownloadedHistoryKey = () => false;
   let ensureBatchRunRecord = () => {};
   let showBatchProgressIndicator = () => {};
   let getActiveBulkPolicy = () => null;
@@ -64,6 +65,7 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
     if (ctx.runtimeConfig) RUNTIME_CONFIG = ctx.runtimeConfig;
     if (ctx.getUserSettings) _userSettingsGetter = ctx.getUserSettings;
     if (ctx.getDownloadHistoryKeyForTask) getDownloadHistoryKeyForTask = ctx.getDownloadHistoryKeyForTask;
+    if (ctx.hasDownloadedHistoryKey) hasDownloadedHistoryKey = ctx.hasDownloadedHistoryKey;
     if (ctx.ensureBatchRunRecord) ensureBatchRunRecord = ctx.ensureBatchRunRecord;
     if (ctx.showBatchProgressIndicator) showBatchProgressIndicator = ctx.showBatchProgressIndicator;
     if (ctx.getActiveBulkPolicy) getActiveBulkPolicy = ctx.getActiveBulkPolicy;
@@ -1679,5 +1681,5 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
     }
   }
 
-  return { _init, startProfileBulkDownload };
+  return { _init, startProfileBulkDownload, hydrateMediaItemForDesktopDash, buildProfileItemDownloadTasks };
 })();

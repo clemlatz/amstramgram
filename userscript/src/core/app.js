@@ -736,7 +736,7 @@ const APP_CORE = (() => {
   }
 
   async function tryCustomFolderDownload(url, filename, meta = null) {
-    const blob = await fetchMediaBlob(url);
+    const blob = await DOWNLOAD_PIPELINE_CORE.fetchMediaBlob(url);
     return await saveBlobToCustomFolderWithResult(blob, filename, meta);
   }
 
@@ -2927,12 +2927,12 @@ const APP_CORE = (() => {
           for (let attempt = 0; attempt <= safePolicy.retryCount; attempt++) {
             try {
               if (item.videoPlan) {
-                ok = await dispatchVideoDownload(item.videoPlan, item.url, item.filename, item.meta, {
+                ok = await PAGE_HANDLERS_CORE.dispatchVideoDownload(item.videoPlan, item.url, item.filename, item.meta, {
                   allowOpenInTabFallback: false,
                   batch: true
                 });
               } else {
-                ok = await downloadFile(item.url, item.filename, item.meta, {
+                ok = await PAGE_HANDLERS_CORE.downloadFile(item.url, item.filename, item.meta, {
                   allowOpenInTabFallback: false
                 });
               }
@@ -3083,12 +3083,12 @@ const APP_CORE = (() => {
                 const collected = await DOWNLOAD_PIPELINE_CORE.collectResolvedVideoBytes(item.videoPlan);
                 dataBytes = collected.bytes;
               } else {
-                const blob = await fetchMediaBlob(item.url);
+                const blob = await DOWNLOAD_PIPELINE_CORE.fetchMediaBlob(item.url);
                 // Firefox + Tampermonkey hand back cross-realm Blobs whose
                 // arrayBuffer() result throws "Accessing TypedArray data over
                 // Xrays..." when wrapped in a Uint8Array. Read via FileReader so
                 // the bytes land in the userscript realm.
-                dataBytes = await readBlobAsBytes(blob);
+                dataBytes = await DOWNLOAD_PIPELINE_CORE.readBlobAsBytes(blob);
               }
               break;
             } catch (err) {
@@ -3435,10 +3435,9 @@ const APP_CORE = (() => {
     if (!normalized) return;
     if (profileFullNameCache.has(normalized)) return;
     if (profileFullNameFetchInFlight.has(normalized)) return;
-    if (typeof fetchProfileInfoDirect !== "function" || typeof getAppID !== "function") return;
     profileFullNameFetchInFlight.add(normalized);
     Promise.resolve()
-      .then(() => fetchProfileInfoDirect(username, getAppID()))
+      .then(() => PAGE_HANDLERS_CORE.fetchProfileInfoDirect(username, PAGE_HANDLERS_CORE.getAppID()))
       .then((response) => {
         const fullName = response?.fullName ? String(response.fullName).trim() : "";
         if (!fullName) return;
@@ -4958,8 +4957,8 @@ const APP_CORE = (() => {
       if (savedCollectionsLoading) savedCollectionsLoading.hidden = false;
       if (savedCollectionsList) savedCollectionsList.innerHTML = "";
       try {
-        const appId = getAppID();
-        const collections = await fetchSavedCollections(appId);
+        const appId = PAGE_HANDLERS_CORE.getAppID();
+        const collections = await PAGE_HANDLERS_CORE.fetchSavedCollections(appId);
         savedCollectionsCache = collections;
         renderSavedCollections(collections);
       } catch (err) {
@@ -6288,16 +6287,11 @@ const APP_CORE = (() => {
         );
         if (!confirmed) return;
 
-        if (typeof startSavedBulkDownload !== "function") {
-          showToast("Saved bulk downloader is unavailable in this build.");
-          return;
-        }
-
         profileDownloadButton.disabled = true;
         profileDownloadButton.textContent = "Starting...";
         removeSettingsModal();
         try {
-          await startSavedBulkDownload({
+          await PAGE_HANDLERS_CORE.startSavedBulkDownload({
             collections: selectedCollections,
             policy: getActiveBulkPolicy(),
             maxItems: USER_SETTINGS.profileDownload.maxItems,
@@ -6532,6 +6526,7 @@ const APP_CORE = (() => {
     runtimeConfig: RUNTIME_CONFIG,
     getUserSettings: () => USER_SETTINGS,
     getDownloadHistoryKeyForTask,
+    hasDownloadedHistoryKey,
     ensureBatchRunRecord,
     showBatchProgressIndicator,
     getActiveBulkPolicy,
