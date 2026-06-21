@@ -126,11 +126,7 @@ const DASH_MANIFEST_CORE = (() => {
   }
 
   return {
-    parse,
-    __test_decodeEntities: decodeEntities,
-    __test_parseRepresentationOpeningTag: parseRepresentationOpeningTag,
-    __test_parseRepresentation: parseRepresentation,
-    __test_parseAdaptationSet: parseAdaptationSet
+    parse
   };
 })();
 // =========================================

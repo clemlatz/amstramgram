@@ -228,9 +228,7 @@ const MEDIA_SELECTION_CORE = (() => {
   }
 
   return {
-    selectBestMedia,
-    __test_collectImageCandidates: collectImageCandidates,
-    __test_collectVideoVersions: collectVideoVersions
+    selectBestMedia
   };
 })();
 // =========================================

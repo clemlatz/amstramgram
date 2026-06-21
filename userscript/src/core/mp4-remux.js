@@ -123,11 +123,6 @@ const MP4_REMUX_CORE = (() => {
     return children.find((c) => c.type === type) || null;
   }
 
-  function findChildren(buf, parentHdr, type) {
-    const children = readContainerChildren(buf, parentHdr);
-    return children.filter((c) => c.type === type);
-  }
-
   function fourCCBytes(type) {
     if (typeof type !== "string" || type.length !== 4) {
       throw new Error(`invalid fourCC: ${type}`);
@@ -173,49 +168,6 @@ const MP4_REMUX_CORE = (() => {
     return out;
   }
 
-  // Reuse the original header bytes (preserves largesize form when the new
-  // payload length matches the original). Falls back to a fresh writeBox when
-  // the length changes.
-  function rewriteBoxPayload(originalBuf, hdr, newPayload) {
-    const originalContentLength = hdr.contentEnd - hdr.contentStart;
-    if (newPayload.length === originalContentLength) {
-      const out = new Uint8Array(hdr.size);
-      out.set(originalBuf.subarray(hdr.contentStart - hdr.headerSize, hdr.contentStart), 0);
-      out.set(newPayload, hdr.headerSize);
-      return out;
-    }
-    return writeBox(hdr.type, newPayload);
-  }
-
-  // FullBox layout: [size:u32][type:4cc][version:u8][flags:u24][...]. Both v0
-  // and v1 tkhd hold track_ID as a u32 — the position differs because v1
-  // promotes creation/modification/duration from u32 to u64.
-  function rewriteTkhdTrackId(buf, tkhdHdr, newTrackId) {
-    const out = new Uint8Array(buf.subarray(tkhdHdr.contentStart - tkhdHdr.headerSize, tkhdHdr.contentEnd));
-    const version = out[tkhdHdr.headerSize];
-    const trackIdOffsetFromContent = version === 1 ? 16 : 8;
-    const trackIdOffsetInSlice = tkhdHdr.headerSize + 4 + trackIdOffsetFromContent;
-    out.set(writeU32BE(newTrackId), trackIdOffsetInSlice);
-    return out;
-  }
-
-  // mfhd: FullBox with a single sequence_number:u32 after version+flags.
-  function rewriteMfhdSequenceNumber(buf, mfhdHdr, newSeq) {
-    const out = new Uint8Array(buf.subarray(mfhdHdr.contentStart - mfhdHdr.headerSize, mfhdHdr.contentEnd));
-    const offset = mfhdHdr.headerSize + 4;
-    out.set(writeU32BE(newSeq), offset);
-    return out;
-  }
-
-  // tfhd: FullBox. After version+flags, track_ID:u32 then optional fields
-  // gated by the flags. We touch only the track_ID; optional fields stay put.
-  function rewriteTfhdTrackId(buf, tfhdHdr, newTrackId) {
-    const out = new Uint8Array(buf.subarray(tfhdHdr.contentStart - tfhdHdr.headerSize, tfhdHdr.contentEnd));
-    const offset = tfhdHdr.headerSize + 4;
-    out.set(writeU32BE(newTrackId), offset);
-    return out;
-  }
-
   // tfdt: FullBox carrying baseMediaDecodeTime in the track's own timescale.
   // v0 stores it as u32, v1 as u64. Returned as BigInt to keep callers honest.
   function readTfdtBaseMediaDecodeTime(buf, tfdtHdr) {
@@ -225,150 +177,6 @@ const MP4_REMUX_CORE = (() => {
       return readU64BE(buf, content + 4);
     }
     return BigInt(readU32BE(buf, content + 4));
-  }
-
-  // trex FullBox: track_ID:u32 default_sample_description_index:u32
-  //   default_sample_duration:u32 default_sample_size:u32 default_sample_flags:u32.
-  // We rewrite ONLY track_ID; the rest is per-codec and copied verbatim.
-  function rewriteTrexTrackId(buf, trexHdr, newTrackId) {
-    const out = new Uint8Array(buf.subarray(trexHdr.contentStart - trexHdr.headerSize, trexHdr.contentEnd));
-    out.set(writeU32BE(newTrackId), trexHdr.headerSize + 4);
-    return out;
-  }
-
-  // Iterates trak children, replacing only tkhd. mdia/hdlr/minf/stbl/stsd
-  // pass through verbatim. edts (the edit list) is intentionally dropped —
-  // IG's audio elst has segment_duration=0 (with media_time=5058 for AAC
-  // priming), and VLC interprets segDur=0 as "no playback for this edit"
-  // → silent audio. Other players (mpv, DOpus, Firefox) treat segDur=0
-  // as "play to end of media" and the file plays correctly. Dropping
-  // edts costs ~105 ms of AAC decoder priming at the very start of audio,
-  // which is inaudible (decoder output during priming is silent or
-  // near-silent), and avoids the cross-player ambiguity entirely.
-  function rebuildTrakWithTrackId(buf, trakHdr, newTrackId) {
-    const trakChildren = readContainerChildren(buf, trakHdr);
-    const parts = [];
-    for (const child of trakChildren) {
-      if (child.type === "tkhd") {
-        parts.push(rewriteTkhdTrackId(buf, child, newTrackId));
-      } else if (child.type === "edts") {
-        continue;
-      } else {
-        parts.push(buf.subarray(child.contentStart - child.headerSize, child.contentEnd));
-      }
-    }
-    return writeBox("trak", concatUint8Arrays(parts));
-  }
-
-  // mvhd FullBox layout (after version+flags):
-  //   v0:  creation_time:u32 modification_time:u32 timescale:u32 duration:u32 ...
-  //        rate:s32 volume:s16 reserved:u16+u32+u32 matrix:9*u32 pre_defined:6*u32 next_track_ID:u32
-  //   v1:  same with creation/modification/duration as u64
-  // next_track_ID is the LAST u32 in the box. Total payload length is 100 (v0) or 112 (v1).
-  function rewriteMvhdNextTrackId(buf, mvhdHdr, newNext) {
-    const out = new Uint8Array(buf.subarray(mvhdHdr.contentStart - mvhdHdr.headerSize, mvhdHdr.contentEnd));
-    const version = out[mvhdHdr.headerSize];
-    const contentLen = mvhdHdr.contentEnd - mvhdHdr.contentStart;
-    const expectedLen = version === 1 ? 112 : 100;
-    if (contentLen < expectedLen) {
-      throw new Error(`mvhd too short (len=${contentLen}, expected>=${expectedLen})`);
-    }
-    out.set(writeU32BE(newNext), mvhdHdr.headerSize + expectedLen - 4);
-    return out;
-  }
-
-  // Builds the combined moov's mvex container. mvex is REQUIRED in the moov
-  // of a fragmented MP4 (ISO/IEC 14496-12 §8.8.1); without it, players see
-  // the empty sample tables in stbl and decide there is no media data.
-  // Each source's trex declares default sample properties for its track —
-  // we keep both, renumbered to match the output track IDs (1 video, 2 audio).
-  // mehd is taken from the video source if present (it carries the longest
-  // fragment_duration, which sets the movie's effective length).
-  function buildCombinedMvex(videoBuf, videoMvex, audioBuf, audioMvex) {
-    const parts = [];
-    if (videoMvex) {
-      const vChildren = readContainerChildren(videoBuf, videoMvex);
-      const vMehd = vChildren.find((c) => c.type === "mehd");
-      if (vMehd) {
-        parts.push(videoBuf.subarray(vMehd.contentStart - vMehd.headerSize, vMehd.contentEnd));
-      }
-      const vTrex = vChildren.find((c) => c.type === "trex");
-      if (vTrex) {
-        parts.push(rewriteTrexTrackId(videoBuf, vTrex, 1));
-      }
-    }
-    if (audioMvex) {
-      const aChildren = readContainerChildren(audioBuf, audioMvex);
-      const aTrex = aChildren.find((c) => c.type === "trex");
-      if (aTrex) {
-        parts.push(rewriteTrexTrackId(audioBuf, aTrex, 2));
-      }
-    }
-    if (parts.length === 0) return null;
-    return writeBox("mvex", concatUint8Arrays(parts));
-  }
-
-  // Combines two source moovs into one with [mvhd, trak#1=video, trak#2=audio, mvex].
-  // Source mvhd of the video is reused (its timescale governs the output);
-  // we only rewrite next_track_ID = 3. mvex/trex are merged with renumbered
-  // track IDs because fragmented MP4 requires mvex to declare that fragments follow.
-  function buildCombinedMoov(videoBuf, videoMoovHdr, audioBuf, audioMoovHdr) {
-    const vMoovChildren = readContainerChildren(videoBuf, videoMoovHdr);
-    const aMoovChildren = readContainerChildren(audioBuf, audioMoovHdr);
-
-    const vMvhd = vMoovChildren.find((c) => c.type === "mvhd");
-    const vTrak = vMoovChildren.find((c) => c.type === "trak");
-    const aTrak = aMoovChildren.find((c) => c.type === "trak");
-    if (!vMvhd) throw new Error("video source missing mvhd");
-    if (!vTrak) throw new Error("video source missing trak");
-    if (!aTrak) throw new Error("audio source missing trak");
-
-    const newMvhd = rewriteMvhdNextTrackId(videoBuf, vMvhd, 3);
-    const newVTrak = rebuildTrakWithTrackId(videoBuf, vTrak, 1);
-    const newATrak = rebuildTrakWithTrackId(audioBuf, aTrak, 2);
-
-    const vMvex = vMoovChildren.find((c) => c.type === "mvex");
-    const aMvex = aMoovChildren.find((c) => c.type === "mvex");
-    const newMvex = buildCombinedMvex(videoBuf, vMvex, audioBuf, aMvex);
-
-    const moovParts = [newMvhd, newVTrak, newATrak];
-    if (newMvex) moovParts.push(newMvex);
-    return writeBox("moov", concatUint8Arrays(moovParts));
-  }
-
-  // Rebuilds a moof box, rewriting mfhd.sequence_number and the inner
-  // traf's tfhd.track_ID. trun, tfdt, sbgp, sgpd, etc. all pass through
-  // verbatim — sample timing/size/keyframe flags are computed against
-  // the source mdat and need no relabeling on a passthrough.
-  function rebuildMoof(buf, moofHdr, newTrackId, newSeq) {
-    const moofChildren = readContainerChildren(buf, moofHdr);
-    const parts = [];
-    for (const child of moofChildren) {
-      if (child.type === "mfhd") {
-        parts.push(rewriteMfhdSequenceNumber(buf, child, newSeq));
-      } else if (child.type === "traf") {
-        const trafChildren = readContainerChildren(buf, child);
-        const trafParts = [];
-        for (const tc of trafChildren) {
-          if (tc.type === "tfhd") {
-            trafParts.push(rewriteTfhdTrackId(buf, tc, newTrackId));
-          } else {
-            trafParts.push(buf.subarray(tc.contentStart - tc.headerSize, tc.contentEnd));
-          }
-        }
-        parts.push(writeBox("traf", concatUint8Arrays(trafParts)));
-      } else {
-        parts.push(buf.subarray(child.contentStart - child.headerSize, child.contentEnd));
-      }
-    }
-    return writeBox("moof", concatUint8Arrays(parts));
-  }
-
-  // Combines a renumbered moof with the source's mdat (untouched).
-  function rebuildFragment(buf, fragment, newTrackId, newSeq) {
-    const moofBytes = rebuildMoof(buf, fragment.moof, newTrackId, newSeq);
-    const mdatBytes = buf.subarray(fragment.mdat.contentStart - fragment.mdat.headerSize, fragment.mdat.contentEnd);
-    return { moofBytes, mdatBytes };
   }
 
   // mdhd FullBox holds the track's timescale (samples per second). v0 layout
@@ -394,37 +202,6 @@ const MP4_REMUX_CORE = (() => {
     const tfdt = trafChildren.find((c) => c.type === "tfdt");
     if (!tfdt) return 0n;
     return readTfdtBaseMediaDecodeTime(buf, tfdt);
-  }
-
-  // Annotates each fragment with its decode time in microseconds for
-  // cross-track ordering. tfdt is in the track's own timescale, so
-  // we need the trak's mdhd.timescale to normalize.
-  function annotateFragmentsWithTime(buf, fragments, trakHdr) {
-    const timescale = BigInt(readMdhdTimescale(buf, trakHdr));
-    if (timescale === 0n) throw new Error("track timescale is zero");
-    return fragments.map((f) => {
-      const bmdt = readFragmentDecodeTime(buf, f.moof);
-      const micros = Number((bmdt * 1000000n) / timescale);
-      return { moof: f.moof, mdat: f.mdat, decodeTimeMicros: micros };
-    });
-  }
-
-  // Merges two pre-sorted fragment lists by decode time; ties go video-first
-  // (a player buffers video samples ahead of audio at the same instant).
-  function interleaveByDecodeTime(videoFrags, audioFrags) {
-    const out = [];
-    let i = 0;
-    let j = 0;
-    while (i < videoFrags.length && j < audioFrags.length) {
-      if (videoFrags[i].decodeTimeMicros <= audioFrags[j].decodeTimeMicros) {
-        out.push(videoFrags[i++]);
-      } else {
-        out.push(audioFrags[j++]);
-      }
-    }
-    while (i < videoFrags.length) out.push(videoFrags[i++]);
-    while (j < audioFrags.length) out.push(audioFrags[j++]);
-    return out;
   }
 
   // Splits a fragmented MP4 into init (ftyp + moov) and a list of
@@ -971,37 +748,7 @@ const MP4_REMUX_CORE = (() => {
   }
 
   return {
-    remux,
-    __test_readU32BE: readU32BE,
-    __test_readU64BE: readU64BE,
-    __test_writeU32BE: writeU32BE,
-    __test_writeU64BE: writeU64BE,
-    __test_read4CC: read4CC,
-    __test_readBoxHeader: readBoxHeader,
-    __test_readTopLevelBoxes: readTopLevelBoxes,
-    __test_readContainerChildren: readContainerChildren,
-    __test_findChild: findChild,
-    __test_findChildren: findChildren,
-    __test_writeBox: writeBox,
-    __test_concatUint8Arrays: concatUint8Arrays,
-    __test_rewriteBoxPayload: rewriteBoxPayload,
-    __test_rewriteTkhdTrackId: rewriteTkhdTrackId,
-    __test_rewriteMfhdSequenceNumber: rewriteMfhdSequenceNumber,
-    __test_rewriteTfhdTrackId: rewriteTfhdTrackId,
-    __test_readTfdtBaseMediaDecodeTime: readTfdtBaseMediaDecodeTime,
-    __test_parseFragmentedMp4: parseFragmentedMp4,
-    __test_rebuildTrakWithTrackId: rebuildTrakWithTrackId,
-    __test_rewriteMvhdNextTrackId: rewriteMvhdNextTrackId,
-    __test_buildCombinedMoov: buildCombinedMoov,
-    __test_buildCombinedMvex: buildCombinedMvex,
-    __test_rewriteTrexTrackId: rewriteTrexTrackId,
-    __test_rebuildMoof: rebuildMoof,
-    __test_rebuildFragment: rebuildFragment,
-    __test_readMdhdTimescale: readMdhdTimescale,
-    __test_readFragmentDecodeTime: readFragmentDecodeTime,
-    __test_annotateFragmentsWithTime: annotateFragmentsWithTime,
-    __test_interleaveByDecodeTime: interleaveByDecodeTime,
-    __test_extractCodecFourCC: extractCodecFourCC
+    remux
   };
 })();
 // =========================================

@@ -618,26 +618,7 @@ const MKV_MUX_CORE = (() => {
   }
 
   return {
-    mux,
-    __test_EBML: EBML,
-    __test_MKV: MKV,
-    __test_writeVint: writeVint,
-    __test_writeVintUnknownSize: writeVintUnknownSize,
-    __test_writeElement: writeElement,
-    __test_writeUintElement: writeUintElement,
-    __test_writeStringElement: writeStringElement,
-    __test_writeFloatElement: writeFloatElement,
-    __test_writeBinaryElement: writeBinaryElement,
-    __test_concatUint8Arrays: concatUint8Arrays,
-    __test_writeMatroskaSkeleton: writeMatroskaSkeleton,
-    __test_findSampleEntry: findSampleEntry,
-    __test_extractVp9CodecPrivate: extractVp9CodecPrivate,
-    __test_extractAacAudioSpecificConfig: extractAacAudioSpecificConfig,
-    __test_extractVideoDimensions: extractVideoDimensions,
-    __test_extractAudioParams: extractAudioParams,
-    __test_extractSampleList: extractSampleList,
-    __test_writeSimpleBlock: writeSimpleBlock,
-    __test_writeClusters: writeClusters
+    mux
   };
 })();
 // =========================================
