@@ -32,6 +32,7 @@ const FILES = [
   "core/settings-schema.js",
   "core/styles.js",
   "core/page-handlers.js",
+  "core/profile-bulk-download.js",
   "main.js",
 ];
 

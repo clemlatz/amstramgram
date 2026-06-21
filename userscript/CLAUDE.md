@@ -42,7 +42,8 @@ core/story-matching.js ← Matches story items to DOM/API signals
 core/settings-schema.js ← Settings schema: DEFAULT_USER_SETTINGS, all sanitize*/normalize* functions
 core/styles.js         ← CSS injection (appended to DOM at load), icons object, SETTINGS_LAUNCHER_ICON_SVG
 core/page-handlers.js  ← All page handlers (right-click, story, DM, profile pic) and their API/helper infrastructure; injected with batch fns via PAGE_HANDLERS_CORE._init()
-main.js                ← Main IIFE: runtime config, settings storage, batch controller, profile bulk download orchestration, init wiring
+core/profile-bulk-download.js ← Profile bulk download orchestration (collect tasks, run batch per content type); injected via PROFILE_BULK_DOWNLOAD_CORE._init()
+main.js                ← Main IIFE: runtime config, settings storage, batch controller, init wiring
 ```
 
 Each `core/*.js` file exports a single `const X_CORE = (() => { ... })();` IIFE that returns a plain object of functions.
