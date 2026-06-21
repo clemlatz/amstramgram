@@ -1,6 +1,5 @@
 {
   "name": "amstragram",
-  "version": "2",
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
