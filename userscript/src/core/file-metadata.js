@@ -428,7 +428,7 @@ const FILE_METADATA_CORE = (() => {
 
   function formatXmpDate(iso) {
     if (typeof iso !== "string" || !iso) return "";
-    const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(Z|[+\-]\d{2}:?\d{2})?$/);
+    const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/);
     if (!match) return "";
     const [, y, mo, d, h, mi, s, rawTz] = match;
     let offset = "Z";
@@ -542,6 +542,7 @@ const FILE_METADATA_CORE = (() => {
     const indented = props.map((p) => `      ${p}`).join("\n");
 
     return [
+      // eslint-disable-next-line no-irregular-whitespace
       `<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>`,
       `<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Amstragram">`,
       `  <rdf:RDF`,

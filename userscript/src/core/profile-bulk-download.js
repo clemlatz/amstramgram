@@ -22,7 +22,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
     tryGraphQLTaggedFeed,
   } = PAGE_HANDLERS_CORE;
   const { sanitizeAmstramgramUrl, sanitizeProfileDownloadSelection, getProfileDownloadSelectionLabel } = SETTINGS_SCHEMA_CORE;
-  const { sanitizeFilenameToken } = FILE_METADATA_CORE;
 
   const TAGGED_TRACE_ENABLED = false;
 

@@ -61,7 +61,7 @@ const GramPlatform = (() => {
         });
         manualTimeoutId = setTimeout(() => {
           settle(() => reject(Object.assign(new Error(`GM_download timed out after ${timeoutMs}ms`), { code: "GM_DOWNLOAD_TIMEOUT" })));
-          try { downloadTask?.abort?.(); } catch {}
+          try { downloadTask?.abort?.(); } catch { /* ignore */ }
         }, timeoutMs);
       } catch (err) {
         const exceptionError = err instanceof Error ? err : new Error(String(err?.message || err));
@@ -75,8 +75,8 @@ const GramPlatform = (() => {
     const targetUrl = typeof url === "string" ? url.trim() : "";
     if (!targetUrl) return;
     if (typeof GM_openInTab === "function") {
-      try { GM_openInTab(targetUrl, { active: options.active !== false, insert: true, setParent: true }); return; } catch {}
-      try { GM_openInTab(targetUrl, options.active !== false); return; } catch {}
+      try { GM_openInTab(targetUrl, { active: options.active !== false, insert: true, setParent: true }); return; } catch { /* ignore */ }
+      try { GM_openInTab(targetUrl, options.active !== false); return; } catch { /* ignore */ }
     }
     window.open(targetUrl, "_blank", "noopener,noreferrer");
   }
@@ -95,7 +95,7 @@ const GramPlatform = (() => {
 
   function registerMenuCommand(label, fn) {
     if (typeof GM_registerMenuCommand === "function") {
-      try { GM_registerMenuCommand(label, fn); } catch {}
+      try { GM_registerMenuCommand(label, fn); } catch { /* ignore */ }
     }
   }
 

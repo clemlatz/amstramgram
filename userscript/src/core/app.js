@@ -1,5 +1,5 @@
 const APP_CORE = (() => {
-  const { icons, SETTINGS_LAUNCHER_ICON_SVG } = STYLES_CORE;
+  const { SETTINGS_LAUNCHER_ICON_SVG } = STYLES_CORE;
 
   // =========================================
   // RUNTIME CONFIG
@@ -108,29 +108,6 @@ const APP_CORE = (() => {
     console.log(...args);
   }
 
-  // Temporary tagged bulk tracing helper. Disabled for public builds.
-  const TAGGED_TRACE_ENABLED = false;
-  function taggedTrace(eventLabel, details) {
-    try {
-      if (typeof console === "undefined" || typeof console.log !== "function") return;
-      if (typeof details === "undefined") {
-        console.log("[Amstragram Tagged Trace]", eventLabel);
-      } else {
-        console.log("[Amstragram Tagged Trace]", eventLabel, details);
-      }
-    } catch {
-      // Never let debug tracing break downloads.
-    }
-  }
-
-  function getPageWindow() {
-    return UTILITIES_CORE.getPageWindow();
-  }
-
-  function isAndroidUserAgent() {
-    return UTILITIES_CORE.isAndroidUserAgent();
-  }
-
   const SETTINGS_STORAGE_KEY = "IG_HD_USER_SETTINGS_V1";
   const DOWNLOAD_HISTORY_STORAGE_KEY = "IG_HD_DOWNLOAD_HISTORY_V1";
   const DOWNLOAD_HISTORY_MAX_ENTRIES = 100000;
@@ -143,19 +120,12 @@ const APP_CORE = (() => {
     DEFAULT_USER_SETTINGS,
     sanitizeRiskPreset,
     sanitizeHotkey,
-    sanitizeShowSettingsLauncher,
     sanitizeTheme,
-    sanitizeProfileDownloadScope,
-    getLegacyProfileDownloadTargetsFromScope,
     sanitizeProfileDownloadSelection,
-    areAllProfileDownloadTargetsEnabled,
     getProfileDownloadSelectionLabel,
     sanitizeOutputFolderLabel,
-    sanitizeFilenameTemplate,
     sanitizeAmstramgramUrl,
-    sanitizeDownloadSettings,
     sanitizeSavedDownloadSettings,
-    sanitizeDownloadSource,
     sanitizePolicy,
     normalizeDateFilter,
     computeDateFilterVisibilityState,
@@ -183,7 +153,7 @@ const APP_CORE = (() => {
       if (metadataMigration.migrated || shouldResetLegacyThemeToAuto) {
         try {
           localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(normalized));
-        } catch {}
+        } catch { /* ignore */ }
       }
       if (metadataMigration.removedTxtSidecar && typeof console !== "undefined" && typeof console.info === "function") {
         console.info("[Amstragram] Metadata TXT sidecars were removed. Use JSON or XMP sidecars instead.");
@@ -283,7 +253,7 @@ const APP_CORE = (() => {
   function writeDownloadHistoryStorageValue(serialized) {
     try {
       localStorage.setItem(DOWNLOAD_HISTORY_STORAGE_KEY, serialized);
-    } catch {}
+    } catch { /* ignore */ }
   }
 
   let downloadHistoryLoaded = false;
@@ -2517,28 +2487,6 @@ const APP_CORE = (() => {
     }
   }
 
-  async function sleepWithCooldownIndicator(label, ms, progressInfo = {}) {
-    const totalMs = Math.max(0, Number(ms) || 0);
-    if (!totalMs) return;
-
-    try {
-      let remainingMs = totalMs;
-      while (remainingMs > 0) {
-        updateCooldownIndicator({
-          label,
-          remainingMs,
-          processed: progressInfo?.processed,
-          total: progressInfo?.total
-        });
-        const stepMs = Math.min(1000, remainingMs);
-        await sleepMs(stepMs);
-        remainingMs -= stepMs;
-      }
-    } finally {
-      hideCooldownIndicator();
-    }
-  }
-
   function sleepMs(ms) {
     return UTILITIES_CORE.sleepMs(ms);
   }
@@ -3651,7 +3599,7 @@ const APP_CORE = (() => {
 
   function parseCssRgbColor(value) {
     if (typeof value !== "string") return null;
-    const match = value.trim().match(/^rgba?\(\s*(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})(?:[\s,\/]+([0-9]*\.?[0-9]+))?\s*\)$/i);
+    const match = value.trim().match(/^rgba?\(\s*(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})(?:[\s,/]+([0-9]*\.?[0-9]+))?\s*\)$/i);
     if (!match) return null;
     return {
       r: Math.max(0, Math.min(255, Number.parseInt(match[1], 10) || 0)),
@@ -4623,7 +4571,6 @@ const APP_CORE = (() => {
     const templatePreviewNote = modal.querySelector("#ig-hd-preview-note");
     const previewDocFill = modal.querySelector("#ig-hd-preview-doc-fill");
     const previewDocFold = modal.querySelector("#ig-hd-preview-doc-fold");
-    const separatorGrid = modal.querySelector("#ig-hd-separator-grid");
     const bulkZipGroup = modal.querySelector("#ig-hd-bulk-zip-group");
     const bulkZipToggle = modal.querySelector("#ig-hd-bulk-zip");
     const typeSubfoldersGroup = modal.querySelector("#ig-hd-type-subfolders-group");
@@ -6378,14 +6325,6 @@ const APP_CORE = (() => {
 
   function isEditableTarget(target) {
     return HOTKEY_CORE.isEditableTarget(target);
-  }
-
-  function normalizeHotkeyToken(token) {
-    return HOTKEY_CORE.normalizeHotkeyToken(token);
-  }
-
-  function parseHotkey(hotkey) {
-    return HOTKEY_CORE.parseHotkey(hotkey);
   }
 
   function hotkeyMatchesEvent(event, hotkey) {

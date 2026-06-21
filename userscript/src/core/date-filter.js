@@ -24,7 +24,7 @@ const DATE_FILTER_CORE = (() => {
   function coerceTakenAtToUnixSeconds(value) {
     if (value === null || value === undefined || value === "") return null;
 
-    let numeric = null;
+    let numeric;
     if (typeof value === "number" && Number.isFinite(value)) {
       numeric = value;
     } else if (typeof value === "string") {

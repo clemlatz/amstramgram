@@ -60,9 +60,10 @@ export default [
       // *_CORE exports are consumed by other files after concatenation, not within
       // the defining file. Unused args and catch bindings are also common here.
       "no-unused-vars": ["error", {
-        varsIgnorePattern: "^(GramPlatform|[A-Z_]+_CORE)$",
+        varsIgnorePattern: "^(GramPlatform|[A-Z0-9_]+_CORE)$",
         args: "none",
         caughtErrors: "none",
+        ignoreRestSiblings: true,
       }],
       // Control chars in regexes are intentional in settings-schema.js (filename sanitization).
       "no-control-regex": "off",

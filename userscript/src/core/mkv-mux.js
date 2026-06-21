@@ -324,7 +324,6 @@ const MKV_MUX_CORE = (() => {
     }
     if (flags & 0x000020) {
       out.defaultSampleFlags = readU32BE(buf, off);
-      off += 4;
     }
     return out;
   }

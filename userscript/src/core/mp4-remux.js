@@ -1,8 +1,4 @@
 const MP4_REMUX_CORE = (() => {
-  function readU16BE(buf, off) {
-    return ((buf[off] << 8) | buf[off + 1]) >>> 0;
-  }
-
   function readU32BE(buf, off) {
     return (
       (buf[off] << 24) >>> 0 |
@@ -564,7 +560,6 @@ const MP4_REMUX_CORE = (() => {
     }
     if (flags & 0x000020) {
       out.defaultSampleFlags = readU32BE(buf, off);
-      off += 4;
     }
     return out;
   }

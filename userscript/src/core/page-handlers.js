@@ -255,41 +255,6 @@ const PAGE_HANDLERS_CORE = (() => {
     return await response.blob();
   }
 
-  // Read a Blob's bytes into a Uint8Array allocated in the calling realm.
-  // Firefox + Tampermonkey hand back cross-realm Blobs from GM_xmlhttpRequest;
-  // calling `await blob.arrayBuffer()` directly returns an Xrays-wrapped buffer
-  // and constructing a TypedArray on it throws "Accessing TypedArray data over
-  // Xrays is slow, and forbidden..." FileReader copies the bytes through the
-  // browser's internal pathway into a same-realm ArrayBuffer.
-  function readBlobAsBytes(blob) {
-    return new Promise((resolve, reject) => {
-      if (!(blob instanceof Blob)) {
-        reject(new Error("readBlobAsBytes requires a Blob"));
-        return;
-      }
-      if (typeof FileReader === "function") {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result;
-          if (result instanceof ArrayBuffer) {
-            resolve(new Uint8Array(result));
-          } else {
-            reject(new Error("FileReader returned non-ArrayBuffer result"));
-          }
-        };
-        reader.onerror = () => reject(reader.error || new Error("FileReader failed"));
-        reader.readAsArrayBuffer(blob);
-        return;
-      }
-      // Fallback for environments without FileReader (e.g. Node tests). The
-      // cross-realm caveat does not apply outside of browser Xrays.
-      blob.arrayBuffer().then(
-        (buf) => resolve(new Uint8Array(buf)),
-        (err) => reject(err)
-      );
-    });
-  }
-
   function createNamedBinaryFile(blob, filename) {
     if (!(blob instanceof Blob)) return null;
     if (typeof File !== "function") return blob;
@@ -354,7 +319,7 @@ const PAGE_HANDLERS_CORE = (() => {
 
     if (shouldUseAndroidCompatibilityDownloadPath()) {
       const androidAllowsTabFallback = options?.allowOpenInTabFallback !== false;
-      let initialDownloadErr = null;
+      let initialDownloadErr;
       try {
         await gmDownloadFile(url, resolvedFilename, {
           saveAs: true,
@@ -801,7 +766,7 @@ const PAGE_HANDLERS_CORE = (() => {
     if (typeof DOWNLOAD_PIPELINE_CORE !== "undefined" && typeof DOWNLOAD_PIPELINE_CORE.gmRequestJson === "function") {
       data = await DOWNLOAD_PIPELINE_CORE.gmRequestJson(url, headers);
     } else {
-      const { ["User-Agent"]: _userAgent, ...fetchHeaders } = headers;
+      const { "User-Agent": _userAgent, ...fetchHeaders } = headers;
       const response = await fetch(url, {
         method: "GET",
         credentials: "include",
@@ -2364,7 +2329,7 @@ const PAGE_HANDLERS_CORE = (() => {
       try {
         const stack = document.elementsFromPoint(clientX, clientY);
         if (Array.isArray(stack) && stack.includes(target) && stack.includes(media)) return true;
-      } catch (err) {}
+      } catch { /* ignore */ }
     }
 
     const targetRect = target.getBoundingClientRect?.();
@@ -2546,13 +2511,11 @@ const PAGE_HANDLERS_CORE = (() => {
     const dialog = target.closest?.('[role="dialog"]') || null;
     const gridPostLink = target.closest?.("a[href*='/p/'], a[href*='/reel/'], a[href*='/reels/']") || null;
     const directPostShortcode = getCurrentDirectPostShortcode();
-    const isProfileGridTarget = !!gridPostLink && !article;
-    const preferVideoForReel = isReelShortcode(target, gridPostLink);
 
     let contextType = null;
     if (dialog) {
       contextType = "modal";
-    } else if (isProfileGridTarget) {
+    } else if (gridPostLink && !article) {
       contextType = "profile-grid";
     } else if (directPostShortcode || isDirectPostSurfacePath()) {
       contextType = "direct-post";
@@ -2899,7 +2862,6 @@ const PAGE_HANDLERS_CORE = (() => {
     if (!resolvedClick) return;
 
     const isDirectPostPage = resolvedClick.contextType === "direct-post";
-    const isProfileGridTarget = resolvedClick.contextType === "profile-grid";
     const clickedMedia = resolvedClick.media;
 
     const isProfilePic = target.closest('header') || target.alt?.includes("profile") ||
@@ -3322,7 +3284,7 @@ const PAGE_HANDLERS_CORE = (() => {
         target.closest('header')?.querySelector('a[href*="/"]')
       ].filter(Boolean);
       for (const nearbyLink of nearbyLinks) {
-        const linkMatch = nearbyLink.href.match(/instagram\.com\/([^\/\?]+)/);
+        const linkMatch = nearbyLink.href.match(/instagram\.com\/([^/?]+)/);
         if (linkMatch && !['p', 'reel', 'stories', 'explore'].includes(linkMatch[1])) {
           username = linkMatch[1];
           break;
@@ -5229,27 +5191,12 @@ const PAGE_HANDLERS_CORE = (() => {
     }
   }
 
-  function pickHighestVideoVersion(versions) {
-    if (!Array.isArray(versions) || versions.length === 0) return null;
-    let best = versions[0];
-    let bestArea = (Number(best?.width) || 0) * (Number(best?.height) || 0);
-    for (let i = 1; i < versions.length; i++) {
-      const v = versions[i];
-      const area = (Number(v?.width) || 0) * (Number(v?.height) || 0);
-      if (area > bestArea) {
-        best = v;
-        bestArea = area;
-      }
-    }
-    return best;
-  }
-
   function parseDirectThreadIdFromPath(pathname) {
     if (pathname === undefined && typeof window !== "undefined") {
       pathname = window.location?.pathname;
     }
     const str = String(pathname || "");
-    const match = str.match(/^\/direct\/t\/([^\/?#]+)(?:\/|$)/);
+    const match = str.match(/^\/direct\/t\/([^/?#]+)(?:\/|$)/);
     return match ? match[1] : null;
   }
 
@@ -5816,7 +5763,7 @@ const PAGE_HANDLERS_CORE = (() => {
   function getCookieValueByName(cookieName) {
     const normalizedName = typeof cookieName === "string" ? cookieName.trim() : "";
     if (!normalizedName) return "";
-    let cookieText = "";
+    let cookieText;
     try {
       cookieText = String(document?.cookie || "");
     } catch {
@@ -6105,7 +6052,7 @@ const PAGE_HANDLERS_CORE = (() => {
         variableKeys: requestSpec.variableKeys
       });
 
-      let responseText = "";
+      let responseText;
       try {
         responseText = await response.text();
       } catch {
@@ -6113,7 +6060,7 @@ const PAGE_HANDLERS_CORE = (() => {
       }
 
       if (response.ok) {
-        let json = null;
+        let json;
         try {
           json = JSON.parse(responseText);
         } catch (parseErr) {
@@ -6250,7 +6197,7 @@ const PAGE_HANDLERS_CORE = (() => {
         headers,
         body: body.toString()
       });
-      let responseText = "";
+      let responseText;
       try {
         responseText = await response.text();
       } catch {
@@ -6260,7 +6207,7 @@ const PAGE_HANDLERS_CORE = (() => {
         throw new Error(`Saved collections GraphQL HTTP ${response.status}`);
       }
 
-      let responseJson = null;
+      let responseJson;
       try {
         responseJson = JSON.parse(responseText);
       } catch {
@@ -6335,9 +6282,9 @@ const PAGE_HANDLERS_CORE = (() => {
     });
 
     // Extract items — different structure for "All Saved" vs specific collection.
-    let rawItems = [];
-    let moreAvailable = false;
-    let nextMaxId = null;
+    let rawItems;
+    let moreAvailable;
+    let nextMaxId;
 
     if (isAllSaved) {
       // "All Saved" historically nests items under save_media_response and save_clips_response.
@@ -7551,7 +7498,7 @@ const PAGE_HANDLERS_CORE = (() => {
         : (typeof anchor?.href === "string" ? anchor.href : "");
       if (!rawHref) continue;
 
-      let pathname = "";
+      let pathname;
       try {
         pathname = new URL(rawHref, "https://www.instagram.com").pathname || "";
       } catch {
