@@ -7931,6 +7931,7 @@ const PAGE_HANDLERS_CORE = (() => {
     mediaContainsTaggedProfile,
     normalizeProfilePicUrl,
     summarizeTaggedItemForTrace,
+    syncProfileGridObserver,
     tryGraphQLTaggedFeed,
   };
 })();

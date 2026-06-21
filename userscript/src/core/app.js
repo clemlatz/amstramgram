@@ -3951,7 +3951,7 @@ const APP_CORE = (() => {
       settingsLauncherSyncLastRun = Date.now();
       if (USER_SETTINGS?.theme === "auto") applyTheme();
       syncSettingsLauncherButton();
-      syncProfileGridObserver();
+      PAGE_HANDLERS_CORE.syncProfileGridObserver();
     };
 
     if (elapsed >= THROTTLE_MS) {
