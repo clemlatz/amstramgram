@@ -2717,17 +2717,6 @@
     }
   };
 
-  function normalizeNumericIdentifier(value, fallback) {
-    return UTILITIES_CORE.normalizeNumericIdentifier(value, fallback);
-  }
-
-  function toBoundedPositiveInt(value, fallback, min = 1, max = Number.MAX_SAFE_INTEGER) {
-    return UTILITIES_CORE.toBoundedPositiveInt(value, fallback, min, max);
-  }
-
-  function clampNumber(value, min, max) {
-    return UTILITIES_CORE.clampNumber(value, min, max);
-  }
 
   function computeSettingsTooltipPosition(anchorRect, tooltipRect, viewportWidth = window.innerWidth || 0, viewportHeight = window.innerHeight || 0) {
     return UTILITIES_CORE.computeSettingsTooltipPosition(anchorRect, tooltipRect, viewportWidth, viewportHeight);
@@ -2770,12 +2759,12 @@
       : {};
 
     return {
-      fallbackAppId: normalizeNumericIdentifier(overrides.fallbackAppId, DEFAULT_RUNTIME_CONFIG.fallbackAppId),
+      fallbackAppId: UTILITIES_CORE.normalizeNumericIdentifier(overrides.fallbackAppId, DEFAULT_RUNTIME_CONFIG.fallbackAppId),
       queryIds: {
-        postInfo: normalizeNumericIdentifier(overrideQueryIds.postInfo, DEFAULT_RUNTIME_CONFIG.queryIds.postInfo),
-        reels: normalizeNumericIdentifier(overrideQueryIds.reels, DEFAULT_RUNTIME_CONFIG.queryIds.reels),
-        tagged: normalizeNumericIdentifier(overrideQueryIds.tagged, DEFAULT_RUNTIME_CONFIG.queryIds.tagged),
-        savedCollections: normalizeNumericIdentifier(overrideQueryIds.savedCollections, DEFAULT_RUNTIME_CONFIG.queryIds.savedCollections)
+        postInfo: UTILITIES_CORE.normalizeNumericIdentifier(overrideQueryIds.postInfo, DEFAULT_RUNTIME_CONFIG.queryIds.postInfo),
+        reels: UTILITIES_CORE.normalizeNumericIdentifier(overrideQueryIds.reels, DEFAULT_RUNTIME_CONFIG.queryIds.reels),
+        tagged: UTILITIES_CORE.normalizeNumericIdentifier(overrideQueryIds.tagged, DEFAULT_RUNTIME_CONFIG.queryIds.tagged),
+        savedCollections: UTILITIES_CORE.normalizeNumericIdentifier(overrideQueryIds.savedCollections, DEFAULT_RUNTIME_CONFIG.queryIds.savedCollections)
       },
       desktopUserAgent: (typeof overrides.desktopUserAgent === "string" && overrides.desktopUserAgent.trim())
         ? overrides.desktopUserAgent.trim()
@@ -2787,14 +2776,14 @@
         ? overrides.enableDebugLogs
         : DEFAULT_RUNTIME_CONFIG.enableDebugLogs,
       limits: {
-        maxScriptTagsToScan: toBoundedPositiveInt(overrideLimits.maxScriptTagsToScan, DEFAULT_RUNTIME_CONFIG.limits.maxScriptTagsToScan, 1, 1000),
-        maxScriptCharsToScan: toBoundedPositiveInt(overrideLimits.maxScriptCharsToScan, DEFAULT_RUNTIME_CONFIG.limits.maxScriptCharsToScan, 50000, 10000000),
-        maxWindowKeysToScan: toBoundedPositiveInt(overrideLimits.maxWindowKeysToScan, DEFAULT_RUNTIME_CONFIG.limits.maxWindowKeysToScan, 1, 1000),
-        maxObjectTraversalNodes: toBoundedPositiveInt(overrideLimits.maxObjectTraversalNodes, DEFAULT_RUNTIME_CONFIG.limits.maxObjectTraversalNodes, 100, 20000),
-        maxObjectKeysPerNode: toBoundedPositiveInt(overrideLimits.maxObjectKeysPerNode, DEFAULT_RUNTIME_CONFIG.limits.maxObjectKeysPerNode, 5, 1000),
-        maxArrayItemsPerNode: toBoundedPositiveInt(overrideLimits.maxArrayItemsPerNode, DEFAULT_RUNTIME_CONFIG.limits.maxArrayItemsPerNode, 5, 2000),
-        maxHtmlCharsToScan: toBoundedPositiveInt(overrideLimits.maxHtmlCharsToScan, DEFAULT_RUNTIME_CONFIG.limits.maxHtmlCharsToScan, 50000, 10000000),
-        maxStoryHtmlHitsPerTerm: toBoundedPositiveInt(overrideLimits.maxStoryHtmlHitsPerTerm, DEFAULT_RUNTIME_CONFIG.limits.maxStoryHtmlHitsPerTerm, 1, 500)
+        maxScriptTagsToScan: UTILITIES_CORE.toBoundedPositiveInt(overrideLimits.maxScriptTagsToScan, DEFAULT_RUNTIME_CONFIG.limits.maxScriptTagsToScan, 1, 1000),
+        maxScriptCharsToScan: UTILITIES_CORE.toBoundedPositiveInt(overrideLimits.maxScriptCharsToScan, DEFAULT_RUNTIME_CONFIG.limits.maxScriptCharsToScan, 50000, 10000000),
+        maxWindowKeysToScan: UTILITIES_CORE.toBoundedPositiveInt(overrideLimits.maxWindowKeysToScan, DEFAULT_RUNTIME_CONFIG.limits.maxWindowKeysToScan, 1, 1000),
+        maxObjectTraversalNodes: UTILITIES_CORE.toBoundedPositiveInt(overrideLimits.maxObjectTraversalNodes, DEFAULT_RUNTIME_CONFIG.limits.maxObjectTraversalNodes, 100, 20000),
+        maxObjectKeysPerNode: UTILITIES_CORE.toBoundedPositiveInt(overrideLimits.maxObjectKeysPerNode, DEFAULT_RUNTIME_CONFIG.limits.maxObjectKeysPerNode, 5, 1000),
+        maxArrayItemsPerNode: UTILITIES_CORE.toBoundedPositiveInt(overrideLimits.maxArrayItemsPerNode, DEFAULT_RUNTIME_CONFIG.limits.maxArrayItemsPerNode, 5, 2000),
+        maxHtmlCharsToScan: UTILITIES_CORE.toBoundedPositiveInt(overrideLimits.maxHtmlCharsToScan, DEFAULT_RUNTIME_CONFIG.limits.maxHtmlCharsToScan, 50000, 10000000),
+        maxStoryHtmlHitsPerTerm: UTILITIES_CORE.toBoundedPositiveInt(overrideLimits.maxStoryHtmlHitsPerTerm, DEFAULT_RUNTIME_CONFIG.limits.maxStoryHtmlHitsPerTerm, 1, 500)
       }
     };
   }
@@ -2830,478 +2819,36 @@
   }
 
   const SETTINGS_STORAGE_KEY = "IG_HD_USER_SETTINGS_V1";
-  const SETTINGS_SCHEMA_VERSION = 2;
   const DOWNLOAD_HISTORY_STORAGE_KEY = "IG_HD_DOWNLOAD_HISTORY_V1";
   const DOWNLOAD_HISTORY_MAX_ENTRIES = 100000;
   const DOWNLOAD_HISTORY_TRIM_TARGET = 90000;
   const OUTPUT_HANDLE_DB_NAME = "IG_HD_OUTPUT_HANDLE_DB";
   const OUTPUT_HANDLE_STORE_NAME = "handles";
   const OUTPUT_HANDLE_KEY = "selected_output_folder";
-  const DEFAULT_FILENAME_TEMPLATE_PLACEHOLDER = "{username}_{type}_{id}_{index}.{ext}";
-  const PROFILE_RESERVED_PATHS = new Set([
-    "stories",
-    "highlights",
-    "explore",
-    "reels",
-    "direct",
-    "accounts",
-    "settings",
-    "language",
-    "create",
-    "notifications",
-    "nametag",
-    "directory",
-    "ar",
-    "legal",
-    "terms",
-    "about",
-    "emails",
-    "session",
-    "challenge",
-    "lite",
-    "p",
-    "reel",
-    "tv"
-  ]);
-
-  const DEFAULT_USER_SETTINGS = {
-    settingsSchemaVersion: SETTINGS_SCHEMA_VERSION,
-    hotkey: "Alt+Shift+I",
-    showSettingsLauncher: true,
-    theme: "auto",
-    riskPreset: "balanced",
-    safetyThresholdCount: 40,
-    customPolicy: {
-      minDelayMs: 400,
-      maxDelayMs: 1200,
-      cooldownEvery: 60,
-      cooldownMs: 20000,
-      retryCount: 1,
-      retryBackoffMs: 2000
-    },
-    profileDownload: {
-      maxItems: 300,
-      requireWarningAck: true,
-      includePosts: true,
-      includeReels: false,
-      includeHighlights: false,
-      includeTagged: false,
-      includeProfilePicture: false,
-      taggedIncludeAllCarouselMedia: false,
-      dateFilter: {
-        enabled: false,
-        mode: "after",
-        startDate: "",
-        endDate: ""
-      }
-    },
-    downloads: {
-      androidCompatMode: false,
-      useCustomFolder: false,
-      folderLabel: "",
-      filenameTemplate: "",
-      filenameSeparator: "_",
-      bulkAsZip: false,
-      skipPreviouslyDownloaded: false,
-      amstramgramUrl: "",
-      useTypeSubfolders: true,
-      saveMetadataJson: false,
-      saveMetadataXmp: false,
-      saveMetadataIptc: false,
-      saveMetadataXmpExif: false,
-      videoContainer: "mp4"
-    },
-    downloadSource: "profile",
-    savedDownload: {
-      selectedCollections: [],
-      useCollectionSubfolder: true
-    }
-  };
-
-  function sanitizeRiskPreset(value) {
-    const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
-    return ["safe", "balanced", "aggressive", "custom"].includes(normalized)
-      ? normalized
-      : DEFAULT_USER_SETTINGS.riskPreset;
-  }
-
-  function sanitizeHotkey(value) {
-    if (typeof value !== "string") return DEFAULT_USER_SETTINGS.hotkey;
-    const trimmed = value.trim().replace(/\s+/g, "");
-    if (!trimmed || trimmed.length > 40) return DEFAULT_USER_SETTINGS.hotkey;
-
-    const tokens = trimmed.split("+").map((token) => token.trim()).filter(Boolean);
-    if (tokens.length === 0) return DEFAULT_USER_SETTINGS.hotkey;
-
-    const aliases = {
-      control: "Ctrl",
-      ctrl: "Ctrl",
-      alt: "Alt",
-      option: "Alt",
-      shift: "Shift",
-      meta: "Meta",
-      cmd: "Meta",
-      command: "Meta"
-    };
-
-    const orderedModifiers = ["Ctrl", "Alt", "Shift", "Meta"];
-    const modifiers = new Set();
-    let keyToken = null;
-
-    for (const token of tokens) {
-      const lowered = token.toLowerCase();
-      const mappedModifier = aliases[lowered];
-      if (mappedModifier && orderedModifiers.includes(mappedModifier)) {
-        modifiers.add(mappedModifier);
-        continue;
-      }
-      if (keyToken) return DEFAULT_USER_SETTINGS.hotkey;
-      keyToken = token;
-    }
-
-    if (!keyToken) return DEFAULT_USER_SETTINGS.hotkey;
-
-    const formattedKey = keyToken.length === 1
-      ? keyToken.toUpperCase()
-      : keyToken[0].toUpperCase() + keyToken.slice(1);
-    const sortedMods = orderedModifiers.filter((mod) => modifiers.has(mod));
-    return sortedMods.length > 0
-      ? `${sortedMods.join("+")}+${formattedKey}`
-      : formattedKey;
-  }
-
-  function sanitizeShowSettingsLauncher(value) {
-    return (typeof value === "boolean")
-      ? value
-      : DEFAULT_USER_SETTINGS.showSettingsLauncher;
-  }
-
-  function sanitizeTheme(value) {
-    const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
-    return ["dark", "light", "auto"].includes(normalized)
-      ? normalized
-      : DEFAULT_USER_SETTINGS.theme;
-  }
-
-  function sanitizeProfileDownloadScope(value) {
-    const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
-    return ["posts", "highlights", "profile", "tagged"].includes(normalized) ? normalized : "posts";
-  }
-
-  function getLegacyProfileDownloadTargetsFromScope(scope) {
-    const normalizedScope = sanitizeProfileDownloadScope(scope);
-    return {
-      includePosts: normalizedScope === "posts" || normalizedScope === "profile",
-      includeHighlights: normalizedScope === "highlights" || normalizedScope === "profile",
-      includeTagged: normalizedScope === "tagged"
-    };
-  }
-
-  function sanitizeProfileDownloadSelection(value) {
-    const source = value && typeof value === "object" ? value : {};
-    const legacyTargets = getLegacyProfileDownloadTargetsFromScope(source.scope);
-    return {
-      includePosts: (typeof source.includePosts === "boolean")
-        ? source.includePosts
-        : legacyTargets.includePosts,
-      includeReels: (typeof source.includeReels === "boolean")
-        ? source.includeReels
-        : DEFAULT_USER_SETTINGS.profileDownload.includeReels,
-      includeHighlights: (typeof source.includeHighlights === "boolean")
-        ? source.includeHighlights
-        : legacyTargets.includeHighlights,
-      includeTagged: (typeof source.includeTagged === "boolean")
-        ? source.includeTagged
-        : legacyTargets.includeTagged,
-      includeProfilePicture: (typeof source.includeProfilePicture === "boolean")
-        ? source.includeProfilePicture
-        : DEFAULT_USER_SETTINGS.profileDownload.includeProfilePicture,
-      taggedIncludeAllCarouselMedia: (typeof source.taggedIncludeAllCarouselMedia === "boolean")
-        ? source.taggedIncludeAllCarouselMedia
-        : DEFAULT_USER_SETTINGS.profileDownload.taggedIncludeAllCarouselMedia
-    };
-  }
-
-  function areAllProfileDownloadTargetsEnabled(selection) {
-    const normalized = sanitizeProfileDownloadSelection(selection);
-    return normalized.includePosts
-      && normalized.includeReels
-      && normalized.includeHighlights
-      && normalized.includeTagged
-      && normalized.includeProfilePicture
-      && normalized.taggedIncludeAllCarouselMedia;
-  }
-
-  function getProfileDownloadSelectionLabel(selection) {
-    const normalized = sanitizeProfileDownloadSelection(selection);
-    if (areAllProfileDownloadTargetsEnabled(normalized)) {
-      return "Entire profile (all content types)";
-    }
-
-    const parts = [];
-    if (normalized.includePosts) parts.push("posts");
-    if (normalized.includeReels) parts.push("reels");
-    if (normalized.includeHighlights) parts.push("highlights");
-    if (normalized.includeTagged) {
-      parts.push(
-        normalized.taggedIncludeAllCarouselMedia
-          ? "tagged posts (all carousel slides)"
-          : "tagged posts (tagged slides only)"
-      );
-    }
-    if (normalized.includeProfilePicture) parts.push("profile picture");
-    if (parts.length === 0) return "nothing selected";
-    return parts.join(", ");
-  }
-
-  function sanitizeOutputFolderLabel(value) {
-    if (typeof value !== "string") return "";
-    const cleaned = value
-      .replace(/[\u0000-\u001F]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-    return cleaned.slice(0, 180);
-  }
-
-  function sanitizeFilenameTemplate(value) {
-    if (typeof value !== "string") return "";
-    const cleaned = value
-      .replace(/[\u0000-\u001F]/g, "")
-      .trim();
-    return cleaned.slice(0, 240);
-  }
-
-  function sanitizeAmstramgramUrl(value) {
-    if (typeof value !== "string") return "";
-    const trimmed = value.trim().replace(/\/+$/, "");
-    if (!trimmed) return "";
-    try {
-      const parsed = new URL(trimmed);
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
-      return trimmed.slice(0, 200);
-    } catch {
-      return "";
-    }
-  }
-
-  function sanitizeDownloadSettings(settings) {
-    const source = settings && typeof settings === "object" ? settings : {};
-    const androidCompatMode = (typeof source.androidCompatMode === "boolean")
-      ? source.androidCompatMode
-      : DEFAULT_USER_SETTINGS.downloads.androidCompatMode;
-    return {
-      androidCompatMode,
-      useCustomFolder: androidCompatMode ? false : !!source.useCustomFolder,
-      folderLabel: sanitizeOutputFolderLabel(source.folderLabel),
-      filenameTemplate: sanitizeFilenameTemplate(source.filenameTemplate),
-      filenameSeparator: (typeof source.filenameSeparator === "string" && source.filenameSeparator.length <= 1)
-        ? source.filenameSeparator
-        : (source.filenameSeparator === null ? null : DEFAULT_USER_SETTINGS.downloads.filenameSeparator),
-      bulkAsZip: androidCompatMode ? false : !!source.bulkAsZip,
-      skipPreviouslyDownloaded: (typeof source.skipPreviouslyDownloaded === "boolean")
-        ? source.skipPreviouslyDownloaded
-        : DEFAULT_USER_SETTINGS.downloads.skipPreviouslyDownloaded,
-      amstramgramUrl: sanitizeAmstramgramUrl(source.amstramgramUrl),
-      useTypeSubfolders: androidCompatMode
-        ? false
-        : (typeof source.useTypeSubfolders === "boolean")
-          ? source.useTypeSubfolders
-          : DEFAULT_USER_SETTINGS.downloads.useTypeSubfolders,
-      saveMetadataJson: androidCompatMode
-        ? false
-        : (typeof source.saveMetadataJson === "boolean")
-          ? source.saveMetadataJson
-          : DEFAULT_USER_SETTINGS.downloads.saveMetadataJson,
-      saveMetadataXmp: androidCompatMode
-        ? false
-        : (typeof source.saveMetadataXmp === "boolean")
-          ? source.saveMetadataXmp
-          : DEFAULT_USER_SETTINGS.downloads.saveMetadataXmp,
-      saveMetadataIptc: androidCompatMode
-        ? false
-        : (typeof source.saveMetadataIptc === "boolean")
-          ? source.saveMetadataIptc
-          : DEFAULT_USER_SETTINGS.downloads.saveMetadataIptc,
-      saveMetadataXmpExif: androidCompatMode
-        ? false
-        : (typeof source.saveMetadataXmpExif === "boolean")
-          ? source.saveMetadataXmpExif
-          : DEFAULT_USER_SETTINGS.downloads.saveMetadataXmpExif,
-      videoContainer: (source.videoContainer === "mp4" || source.videoContainer === "mkv")
-        ? source.videoContainer
-        : DEFAULT_USER_SETTINGS.downloads.videoContainer
-    };
-  }
-
-  function sanitizeSavedDownloadSettings(settings) {
-    const source = settings && typeof settings === "object" ? settings : {};
-    const selectedRaw = Array.isArray(source.selectedCollections)
-      ? source.selectedCollections.filter(v => typeof v === "string" && v.trim())
-      : [];
-    return {
-      selectedCollections: selectedRaw,
-      useCollectionSubfolder: (typeof source.useCollectionSubfolder === "boolean")
-        ? source.useCollectionSubfolder
-        : DEFAULT_USER_SETTINGS.savedDownload.useCollectionSubfolder
-    };
-  }
-
-  function sanitizeDownloadSource(value, legacySavedEnabled) {
-    if (value === "profile" || value === "saved") return value;
-    // Migration: if old savedDownload.enabled was true, default to "saved"
-    if (legacySavedEnabled === true) return "saved";
-    return DEFAULT_USER_SETTINGS.downloadSource;
-  }
-
-  function sanitizePolicy(policy) {
-    const source = policy && typeof policy === "object" ? policy : {};
-    const minDelayMs = toBoundedPositiveInt(source.minDelayMs, DEFAULT_USER_SETTINGS.customPolicy.minDelayMs, 0, 600000);
-    const maxDelayMs = toBoundedPositiveInt(source.maxDelayMs, DEFAULT_USER_SETTINGS.customPolicy.maxDelayMs, 0, 600000);
-    const normalizedMin = Math.min(minDelayMs, maxDelayMs);
-    const normalizedMax = Math.max(minDelayMs, maxDelayMs);
-    return {
-      minDelayMs: normalizedMin,
-      maxDelayMs: normalizedMax,
-      cooldownEvery: toBoundedPositiveInt(source.cooldownEvery, DEFAULT_USER_SETTINGS.customPolicy.cooldownEvery, 0, 5000),
-      cooldownMs: toBoundedPositiveInt(source.cooldownMs, DEFAULT_USER_SETTINGS.customPolicy.cooldownMs, 0, 3600000),
-      retryCount: toBoundedPositiveInt(source.retryCount, DEFAULT_USER_SETTINGS.customPolicy.retryCount, 0, 8),
-      retryBackoffMs: toBoundedPositiveInt(source.retryBackoffMs, DEFAULT_USER_SETTINGS.customPolicy.retryBackoffMs, 0, 600000)
-    };
-  }
-
-  function normalizeDateFilter(raw) {
-    const source = raw && typeof raw === "object" ? raw : {};
-    const validModes = ["before", "after", "between"];
-    const modeIsValid = validModes.includes(source.mode);
-    // Unknown or legacy mode (e.g. "off") → force enabled false and fall back to "after".
-    const mode = modeIsValid ? source.mode : DEFAULT_USER_SETTINGS.profileDownload.dateFilter.mode;
-    const enabled = modeIsValid ? (source.enabled === true) : false;
-
-    const dateStringPattern = /^\d{4}-\d{2}-\d{2}$/;
-    const startDate = (typeof source.startDate === "string" && dateStringPattern.test(source.startDate))
-      ? source.startDate
-      : DEFAULT_USER_SETTINGS.profileDownload.dateFilter.startDate;
-    const endDate = (typeof source.endDate === "string" && dateStringPattern.test(source.endDate))
-      ? source.endDate
-      : DEFAULT_USER_SETTINGS.profileDownload.dateFilter.endDate;
-
-    return { enabled, mode, startDate, endDate };
-  }
-
-  // Pure — given a dateFilter-shaped input, returns which visual elements of
-  // the settings card should be hidden and whether the two-date grid should
-  // collapse to a single column. Kept free of DOM access so it is unit-testable
-  // without a real modal.
-  function computeDateFilterVisibilityState({ enabled, mode, startDate, endDate }) {
-    const bodyHidden = !enabled;
-    const showStart = mode === "after" || mode === "between";
-    const showEnd = mode === "before" || mode === "between";
-    const single = (showStart && !showEnd) || (showEnd && !showStart);
-    const hasStart = typeof startDate === "string" && startDate.length > 0;
-    const hasEnd = typeof endDate === "string" && endDate.length > 0;
-    const reversed = enabled
-      && mode === "between"
-      && hasStart && hasEnd
-      && endDate < startDate;
-    return {
-      bodyHidden,
-      startHidden: !showStart,
-      endHidden: !showEnd,
-      single,
-      warningHidden: !reversed
-    };
-  }
-
-  function normalizeUserSettings(raw) {
-    const source = raw && typeof raw === "object" ? raw : {};
-    const profileSettings = source.profileDownload && typeof source.profileDownload === "object"
-      ? source.profileDownload
-      : {};
-    const normalizedProfileSelection = sanitizeProfileDownloadSelection(profileSettings);
-    const downloadSettings = source.downloads && typeof source.downloads === "object"
-      ? source.downloads
-      : {};
-    const savedDownloadSettings = source.savedDownload && typeof source.savedDownload === "object"
-      ? source.savedDownload
-      : {};
-    // Extract legacy savedDownload.enabled for migration to downloadSource
-    const legacySavedEnabled = savedDownloadSettings.enabled;
-    return {
-      settingsSchemaVersion: SETTINGS_SCHEMA_VERSION,
-      hotkey: sanitizeHotkey(source.hotkey),
-      showSettingsLauncher: sanitizeShowSettingsLauncher(source.showSettingsLauncher),
-      theme: sanitizeTheme(source.theme),
-      downloadSource: sanitizeDownloadSource(source.downloadSource, legacySavedEnabled),
-      riskPreset: sanitizeRiskPreset(source.riskPreset),
-      safetyThresholdCount: toBoundedPositiveInt(source.safetyThresholdCount, DEFAULT_USER_SETTINGS.safetyThresholdCount, 1, 20000),
-      customPolicy: sanitizePolicy(source.customPolicy),
-      profileDownload: {
-        maxItems: toBoundedPositiveInt(profileSettings.maxItems, DEFAULT_USER_SETTINGS.profileDownload.maxItems, 0, 20000),
-        requireWarningAck: DEFAULT_USER_SETTINGS.profileDownload.requireWarningAck,
-        includePosts: normalizedProfileSelection.includePosts,
-        includeReels: normalizedProfileSelection.includeReels,
-        includeHighlights: normalizedProfileSelection.includeHighlights,
-        includeTagged: normalizedProfileSelection.includeTagged,
-        includeProfilePicture: normalizedProfileSelection.includeProfilePicture,
-        taggedIncludeAllCarouselMedia: normalizedProfileSelection.taggedIncludeAllCarouselMedia,
-        dateFilter: normalizeDateFilter(profileSettings.dateFilter)
-      },
-      downloads: sanitizeDownloadSettings(downloadSettings),
-      savedDownload: sanitizeSavedDownloadSettings(savedDownloadSettings)
-    };
-  }
-
-  function migrateLegacyMetadataSettings(raw) {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-      return { settings: raw, migrated: false, removedTxtSidecar: false };
-    }
-
-    const currentVersion = Number(raw.settingsSchemaVersion);
-    if (Number.isFinite(currentVersion) && currentVersion >= SETTINGS_SCHEMA_VERSION) {
-      return { settings: raw, migrated: false, removedTxtSidecar: false };
-    }
-
-    const downloads = raw.downloads && typeof raw.downloads === "object" && !Array.isArray(raw.downloads)
-      ? raw.downloads
-      : {};
-    const legacyKeys = [
-      "saveMetadataExif",
-      "saveMetadataTxt",
-      "saveMetadataExifXmp",
-      "saveMetadataExifExif",
-      "saveMetadataExifIptc"
-    ];
-    const hasLegacyMetadataKeys = legacyKeys.some((key) => Object.prototype.hasOwnProperty.call(downloads, key));
-    const migratedDownloads = { ...downloads };
-
-    if (downloads.saveMetadataExif === true) {
-      migratedDownloads.saveMetadataJson = true;
-    }
-    if (downloads.saveMetadataExifXmp === true) {
-      migratedDownloads.saveMetadataXmp = true;
-    }
-    if (downloads.saveMetadataExifIptc === true) {
-      migratedDownloads.saveMetadataIptc = true;
-    }
-    if (downloads.saveMetadataExifExif === true) {
-      migratedDownloads.saveMetadataXmpExif = true;
-    }
-
-    for (const key of legacyKeys) {
-      delete migratedDownloads[key];
-    }
-
-    return {
-      settings: {
-        ...raw,
-        settingsSchemaVersion: SETTINGS_SCHEMA_VERSION,
-        downloads: migratedDownloads
-      },
-      migrated: hasLegacyMetadataKeys || !Number.isFinite(currentVersion) || currentVersion < SETTINGS_SCHEMA_VERSION,
-      removedTxtSidecar: downloads.saveMetadataTxt === true
-    };
-  }
-
+  const {
+    PROFILE_RESERVED_PATHS,
+    DEFAULT_USER_SETTINGS,
+    sanitizeRiskPreset,
+    sanitizeHotkey,
+    sanitizeShowSettingsLauncher,
+    sanitizeTheme,
+    sanitizeProfileDownloadScope,
+    getLegacyProfileDownloadTargetsFromScope,
+    sanitizeProfileDownloadSelection,
+    areAllProfileDownloadTargetsEnabled,
+    getProfileDownloadSelectionLabel,
+    sanitizeOutputFolderLabel,
+    sanitizeFilenameTemplate,
+    sanitizeAmstramgramUrl,
+    sanitizeDownloadSettings,
+    sanitizeSavedDownloadSettings,
+    sanitizeDownloadSource,
+    sanitizePolicy,
+    normalizeDateFilter,
+    computeDateFilterVisibilityState,
+    normalizeUserSettings,
+    migrateLegacyMetadataSettings
+  } = SETTINGS_SCHEMA_CORE;
   function readStoredUserSettings() {
     try {
       const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
@@ -3682,17 +3229,6 @@
     await clearStoredOutputDirectoryHandle();
   }
 
-  function sanitizeFilenameToken(value, fallback = "") {
-    return FILE_METADATA_CORE.sanitizeFilenameToken(value, fallback);
-  }
-
-  function sanitizeOutputFilename(value, fallback = "instagram_media") {
-    return FILE_METADATA_CORE.sanitizeOutputFilename(value, fallback);
-  }
-
-  function mapDownloadTypeToFolder(meta) {
-    return FILE_METADATA_CORE.mapDownloadTypeToFolder(meta);
-  }
 
   function getArchiveTypeSubfolderOptions() {
     return {
@@ -3708,21 +3244,6 @@
     );
   }
 
-  function makeUniqueArchivePath(path, usedPaths) {
-    return FILE_METADATA_CORE.makeUniqueArchivePath(path, usedPaths);
-  }
-
-  function computeCrc32(bytes) {
-    return ZIP_CORE.computeCrc32(bytes);
-  }
-
-  function toDosDateTime(inputDate) {
-    return ZIP_CORE.toDosDateTime(inputDate);
-  }
-
-  async function createStoredZipBlob(entries) {
-    return ZIP_CORE.createStoredZipBlob(entries);
-  }
 
   function formatDateToken(date = new Date()) {
     const year = date.getFullYear();
@@ -3739,7 +3260,7 @@
   }
 
   function buildZipDownloadName(label = "") {
-    const safeLabel = sanitizeFilenameToken(label || "instagram_media", "instagram_media");
+    const safeLabel = FILE_METADATA_CORE.sanitizeFilenameToken(label || "instagram_media", "instagram_media");
     return `${safeLabel}_${formatDateToken()}_${formatTimeToken()}.zip`;
   }
 
@@ -3747,7 +3268,7 @@
     const blobUrl = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = blobUrl;
-    anchor.download = sanitizeOutputFilename(filename, "instagram_media.zip");
+    anchor.download = FILE_METADATA_CORE.sanitizeOutputFilename(filename, "instagram_media.zip");
     document.body.appendChild(anchor);
     anchor.click();
     document.body.removeChild(anchor);
@@ -3760,17 +3281,6 @@
     }, 30000);
   }
 
-  function sanitizeFileExtension(value, fallback = "jpg") {
-    return FILE_METADATA_CORE.sanitizeFileExtension(value, fallback);
-  }
-
-  function extractFileExtension(filename) {
-    return FILE_METADATA_CORE.extractFileExtension(filename);
-  }
-
-  function ensureFilenameHasExtension(filename, ext) {
-    return FILE_METADATA_CORE.ensureFilenameHasExtension(filename, ext);
-  }
 
   function getDownloadFilenameResolutionOptions() {
     return {
@@ -3814,37 +3324,6 @@
       : baseName.replace(/\.[^.\\/]+$/, "") + ".mkv";
   }
 
-  function stripFilenameExtension(filename) {
-    return FILE_METADATA_CORE.stripFilenameExtension(filename);
-  }
-
-  function extractCaptionText(value) {
-    return FILE_METADATA_CORE.extractCaptionText(value);
-  }
-
-  function extractHashtagsFromCaption(captionText) {
-    return FILE_METADATA_CORE.extractHashtagsFromCaption(captionText);
-  }
-
-  function normalizeMetadataHashtags(rawHashtags, captionText = "") {
-    return FILE_METADATA_CORE.normalizeMetadataHashtags(rawHashtags, captionText);
-  }
-
-  function normalizeMetadataTimestamp(value) {
-    return FILE_METADATA_CORE.normalizeMetadataTimestamp(value);
-  }
-
-  function buildMetadataHintFromMediaItem(item, fallbacks = {}) {
-    return FILE_METADATA_CORE.buildMetadataHintFromMediaItem(item, fallbacks);
-  }
-
-  function buildMetadataSidecarPayload(sourceUrl, mediaFilename, meta = null) {
-    return FILE_METADATA_CORE.buildMetadataSidecarPayload(sourceUrl, mediaFilename, meta);
-  }
-
-  function getMetadataSidecarFilenames(mediaFilename) {
-    return FILE_METADATA_CORE.getMetadataSidecarFilenames(mediaFilename);
-  }
 
   function getXmpSidecarFlags() {
     return {
@@ -3884,7 +3363,7 @@
   }
 
   async function makeUniqueFilename(directoryHandle, desiredName) {
-    const safeName = sanitizeOutputFilename(desiredName, "instagram_media.jpg");
+    const safeName = FILE_METADATA_CORE.sanitizeOutputFilename(desiredName, "instagram_media.jpg");
     if (!(await fileExistsInDirectory(directoryHandle, safeName))) {
       return safeName;
     }
@@ -3902,7 +3381,7 @@
 
   async function getCustomFolderTargetDirectory(rootHandle, meta = null) {
     if (!USER_SETTINGS?.downloads?.useTypeSubfolders) return rootHandle;
-    const folderName = sanitizeFilenameToken(mapDownloadTypeToFolder(meta), "misc").replace(/\s+/g, "_");
+    const folderName = FILE_METADATA_CORE.sanitizeFilenameToken(FILE_METADATA_CORE.mapDownloadTypeToFolder(meta), "misc").replace(/\s+/g, "_");
     return await rootHandle.getDirectoryHandle(folderName, { create: true });
   }
 
@@ -3954,8 +3433,8 @@
     const wantXmpFile = xmpFlags.xmp || xmpFlags.iptc || xmpFlags.exif;
     if (!wantJson && !wantXmpFile) return;
 
-    const payload = buildMetadataSidecarPayload(sourceUrl, mediaFilename, meta);
-    const sidecarNames = getMetadataSidecarFilenames(mediaFilename);
+    const payload = FILE_METADATA_CORE.buildMetadataSidecarPayload(sourceUrl, mediaFilename, meta);
+    const sidecarNames = FILE_METADATA_CORE.getMetadataSidecarFilenames(mediaFilename);
 
     if (wantJson) {
       try {
@@ -3983,8 +3462,8 @@
     const wantXmpFile = xmpFlags.xmp || xmpFlags.iptc || xmpFlags.exif;
     if (!wantJson && !wantXmpFile) return;
 
-    const payload = buildMetadataSidecarPayload(sourceUrl, mediaFilename, meta);
-    const sidecarNames = getMetadataSidecarFilenames(mediaFilename);
+    const payload = FILE_METADATA_CORE.buildMetadataSidecarPayload(sourceUrl, mediaFilename, meta);
+    const sidecarNames = FILE_METADATA_CORE.getMetadataSidecarFilenames(mediaFilename);
 
     if (wantJson) {
       try {
@@ -4520,7 +3999,7 @@
       failedItems: failedItems.map((item) => ({ ...item }))
     };
 
-    const safeLabel = sanitizeFilenameToken(record.label || "batch_download", "batch_download");
+    const safeLabel = FILE_METADATA_CORE.sanitizeFilenameToken(record.label || "batch_download", "batch_download");
     const filename = `${safeLabel}_failed_${formatDateToken()}_${formatTimeToken()}.json`;
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     triggerBlobBrowserDownload(blob, filename);
@@ -4877,7 +4356,7 @@
       failedItems: failedItems.map((item) => ({ ...item }))
     };
 
-    const safeLabel = sanitizeFilenameToken(record.label || "batch_download", "batch_download");
+    const safeLabel = FILE_METADATA_CORE.sanitizeFilenameToken(record.label || "batch_download", "batch_download");
     const filename = `${safeLabel}_log_${formatDateToken()}_${formatTimeToken()}.json`;
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     triggerBlobBrowserDownload(blob, filename);
@@ -6278,7 +5757,7 @@
           const resolvedFilename = usePlan
             ? effectiveDefault
             : resolveDownloadFilename(effectiveDefault, item.meta);
-          const archivePath = makeUniqueArchivePath(
+          const archivePath = FILE_METADATA_CORE.makeUniqueArchivePath(
             applyTypeSubfolderToArchivePath(resolvedFilename, item.meta),
             archivePaths
           );
@@ -6405,7 +5884,7 @@
             indeterminate: true
           });
           await sleepMs(16);
-          const zipBlob = await createStoredZipBlob(archiveEntries);
+          const zipBlob = await ZIP_CORE.createStoredZipBlob(archiveEntries);
           const zipName = buildZipDownloadName(this.zipOptions?.zipName || this.label);
           let savedToCustomFolder = false;
           try {
@@ -8460,7 +7939,7 @@
 
     function refreshSpeedTooltips() {
       const policy = readPolicyFromInputs();
-      const threshold = toBoundedPositiveInt(
+      const threshold = UTILITIES_CORE.toBoundedPositiveInt(
         safetyThresholdInput?.value,
         currentSettings.safetyThresholdCount,
         1,
@@ -8786,11 +8265,11 @@
         return;
       }
       let result = pattern;
-      const previewUsername = sanitizeFilenameToken(
+      const previewUsername = FILE_METADATA_CORE.sanitizeFilenameToken(
         (profileUsernameInput?.value || defaultUsername || "").trim(),
         "username"
       );
-      const previewFullName = sanitizeFilenameToken(
+      const previewFullName = FILE_METADATA_CORE.sanitizeFilenameToken(
         getCurrentProfileFullName().trim(),
         "Full Name"
       );
@@ -9930,7 +9409,7 @@
     try {
       return new File(
         [blob],
-        sanitizeOutputFilename(filename || "instagram_media", "instagram_media"),
+        FILE_METADATA_CORE.sanitizeOutputFilename(filename || "instagram_media", "instagram_media"),
         { type: blob.type || "application/octet-stream" }
       );
     } catch {
@@ -10891,7 +10370,7 @@
     const inferredPermalink = code && code !== "post"
       ? `https://www.instagram.com/${permalinkBase}/${code}/`
       : "";
-    const sharedMetadata = buildMetadataHintFromMediaItem(item, {
+    const sharedMetadata = FILE_METADATA_CORE.buildMetadataHintFromMediaItem(item, {
       username: username,
       permalink: inferredPermalink
     });
@@ -10970,7 +10449,7 @@
       result.items = item.carousel_media.map((media, i) => {
         const { selectedMedia, url } = selectMedia(media, i + 1);
         const mediaId = media.pk || media.id;
-        const metadata = buildMetadataHintFromMediaItem(media, sharedMetadata);
+        const metadata = FILE_METADATA_CORE.buildMetadataHintFromMediaItem(media, sharedMetadata);
         return {
           isVideo: selectedMedia.mediaKind === "video",
           url,
@@ -10993,7 +10472,7 @@
         selectedSource: selectedMedia.selected?.source || "",
         pk: mediaId,
         id: mediaId,
-        metadata: buildMetadataHintFromMediaItem(item, sharedMetadata)
+        metadata: FILE_METADATA_CORE.buildMetadataHintFromMediaItem(item, sharedMetadata)
       }];
     }
 
@@ -11008,7 +10487,7 @@
     const mediaType = isReel ? "reel" : "post";
     const permalinkBase = isReel ? "reel" : "p";
     const fallbackPermalink = shortcode ? `https://www.instagram.com/${permalinkBase}/${shortcode}/` : "";
-    const metadata = buildMetadataHintFromMediaItem(sourceMetadata, {
+    const metadata = FILE_METADATA_CORE.buildMetadataHintFromMediaItem(sourceMetadata, {
       username: parsed?.username || "instagram",
       permalink: fallbackPermalink
     });
@@ -14425,7 +13904,7 @@
       : (isHighlight ? "highlight" : "story");
     const type = isHighlight ? "highlight" : "story";
     const fallbackPermalink = "";
-    const metadata = buildMetadataHintFromMediaItem(item, {
+    const metadata = FILE_METADATA_CORE.buildMetadataHintFromMediaItem(item, {
       username: safeName,
       permalink: fallbackPermalink
     });
@@ -16052,7 +15531,7 @@
       deltaSyncSkippedCount
     });
 
-    const safeCollectionName = sanitizeFilenameToken(collectionName || collectionId, "saved");
+    const safeCollectionName = FILE_METADATA_CORE.sanitizeFilenameToken(collectionName || collectionId, "saved");
 
     while (true) {
       pageCount += 1;
@@ -16177,7 +15656,7 @@
     const policy = options?.policy && typeof options.policy === "object"
       ? options.policy
       : getActiveBulkPolicy();
-    const maxItems = toBoundedPositiveInt(options?.maxItems, USER_SETTINGS.profileDownload.maxItems, 0, 20000);
+    const maxItems = UTILITIES_CORE.toBoundedPositiveInt(options?.maxItems, USER_SETTINGS.profileDownload.maxItems, 0, 20000);
     const useCollectionSubfolder = options?.useCollectionSubfolder !== false;
     const dateFilter = USER_SETTINGS?.profileDownload?.dateFilter || { enabled: false };
     const appId = getAppID();
@@ -17206,8 +16685,8 @@
     const limit = Number(maxItems) > 0 ? Number(maxItems) : 0;
     const includeAllCarouselMedia = options?.includeAllCarouselMedia === true;
     const appId = getAppID();
-    const retryCount = toBoundedPositiveInt(policy?.retryCount, 0, 0, 8);
-    const retryBackoffMs = toBoundedPositiveInt(policy?.retryBackoffMs, 0, 0, 600000);
+    const retryCount = UTILITIES_CORE.toBoundedPositiveInt(policy?.retryCount, 0, 0, 8);
+    const retryBackoffMs = UTILITIES_CORE.toBoundedPositiveInt(policy?.retryBackoffMs, 0, 0, 600000);
     const traceSampleLimit = 5;
     let shortcodeTraceCount = 0;
     const shortcodeSet = new Set();
@@ -17626,7 +17105,7 @@
   function buildProfilePictureDownloadTask(username, profilePicUrl, userId = "") {
     const normalizedUrl = normalizeProfilePicUrl(profilePicUrl);
     if (!isValidHdProfilePicUrl(normalizedUrl)) return null;
-    const ext = extractFileExtension(normalizedUrl) || "jpg";
+    const ext = FILE_METADATA_CORE.extractFileExtension(normalizedUrl) || "jpg";
     return {
       url: normalizedUrl,
       filename: `${username}_profile.${ext}`,
@@ -17657,7 +17136,7 @@
     const mediaType = isReel ? "reel" : "post";
     const permalinkBase = isReel ? "reel" : "p";
     const postPermalink = shortcode ? `https://www.instagram.com/${permalinkBase}/${shortcode}/` : "";
-    const sharedMetadata = buildMetadataHintFromMediaItem(item, {
+    const sharedMetadata = FILE_METADATA_CORE.buildMetadataHintFromMediaItem(item, {
       username: username,
       permalink: postPermalink
     });
@@ -17675,7 +17154,7 @@
       if (!url) continue;
       const suffix = mediaItems.length > 1 ? `_${i + 1}` : "";
       const mediaId = media?.pk || media?.id || `${i + 1}`;
-      const mediaMetadata = buildMetadataHintFromMediaItem(media, sharedMetadata);
+      const mediaMetadata = FILE_METADATA_CORE.buildMetadataHintFromMediaItem(media, sharedMetadata);
       tasks.push({
         url: url,
         videoPlan: selected.isVideo ? (selected.videoPlan || null) : null,
@@ -17767,7 +17246,7 @@
     if (!Array.isArray(items)) return [];
     const tasks = [];
     const normalizedHighlightId = normalizeHighlightTrayId(highlightId) || "highlight";
-    const safeTitle = sanitizeFilenameToken(highlightTitle, "");
+    const safeTitle = FILE_METADATA_CORE.sanitizeFilenameToken(highlightTitle, "");
     const highlightLabel = safeTitle || normalizedHighlightId;
 
     for (let i = 0; i < items.length; i++) {
@@ -17775,7 +17254,7 @@
       const media = getBestStoryItemMedia(item);
       if (!media.url) continue;
       const itemId = item?.pk || item?.id || `${i + 1}`;
-      const itemMetadata = buildMetadataHintFromMediaItem(item, { username: username });
+      const itemMetadata = FILE_METADATA_CORE.buildMetadataHintFromMediaItem(item, { username: username });
       tasks.push({
         url: media.url,
         videoPlan: media.isVideo ? (media.videoPlan || null) : null,
@@ -18159,8 +17638,8 @@
     const dateFilter = (USER_SETTINGS?.profileDownload?.dateFilter) || { enabled: false };
     const dateFilterCounters = createDateFilterCounters();
     let dateFilterTerminatedEarly = false;
-    const retryCount = toBoundedPositiveInt(policy?.retryCount, 0, 0, 8);
-    const retryBackoffMs = toBoundedPositiveInt(policy?.retryBackoffMs, 0, 0, 600000);
+    const retryCount = UTILITIES_CORE.toBoundedPositiveInt(policy?.retryCount, 0, 0, 8);
+    const retryBackoffMs = UTILITIES_CORE.toBoundedPositiveInt(policy?.retryBackoffMs, 0, 0, 600000);
     const traceSampleLimit = 5;
     let maxId = null;
     let taggedGraphQlCursor = null;
@@ -18745,7 +18224,7 @@
     const policy = options?.policy && typeof options.policy === "object"
       ? options.policy
       : getActiveBulkPolicy();
-    const maxItems = toBoundedPositiveInt(options?.maxItems, USER_SETTINGS.profileDownload.maxItems, 0, 20000);
+    const maxItems = UTILITIES_CORE.toBoundedPositiveInt(options?.maxItems, USER_SETTINGS.profileDownload.maxItems, 0, 20000);
     const selection = sanitizeProfileDownloadSelection({
       includePosts: (typeof options?.includePosts === "boolean")
         ? options.includePosts

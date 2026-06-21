@@ -26,6 +26,7 @@ const FILES = [
   "core/file-metadata.js",
   "core/date-filter.js",
   "core/story-matching.js",
+  "core/settings-schema.js",
   "main.js",
 ];
 

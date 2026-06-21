@@ -39,7 +39,8 @@ core/download-pipeline.js ← Orchestrates all downloads (GM_download passthroug
 core/file-metadata.js  ← Filename templating, sanitization, metadata sidecar building (JSON/XMP)
 core/date-filter.js    ← Pure date-range filter helpers for bulk downloads
 core/story-matching.js ← Matches story items to DOM/API signals
-main.js                ← Main IIFE: CSS, settings panel, bulk-download UI, all Instagram page handlers
+core/settings-schema.js ← Settings schema: DEFAULT_USER_SETTINGS, all sanitize*/normalize* functions
+main.js                ← Main IIFE: CSS, settings storage, batch controller, page handlers
 ```
 
 Each `core/*.js` file exports a single `const X_CORE = (() => { ... })();` IIFE that returns a plain object of functions.
