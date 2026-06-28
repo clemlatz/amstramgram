@@ -14,8 +14,9 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
     getBestStoryItemMedia,
     gmFetch,
     isLikelyInstagramShortcode,
+    isPlaceholderProfilePicUrl,
     isRetryableTaggedRequestStatus,
-    isValidHdProfilePicUrl,
+    isTrustedInstagramMediaUrl,
     mediaContainsTaggedProfile,
     normalizeProfilePicUrl,
     summarizeTaggedItemForTrace,
@@ -164,7 +165,7 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
 
   function buildProfilePictureDownloadTask(username, profilePicUrl, userId = "") {
     const normalizedUrl = normalizeProfilePicUrl(profilePicUrl);
-    if (!isValidHdProfilePicUrl(normalizedUrl)) return null;
+    if (!normalizedUrl || !isTrustedInstagramMediaUrl(normalizedUrl) || isPlaceholderProfilePicUrl(normalizedUrl)) return null;
     const ext = FILE_METADATA_CORE.extractFileExtension(normalizedUrl) || "jpg";
     return {
       url: normalizedUrl,
