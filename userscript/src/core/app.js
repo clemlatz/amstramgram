@@ -647,6 +647,9 @@ const APP_CORE = (() => {
   }
 
   async function tryCustomFolderDownload(url, filename, meta = null) {
+    if (!USER_SETTINGS?.downloads?.useCustomFolder) {
+      return { saved: false, fileName: "" };
+    }
     const blob = await DOWNLOAD_PIPELINE_CORE.fetchMediaBlob(url);
     return await saveBlobToCustomFolderWithResult(blob, filename, meta);
   }
