@@ -1227,6 +1227,7 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
       }, true);
       let userId = "";
       let profilePicTask = null;
+      let profilePicFailed = false;
       if (includeProfilePicture) {
         updateProfileBulkSetupProgress({
           stage: "resolve-profile",
@@ -1240,10 +1241,14 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
         if (profileInfo?.success && profileInfo?.hdUrl) {
           profilePicTask = buildProfilePictureDownloadTask(normalizedUsername, profileInfo.hdUrl, userId);
           if (!profilePicTask) {
+            profilePicFailed = true;
             showToast(`Profile @${normalizedUsername}: profile picture URL was invalid, skipping it.`, 5000);
           }
         } else if (profileInfo?.error) {
+          profilePicFailed = true;
           showToast(`Profile @${normalizedUsername}: profile picture unavailable (${profileInfo.error}).`, 5000);
+        } else {
+          profilePicFailed = true;
         }
       }
 
@@ -1401,7 +1406,10 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
 
       if (scopedTasks.length === 0) {
         finishProfileBulkSetupProgress("completed", "no downloadable content found");
-        showToast(`Profile @${normalizedUsername}: no downloadable content found for selected targets.`, 5500);
+        const onlyProfilePicWanted = includeProfilePicture && !includePosts && !includeReels && !includeHighlights && !includeTagged;
+        if (!(onlyProfilePicWanted && profilePicFailed)) {
+          showToast(`Profile @${normalizedUsername}: no downloadable content found for selected targets.`, 5500);
+        }
         return { total: 0, completed: 0, failed: 0 };
       }
 
