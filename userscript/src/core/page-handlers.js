@@ -6506,6 +6506,7 @@ const PAGE_HANDLERS_CORE = (() => {
       if (!userId) throw new Error("Could not get user ID");
       resolvedUserId = String(userId);
       resolvedFullName = String(profileData?.data?.user?.full_name || "").trim();
+      const profilePicHdFromWebInfo = normalizeProfilePicUrl(profileData?.data?.user?.profile_pic_url_hd);
 
       // Step 2: users/{id}/info/ with mobile UA → profile pic
       const hdUrl = `https://i.instagram.com/api/v1/users/${userId}/info/`;
@@ -6547,6 +6548,22 @@ const PAGE_HANDLERS_CORE = (() => {
         if (isValidHdProfilePicUrl(legacyUrl)) {
           hdPicUrl = legacyUrl;
           debugLog("[Amstragram] Using profile_pic_url_hd (legacy)");
+        }
+      }
+
+      // 4. profile_pic_url_hd from web_profile_info (step 1) — fallback when /info/ returns empty user
+      if (!hdPicUrl && profilePicHdFromWebInfo) {
+        // Instagram CDN encodes the requested size in the stp parameter (e.g. s320x320).
+        // Try upgrading to 1080 before falling back to whatever size is available.
+        const upgradedUrl = normalizeProfilePicUrl(
+          profilePicHdFromWebInfo.replace(/(stp=[^&]*?)s\d+x\d+/i, "$1s1080x1080")
+        );
+        if (isValidHdProfilePicUrl(upgradedUrl)) {
+          hdPicUrl = upgradedUrl;
+          debugLog("[Amstragram] Using upgraded profile_pic_url_hd from web_profile_info (1080)");
+        } else if (isTrustedInstagramMediaUrl(profilePicHdFromWebInfo) && !isPlaceholderProfilePicUrl(profilePicHdFromWebInfo)) {
+          hdPicUrl = profilePicHdFromWebInfo;
+          debugLog("[Amstragram] Using profile_pic_url_hd from web_profile_info (small, last resort)");
         }
       }
 
