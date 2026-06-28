@@ -368,6 +368,7 @@ def _parse_json_sidecar(json_path: Path) -> dict:
 _EMPTY_GRAMOIRE: dict = dict(
     shortcode=None,
     post_type=None,
+    media_type=None,
     carousel_index=None,
     post_timestamp=None,
     caption=None,
@@ -404,6 +405,7 @@ def _parse_gramoire_sidecar(json_path: Path) -> dict:
     return dict(
         shortcode=media.get("shortcode"),
         post_type=post_type,
+        media_type=media.get("type"),
         carousel_index=media.get("index"),
         post_timestamp=timestamp.get("iso"),
         caption=raw.get("caption"),
@@ -428,6 +430,16 @@ def import_gramoire_file(
 
     account_id, _ = upsert_account(meta["author_username"], meta["author_id"], db_path)
 
+    dest_dir = storage_base / "media" / meta["author_id"]
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / media_path.name
+
+    if meta["media_type"] == "profile_pic":
+        shutil.move(str(media_path), dest)
+        filepath = str(dest.relative_to(storage_base))
+        save_account_profile_pic(meta["author_id"], filepath, db_path)
+        return "imported"
+
     if meta["shortcode"]:
         is_dup = (
             _media_file_exists(meta["shortcode"], meta["carousel_index"], db_path)
@@ -436,10 +448,6 @@ def import_gramoire_file(
         )
         if is_dup:
             return "duplicate"
-
-    dest_dir = storage_base / "media" / meta["author_id"]
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    dest = dest_dir / media_path.name
 
     shutil.move(str(media_path), dest)
 

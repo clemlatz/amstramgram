@@ -7,6 +7,7 @@ from pathlib import Path
 
 from api.db import (
     _parse_gramoire_sidecar,
+    get_account_profile_pic_path,
     import_gramoire_file,
     init_db,
     shortcode_exists,
@@ -196,6 +197,40 @@ def test_import_gramoire_carousel_slide_duplicate_detected(tmp_path):
     )
     result = import_gramoire_file(media2, j2, storage, db)
     assert result == "duplicate"
+
+
+def test_import_gramoire_profile_pic_sets_profile_pic_path(tmp_path):
+    db = tmp_path / "test.db"
+    init_db(db)
+    imports_dir = tmp_path / "imports"
+    imports_dir.mkdir()
+    storage = tmp_path / "storage"
+
+    media = _make_media_file(imports_dir, "testuser_profile.jpg")
+    sidecar = {
+        "schema": "amstragram-media-metadata-v1.2",
+        "media": {"type": "profile_pic", "shortcode": None, "id": "42", "kind": "image"},
+        "author": {"id": "42", "username": "testuser"},
+        "caption": "",
+        "timestamp": {"raw": None, "unix": None, "iso": None},
+    }
+    json_path = imports_dir / "testuser_profile.json"
+    _write_json(json_path, sidecar)
+
+    result = import_gramoire_file(media, json_path, storage, db)
+
+    assert result == "imported"
+    assert not media.exists()
+    dest = storage / "media" / "42" / "testuser_profile.jpg"
+    assert dest.exists()
+    # File must NOT appear in the media table
+    assert not shortcode_exists("", db)
+    conn = sqlite3.connect(str(db))
+    count = conn.execute("SELECT COUNT(*) FROM media").fetchone()[0]
+    conn.close()
+    assert count == 0
+    # profile_pic_path must be updated on the account
+    assert get_account_profile_pic_path("testuser", db) == "media/42/testuser_profile.jpg"
 
 
 def test_import_gramoire_file_creates_account_inactive(tmp_path):
