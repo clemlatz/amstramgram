@@ -182,34 +182,36 @@ async def get_account_detail_route(username: str):
     return JSONResponse(detail)
 
 
+def serialize_account_posts(posts: list[dict]) -> dict:
+    return {
+        "posts": [
+            {
+                "account": p["account"],
+                "account_active": p["account_active"],
+                "caption": p["caption"],
+                "post_timestamp": p["post_timestamp"],
+                "shortcode": p["shortcode"],
+                "archived_at": p["archived_at"],
+                "favorited_at": p["favorited_at"],
+                "media": [
+                    {
+                        "url": f"/api/media/{_encode(fp)}",
+                        "type": _media_type(ext),
+                        "width": w,
+                        "height": h,
+                    }
+                    for fp, ext, w, h in p["media"]
+                ],
+            }
+            for p in posts
+        ]
+    }
+
+
 @router.get("/accounts/{username}/posts")
 async def get_account_posts_route(username: str):
     posts = await asyncio.to_thread(get_account_posts, username, DB_PATH)
-    return JSONResponse(
-        {
-            "posts": [
-                {
-                    "account": p["account"],
-                    "account_active": p["account_active"],
-                    "caption": p["caption"],
-                    "post_timestamp": p["post_timestamp"],
-                    "shortcode": p["shortcode"],
-                    "archived_at": p["archived_at"],
-                    "favorited_at": p["favorited_at"],
-                    "media": [
-                        {
-                            "url": f"/api/media/{_encode(fp)}",
-                            "type": _media_type(ext),
-                            "width": w,
-                            "height": h,
-                        }
-                        for fp, ext, w, h in p["media"]
-                    ],
-                }
-                for p in posts
-            ]
-        }
-    )
+    return JSONResponse(serialize_account_posts(posts))
 
 
 @router.get("/accounts/{username}/preview")
