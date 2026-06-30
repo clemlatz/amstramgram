@@ -435,6 +435,11 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
         emptyPageStreak = 0;
       }
       for (const item of items) {
+        // Reels (clips) are collected separately by collectProfileReelDownloadTasks,
+        // which queries this same /feed/user/ endpoint. Skipping them here keeps
+        // "Posts" and "Reels" mutually exclusive instead of double-queuing every
+        // clip when both content types are selected.
+        if (item?.product_type === "clips") continue;
         const hydratedItem = await hydrateMediaItemForDesktopDash(item);
         const itemTasks = buildProfileItemDownloadTasks(hydratedItem, username);
         for (const task of itemTasks) {
