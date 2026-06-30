@@ -6551,19 +6551,12 @@ const PAGE_HANDLERS_CORE = (() => {
         }
       }
 
-      // 4. profile_pic_url_hd from web_profile_info (step 1) — fallback when /info/ returns empty user
+      // 4. profile_pic_url_hd from web_profile_info (step 1) — fallback when /info/ returns empty user.
+      // Do NOT modify the stp parameter — the CDN signature (oh) covers it; upgrading the size breaks it.
       if (!hdPicUrl && profilePicHdFromWebInfo) {
-        // Instagram CDN encodes the requested size in the stp parameter (e.g. s320x320).
-        // Try upgrading to 1080 before falling back to whatever size is available.
-        const upgradedUrl = normalizeProfilePicUrl(
-          profilePicHdFromWebInfo.replace(/(stp=[^&]*?)s\d+x\d+/i, "$1s1080x1080")
-        );
-        if (isValidHdProfilePicUrl(upgradedUrl)) {
-          hdPicUrl = upgradedUrl;
-          debugLog("[Amstragram] Using upgraded profile_pic_url_hd from web_profile_info (1080)");
-        } else if (isTrustedInstagramMediaUrl(profilePicHdFromWebInfo) && !isPlaceholderProfilePicUrl(profilePicHdFromWebInfo)) {
+        if (isTrustedInstagramMediaUrl(profilePicHdFromWebInfo) && !isPlaceholderProfilePicUrl(profilePicHdFromWebInfo)) {
           hdPicUrl = profilePicHdFromWebInfo;
-          debugLog("[Amstragram] Using profile_pic_url_hd from web_profile_info (small, last resort)");
+          debugLog("[Amstragram] Using profile_pic_url_hd from web_profile_info");
         }
       }
 
