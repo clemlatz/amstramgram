@@ -63,6 +63,13 @@ amstramgram/
 | `POST /api/settings/import-from-disk` | Trigger manual Gramoire import from disk |
 | `GET /api/logs` | Recent application log entries (last 100) |
 
+All routes consumed by the `userscript/` (a non-interactive client that cannot complete the SPA's OAuth flow) live under the `/api/userscript/` prefix, so a reverse-proxy auth layer (e.g. oauth-proxy) can allow-list that one prefix instead of enumerating individual paths:
+
+| Route | Description |
+|---|---|
+| `GET /api/userscript/accounts/{username}/posts` | Get all posts for an account (mirrors `GET /api/accounts/{username}/posts`, used by the userscript's skip-history check) |
+| `GET /api/userscript/shortcodes` | All known shortcodes, for local download-history dedup |
+
 ### Frontend (`frontend/`)
 
 SvelteKit with `adapter-static` (SPA mode: `ssr = false`, `prerender = false`). Built output in `frontend/build/` is served by FastAPI via a `_SPAFiles` catch-all that falls back to `index.html`.

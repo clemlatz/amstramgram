@@ -4842,7 +4842,7 @@ const APP_CORE = (() => {
       try {
         const resp = await GramPlatform.fetchUrl({
           method: "GET",
-          url: `${amstramgramUrl}/api/accounts/${encodeURIComponent(username)}/posts`,
+          url: `${amstramgramUrl}/api/userscript/accounts/${encodeURIComponent(username)}/posts`,
           withCredentials: false,
           timeout: 8000
         });
@@ -6370,7 +6370,7 @@ const APP_CORE = (() => {
   async function syncAmstramgramShortcodes(baseUrl) {
     const response = await GramPlatform.fetchUrl({
       method: "GET",
-      url: `${baseUrl}/api/shortcodes`,
+      url: `${baseUrl}/api/userscript/shortcodes`,
       withCredentials: false,
       timeout: 15000
     });
