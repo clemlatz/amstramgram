@@ -1102,7 +1102,7 @@ const APP_CORE = (() => {
       return;
     }
 
-    const skipPreviouslyDownloaded = !!USER_SETTINGS?.downloads?.skipPreviouslyDownloaded;
+    const forceRedownload = !!USER_SETTINGS?.downloads?.forceRedownload;
     const itemsWithKeys = allItems.map(item => ({
       ...item,
       historyKey: item.historyKey || getDownloadHistoryKeyForTask(item)
@@ -1110,7 +1110,7 @@ const APP_CORE = (() => {
 
     let skippedCount = 0;
     const queuedItems = itemsWithKeys.filter(item => {
-      if (skipPreviouslyDownloaded && item.historyKey && hasDownloadedHistoryKey(item.historyKey)) {
+      if (!forceRedownload && item.historyKey && hasDownloadedHistoryKey(item.historyKey)) {
         skippedCount += 1;
         return false;
       }
@@ -2912,11 +2912,11 @@ const APP_CORE = (() => {
       });
     }
 
-    const skipPreviouslyDownloaded = !!USER_SETTINGS?.downloads?.skipPreviouslyDownloaded;
+    const forceRedownload = !!USER_SETTINGS?.downloads?.forceRedownload;
     let skippedByHistory = 0;
     const queued = [];
     for (const item of normalized) {
-      if (skipPreviouslyDownloaded && item.historyKey && hasDownloadedHistoryKey(item.historyKey)) {
+      if (!forceRedownload && item.historyKey && hasDownloadedHistoryKey(item.historyKey)) {
         skippedByHistory += 1;
         continue;
       }
@@ -3597,18 +3597,6 @@ const APP_CORE = (() => {
             <div class="ig-hd-settings-subheading">Downloads</div>
             <div class="ig-hd-settings-card">
               <div class="ig-hd-settings-card-inner">
-                <div class="ig-hd-settings-item">
-                  <div class="ig-hd-settings-toggle">
-                    <input id="ig-hd-skip-previously-downloaded" type="checkbox"${currentSettings.downloads.skipPreviouslyDownloaded ? " checked" : ""} />
-                    <span>Skip previously downloaded <i id="ig-hd-tip-skip-downloaded" class="ig-hd-info-tip" data-tip="">?</i></span>
-                    <label class="ig-hd-toggle-track" for="ig-hd-skip-previously-downloaded"></label>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div class="ig-hd-settings-help">Remember downloaded files and skip them in future batches to avoid duplicates.</div>
-            <div class="ig-hd-settings-card">
-              <div class="ig-hd-settings-card-inner">
                 <div class="ig-hd-settings-row">
                   <label class="ig-hd-settings-label" for="ig-hd-amstramgram-url">Amstramgram URL</label>
                   <input id="ig-hd-amstramgram-url" class="ig-hd-settings-input" type="text" value="${escapeHtml(currentSettings.downloads.amstramgramUrl || "")}" placeholder="http://localhost:8000" spellcheck="false" autocomplete="off" />
@@ -3723,11 +3711,24 @@ const APP_CORE = (() => {
               </div>
             </div>
           </div>
-          <div class="ig-hd-settings-group" id="ig-hd-skip-history-group"${currentSettings.downloads.skipPreviouslyDownloaded ? "" : " hidden"}>
+          <div class="ig-hd-settings-group" id="ig-hd-skip-history-group">
+            <div class="ig-hd-settings-subheading">Already downloaded</div>
             <div class="ig-hd-skip-history-note">
               <span class="ig-hd-skip-history-count" id="ig-hd-skip-history-count">—</span>
               <span id="ig-hd-skip-history-desc">items in download history — matching media in this batch will be skipped.</span>
             </div>
+            <div class="ig-hd-settings-card" style="margin-top:12px">
+              <div class="ig-hd-settings-card-inner">
+                <div class="ig-hd-settings-item">
+                  <div class="ig-hd-settings-toggle">
+                    <input id="ig-hd-force-redownload" type="checkbox"${currentSettings.downloads.forceRedownload ? " checked" : ""} />
+                    <span>Force re-download</span>
+                    <label class="ig-hd-toggle-track" for="ig-hd-force-redownload"></label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="ig-hd-settings-help">Re-download media already in your history, even if previously downloaded.</div>
           </div>
           <div class="ig-hd-settings-group">
             <div class="ig-hd-settings-subheading">Pacing &amp; limits</div>
@@ -3831,7 +3832,7 @@ const APP_CORE = (() => {
       folderInputWrap?.classList.toggle("has-value", !!folderLabelInput?.value?.trim());
     }
     syncFolderInputPathPrefix();
-    const skipPreviouslyDownloadedToggle = modal.querySelector("#ig-hd-skip-previously-downloaded");
+    const forceRedownloadToggle = modal.querySelector("#ig-hd-force-redownload");
     const amstramgramUrlInput = modal.querySelector("#ig-hd-amstramgram-url");
     const amstramgramSyncButton = modal.querySelector("#ig-hd-amstramgram-sync");
     const delayMinInput = modal.querySelector("#ig-hd-delay-min");
@@ -3870,7 +3871,7 @@ const APP_CORE = (() => {
       retryCount: modal.querySelector("#ig-hd-tip-retry-count"),
       retryBackoff: modal.querySelector("#ig-hd-tip-retry-backoff"),
       riskAck: modal.querySelector("#ig-hd-tip-risk-ack"),
-      skipDownloaded: modal.querySelector("#ig-hd-tip-skip-downloaded"),
+      forceRedownload: modal.querySelector("#ig-hd-tip-force-redownload"),
       taggedCarousel: modal.querySelector("#ig-hd-tip-tagged-carousel")
     };
 
@@ -3951,7 +3952,6 @@ const APP_CORE = (() => {
     syncRiskAckControls(riskAckInput, profileDownloadButton);
 
     // === Skip history display ===
-    const skipHistoryGroup = modal.querySelector("#ig-hd-skip-history-group");
     const skipHistoryCountEl = modal.querySelector("#ig-hd-skip-history-count");
     const skipHistoryDescEl = modal.querySelector("#ig-hd-skip-history-desc");
     let _skipHistoryReqId = 0;
@@ -3968,16 +3968,16 @@ const APP_CORE = (() => {
       return set;
     }
 
-    function showSkipHistoryFallback() {
-      ensureDownloadHistoryLoaded();
-      if (skipHistoryCountEl) skipHistoryCountEl.textContent = downloadHistoryOrder.length.toLocaleString();
-      if (skipHistoryDescEl) skipHistoryDescEl.textContent = "items in download history — matching media in this batch will be skipped.";
-    }
-
     async function updateSkipHistoryDisplay() {
-      const enabled = !!skipPreviouslyDownloadedToggle?.checked;
-      if (skipHistoryGroup) skipHistoryGroup.hidden = !enabled;
-      if (!enabled || !skipHistoryCountEl) return;
+      if (!skipHistoryCountEl) return;
+
+      const forceRedownload = !!forceRedownloadToggle?.checked;
+      const skippedSuffix = forceRedownload
+        ? "these will be re-downloaded (force re-download is on)."
+        : "these will be skipped.";
+      const fallbackSuffix = forceRedownload
+        ? "matching media in this batch will be re-downloaded."
+        : "matching media in this batch will be skipped.";
 
       const amstramgramUrl = sanitizeAmstramgramUrl(
         amstramgramUrlInput?.value?.trim() || USER_SETTINGS?.downloads?.amstramgramUrl || ""
@@ -3987,13 +3987,15 @@ const APP_CORE = (() => {
       const username = !isSaved && /^[A-Za-z0-9._]+$/.test(rawUsername) ? rawUsername : "";
 
       if (!amstramgramUrl || !username) {
-        showSkipHistoryFallback();
+        ensureDownloadHistoryLoaded();
+        skipHistoryCountEl.textContent = downloadHistoryOrder.length.toLocaleString();
+        if (skipHistoryDescEl) skipHistoryDescEl.textContent = `items in download history — ${fallbackSuffix}`;
         return;
       }
 
       const myId = ++_skipHistoryReqId;
-      if (skipHistoryCountEl) skipHistoryCountEl.textContent = "…";
-      if (skipHistoryDescEl) skipHistoryDescEl.textContent = `items from @${username} already downloaded — these will be skipped.`;
+      skipHistoryCountEl.textContent = "…";
+      if (skipHistoryDescEl) skipHistoryDescEl.textContent = `items from @${username} already downloaded — ${skippedSuffix}`;
 
       try {
         const resp = await GramPlatform.fetchUrl({
@@ -4003,7 +4005,11 @@ const APP_CORE = (() => {
           timeout: 8000
         });
         if (myId !== _skipHistoryReqId) return;
-        if (resp.status !== 200) { showSkipHistoryFallback(); return; }
+        if (resp.status !== 200) {
+          skipHistoryCountEl.textContent = downloadHistoryOrder.length.toLocaleString();
+          if (skipHistoryDescEl) skipHistoryDescEl.textContent = `items in download history — ${fallbackSuffix}`;
+          return;
+        }
         const data = JSON.parse(resp.responseText);
         const posts = Array.isArray(data?.posts) ? data.posts : [];
         const scSet = buildShortcodeHistorySet();
@@ -4012,10 +4018,14 @@ const APP_CORE = (() => {
           if (post.shortcode && scSet.has(String(post.shortcode).trim())) count++;
         }
         if (myId === _skipHistoryReqId) {
-          if (skipHistoryCountEl) skipHistoryCountEl.textContent = count.toLocaleString();
+          skipHistoryCountEl.textContent = count.toLocaleString();
         }
       } catch {
-        if (myId === _skipHistoryReqId) showSkipHistoryFallback();
+        if (myId === _skipHistoryReqId) {
+          ensureDownloadHistoryLoaded();
+          skipHistoryCountEl.textContent = downloadHistoryOrder.length.toLocaleString();
+          if (skipHistoryDescEl) skipHistoryDescEl.textContent = `items in download history — ${fallbackSuffix}`;
+        }
       }
     }
 
@@ -4026,7 +4036,7 @@ const APP_CORE = (() => {
     }
 
     updateSkipHistoryDisplay();
-    skipPreviouslyDownloadedToggle?.addEventListener("change", updateSkipHistoryDisplay);
+    forceRedownloadToggle?.addEventListener("change", updateSkipHistoryDisplay);
     profileUsernameInput?.addEventListener("input", scheduleSkipHistoryUpdate);
     amstramgramUrlInput?.addEventListener("input", scheduleSkipHistoryUpdate);
 
@@ -4344,11 +4354,6 @@ const APP_CORE = (() => {
       );
 
       setInfoTipText(
-        speedTipNodes.skipDownloaded,
-        `Tracks downloaded files using your browser's local storage.\nFiles are identified by their Instagram shortcode, so re-downloading the same content is skipped automatically.\nClearing your browser data or reinstalling the script will erase this history, and duplicates will no longer be detected.\nUse "Sync now" below to pre-fill the skip list with posts already in your Amstramgram database.`
-      );
-
-      setInfoTipText(
         speedTipNodes.taggedCarousel,
         `When someone is tagged in a carousel post (a post with multiple photos or videos), Instagram only marks which specific slide they appear in.\n\nOFF — download only the slide(s) the user is actually tagged in. This is the default and avoids pulling unrelated photos from the same post.\n\nON — download every slide in the carousel, even ones the user isn't tagged in. Useful if you want complete posts, but expect extra files that may have nothing to do with the tagged user.`
       );
@@ -4506,7 +4511,7 @@ const APP_CORE = (() => {
         downloads: {
           useCustomFolder: isCustomFolderActive(),
           folderLabel: folderLabelInput.value,
-          skipPreviouslyDownloaded: !!skipPreviouslyDownloadedToggle?.checked,
+          forceRedownload: !!forceRedownloadToggle?.checked,
           amstramgramUrl: amstramgramUrlInput?.value?.trim() ?? ""
         },
         customPolicy: getPolicyForSettingsSave(),
@@ -4563,7 +4568,7 @@ const APP_CORE = (() => {
       triggerImmediateAutosave();
     });
 
-    skipPreviouslyDownloadedToggle?.addEventListener("change", () => {
+    forceRedownloadToggle?.addEventListener("change", () => {
       triggerImmediateAutosave();
     });
     riskAckInput?.addEventListener("change", () => {

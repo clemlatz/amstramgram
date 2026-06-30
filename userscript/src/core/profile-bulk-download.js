@@ -396,7 +396,7 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
     const limit = Number(maxItems) > 0 ? Number(maxItems) : 0;
     const onProgressText = typeof options?.onProgressText === "function" ? options.onProgressText : null;
     const deltaSyncEnabled = POSTS_FEED_SUPPORTS_DELTA_SYNC
-      && !!_getSettings()?.downloads?.skipPreviouslyDownloaded;
+      && !_getSettings()?.downloads?.forceRedownload;
     let deltaSyncConsecutiveHits = 0;
     let deltaSyncSkippedCount = 0;
     let deltaSyncTerminatedEarly = false;

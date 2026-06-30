@@ -53,7 +53,7 @@ const SETTINGS_SCHEMA_CORE = (() => {
     downloads: {
       useCustomFolder: true,
       folderLabel: "",
-      skipPreviouslyDownloaded: false,
+      forceRedownload: false,
       amstramgramUrl: "",
       saveMetadataJson: true,
       videoContainer: "mp4"
@@ -175,9 +175,9 @@ const SETTINGS_SCHEMA_CORE = (() => {
       useCustomFolder: true,
       folderLabel: sanitizeOutputFolderLabel(source.folderLabel),
       bulkAsZip: false,
-      skipPreviouslyDownloaded: (typeof source.skipPreviouslyDownloaded === "boolean")
-        ? source.skipPreviouslyDownloaded
-        : DEFAULT_USER_SETTINGS.downloads.skipPreviouslyDownloaded,
+      forceRedownload: (typeof source.forceRedownload === "boolean")
+        ? source.forceRedownload
+        : DEFAULT_USER_SETTINGS.downloads.forceRedownload,
       amstramgramUrl: sanitizeAmstramgramUrl(source.amstramgramUrl),
       useTypeSubfolders: false,
       saveMetadataJson: true,

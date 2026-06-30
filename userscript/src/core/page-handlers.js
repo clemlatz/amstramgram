@@ -3192,7 +3192,7 @@ const PAGE_HANDLERS_CORE = (() => {
       const profileFullName = response?.fullName ? String(response.fullName) : "";
       let profilePicUrl = null;
 
-      if (response?.success && isValidHdProfilePicUrl(apiUrl)) {
+      if (response?.success && apiUrl && isTrustedInstagramMediaUrl(apiUrl) && !isPlaceholderProfilePicUrl(apiUrl)) {
         profilePicUrl = apiUrl;
       } else if (isValidHdProfilePicUrl(fallbackUrl)) {
         debugLog("[Amstragram] API profile picture unavailable, using validated page-data fallback");
@@ -6205,7 +6205,7 @@ const PAGE_HANDLERS_CORE = (() => {
     const limit = Number(maxItems) > 0 ? Number(maxItems) : 0;
     const onProgressText = typeof options?.onProgressText === "function" ? options.onProgressText : null;
     const useCollectionSubfolder = options?.useCollectionSubfolder === true;
-    const deltaSyncEnabled = !!_getSettings()?.downloads?.skipPreviouslyDownloaded;
+    const deltaSyncEnabled = !_getSettings()?.downloads?.forceRedownload;
     let deltaSyncConsecutiveHits = 0;
     let deltaSyncSkippedCount = 0;
     let deltaSyncTerminatedEarly = false;
