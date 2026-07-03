@@ -318,9 +318,9 @@ const APP_CORE = (() => {
       applyUserSettingsSideEffects();
       const openOverlay = document.getElementById("ig-hd-settings-overlay");
       if (!openOverlay) return;
-      const activeTab = openOverlay.querySelector(".ig-hd-settings-tab.active")?.dataset.tab || "preferences";
+      const activeTab = openOverlay.querySelector(".ig-hd-settings-tab.active")?.dataset.tab || "downloader";
       openSettingsModal();
-      if (activeTab !== "preferences") {
+      if (activeTab !== "downloader") {
         document.querySelector(`#ig-hd-settings-overlay .ig-hd-settings-tab[data-tab="${activeTab}"]`)?.click();
       }
     });
@@ -3587,12 +3587,12 @@ const APP_CORE = (() => {
         <button id="ig-hd-settings-close" class="ig-hd-settings-close" type="button" aria-label="Close settings"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20.6435 3.35742L12.0005 12.0004L3.35352 20.6474" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.6485 20.6485L3.35352 3.35352" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
       <div class="ig-hd-settings-tabs">
-        <button class="ig-hd-settings-tab active" data-tab="preferences" type="button">Preferences</button>
-        <button class="ig-hd-settings-tab" data-tab="downloader" type="button">Downloader</button>
+        <button class="ig-hd-settings-tab active" data-tab="downloader" type="button">Downloader</button>
+        <button class="ig-hd-settings-tab" data-tab="preferences" type="button">Preferences</button>
       </div>
       <div class="ig-hd-settings-body">
-        <!-- Tab 1: Preferences -->
-        <div class="ig-hd-settings-tab-panel active" data-tab-panel="preferences">
+        <!-- Tab 2: Preferences -->
+        <div class="ig-hd-settings-tab-panel" data-tab-panel="preferences">
           <div class="ig-hd-settings-group">
             <div class="ig-hd-settings-subheading">Downloads</div>
             <div class="ig-hd-settings-card">
@@ -3629,8 +3629,8 @@ const APP_CORE = (() => {
             <p id="ig-hd-folder-help" class="ig-hd-settings-help" style="margin-top:8px;padding:0 4px">Chromium only (Chrome, Edge, Brave). Firefox always uses the default download folder.</p>
           </div>
         </div>
-                <!-- Tab 3: Downloader -->
-        <div class="ig-hd-settings-tab-panel" data-tab-panel="downloader">
+        <!-- Tab 1: Downloader -->
+        <div class="ig-hd-settings-tab-panel active" data-tab-panel="downloader">
           <div class="ig-hd-settings-group">
             <div class="ig-hd-settings-subheading">Download source</div>
             <div class="ig-hd-settings-section-desc">Choose whether to download from a profile or from your saved collections.</div>
