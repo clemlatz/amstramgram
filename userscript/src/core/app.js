@@ -3628,6 +3628,60 @@ const APP_CORE = (() => {
             </div>
             <p id="ig-hd-folder-help" class="ig-hd-settings-help" style="margin-top:8px;padding:0 4px">Chromium only (Chrome, Edge, Brave). Firefox always uses the default download folder.</p>
           </div>
+          <div class="ig-hd-settings-group" style="margin-top:10px">
+            <div class="ig-hd-settings-subheading">Pacing &amp; limits</div>
+            <div class="ig-hd-settings-section-desc">Control download speed to reduce the risk of rate-limiting or account flags. Aggressive settings download faster but carry more risk.</div>
+            <div class="ig-hd-settings-card">
+              <div class="ig-hd-settings-card-inner">
+                <div class="ig-hd-settings-row two-col">
+                  <div class="ig-hd-settings-row">
+                    <label class="ig-hd-settings-label" for="ig-hd-risk-preset">Preset <i id="ig-hd-tip-risk-preset" class="ig-hd-info-tip" data-tip="">?</i></label>
+                    <select id="ig-hd-risk-preset" class="ig-hd-settings-select">
+                      <option value="safe"${currentSettings.riskPreset === "safe" ? " selected" : ""}>Cautious</option>
+                      <option value="balanced"${currentSettings.riskPreset === "balanced" ? " selected" : ""}>Balanced</option>
+                      <option value="aggressive"${currentSettings.riskPreset === "aggressive" ? " selected" : ""}>Aggressive</option>
+                      <option value="custom"${currentSettings.riskPreset === "custom" ? " selected" : ""}>Custom</option>
+                    </select>
+                  </div>
+                  <div class="ig-hd-settings-row">
+                    <label class="ig-hd-settings-label" for="ig-hd-safety-threshold">Pacing starts at <i id="ig-hd-tip-safety-threshold" class="ig-hd-info-tip" data-tip="">?</i></label>
+                    <input id="ig-hd-safety-threshold" class="ig-hd-settings-input" type="number" min="1" max="20000" value="${currentSettings.safetyThresholdCount}" placeholder="20" />
+                    <div class="ig-hd-settings-help">Smaller batches run without pacing.</div>
+                  </div>
+                </div>
+                <div id="ig-hd-policy-details" class="ig-hd-preset-ref">
+                  <div class="ig-hd-settings-item">
+                    <div id="ig-hd-custom-policy" class="ig-hd-settings-row two-col">
+                      <div class="ig-hd-settings-row">
+                        <label class="ig-hd-settings-label" for="ig-hd-delay-min">Min delay <i id="ig-hd-tip-delay-min" class="ig-hd-info-tip" data-tip="">?</i></label>
+                        <input id="ig-hd-delay-min" class="ig-hd-settings-input" type="number" min="0" max="600000" value="${custom.minDelayMs}" placeholder="2000" />
+                      </div>
+                      <div class="ig-hd-settings-row">
+                        <label class="ig-hd-settings-label" for="ig-hd-delay-max">Max delay <i id="ig-hd-tip-delay-max" class="ig-hd-info-tip" data-tip="">?</i></label>
+                        <input id="ig-hd-delay-max" class="ig-hd-settings-input" type="number" min="0" max="600000" value="${custom.maxDelayMs}" placeholder="4500" />
+                      </div>
+                      <div class="ig-hd-settings-row">
+                        <label class="ig-hd-settings-label" for="ig-hd-cooldown-every">Cooldown every <i id="ig-hd-tip-cooldown-every" class="ig-hd-info-tip" data-tip="">?</i></label>
+                        <input id="ig-hd-cooldown-every" class="ig-hd-settings-input" type="number" min="0" max="5000" value="${custom.cooldownEvery}" placeholder="30" />
+                      </div>
+                      <div class="ig-hd-settings-row">
+                        <label class="ig-hd-settings-label" for="ig-hd-cooldown-ms">Cooldown length <i id="ig-hd-tip-cooldown-ms" class="ig-hd-info-tip" data-tip="">?</i></label>
+                        <input id="ig-hd-cooldown-ms" class="ig-hd-settings-input" type="number" min="0" max="3600000" value="${custom.cooldownMs}" placeholder="120000" />
+                      </div>
+                      <div class="ig-hd-settings-row">
+                        <label class="ig-hd-settings-label" for="ig-hd-retry-count">Retries <i id="ig-hd-tip-retry-count" class="ig-hd-info-tip" data-tip="">?</i></label>
+                        <input id="ig-hd-retry-count" class="ig-hd-settings-input" type="number" min="0" max="8" value="${custom.retryCount}" placeholder="2" />
+                      </div>
+                      <div class="ig-hd-settings-row">
+                        <label class="ig-hd-settings-label" for="ig-hd-retry-backoff">Retry backoff <i id="ig-hd-tip-retry-backoff" class="ig-hd-info-tip" data-tip="">?</i></label>
+                        <input id="ig-hd-retry-backoff" class="ig-hd-settings-input" type="number" min="0" max="600000" value="${custom.retryBackoffMs}" placeholder="3500" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <!-- Tab 1: Downloader -->
         <div class="ig-hd-settings-tab-panel active" data-tab-panel="downloader">
@@ -3729,60 +3783,6 @@ const APP_CORE = (() => {
               </div>
             </div>
             <div class="ig-hd-settings-help">Re-download media already in your history, even if previously downloaded.</div>
-          </div>
-          <div class="ig-hd-settings-group">
-            <div class="ig-hd-settings-subheading">Pacing &amp; limits</div>
-            <div class="ig-hd-settings-section-desc">Control download speed to reduce the risk of rate-limiting or account flags. Aggressive settings download faster but carry more risk.</div>
-            <div class="ig-hd-settings-card">
-              <div class="ig-hd-settings-card-inner">
-                <div class="ig-hd-settings-row two-col">
-                  <div class="ig-hd-settings-row">
-                    <label class="ig-hd-settings-label" for="ig-hd-risk-preset">Preset <i id="ig-hd-tip-risk-preset" class="ig-hd-info-tip" data-tip="">?</i></label>
-                    <select id="ig-hd-risk-preset" class="ig-hd-settings-select">
-                      <option value="safe"${currentSettings.riskPreset === "safe" ? " selected" : ""}>Cautious</option>
-                      <option value="balanced"${currentSettings.riskPreset === "balanced" ? " selected" : ""}>Balanced</option>
-                      <option value="aggressive"${currentSettings.riskPreset === "aggressive" ? " selected" : ""}>Aggressive</option>
-                      <option value="custom"${currentSettings.riskPreset === "custom" ? " selected" : ""}>Custom</option>
-                    </select>
-                  </div>
-                  <div class="ig-hd-settings-row">
-                    <label class="ig-hd-settings-label" for="ig-hd-safety-threshold">Pacing starts at <i id="ig-hd-tip-safety-threshold" class="ig-hd-info-tip" data-tip="">?</i></label>
-                    <input id="ig-hd-safety-threshold" class="ig-hd-settings-input" type="number" min="1" max="20000" value="${currentSettings.safetyThresholdCount}" placeholder="20" />
-                    <div class="ig-hd-settings-help">Smaller batches run without pacing.</div>
-                  </div>
-                </div>
-                <div id="ig-hd-policy-details" class="ig-hd-preset-ref">
-                  <div class="ig-hd-settings-item">
-                    <div id="ig-hd-custom-policy" class="ig-hd-settings-row two-col">
-                      <div class="ig-hd-settings-row">
-                        <label class="ig-hd-settings-label" for="ig-hd-delay-min">Min delay <i id="ig-hd-tip-delay-min" class="ig-hd-info-tip" data-tip="">?</i></label>
-                        <input id="ig-hd-delay-min" class="ig-hd-settings-input" type="number" min="0" max="600000" value="${custom.minDelayMs}" placeholder="2000" />
-                      </div>
-                      <div class="ig-hd-settings-row">
-                        <label class="ig-hd-settings-label" for="ig-hd-delay-max">Max delay <i id="ig-hd-tip-delay-max" class="ig-hd-info-tip" data-tip="">?</i></label>
-                        <input id="ig-hd-delay-max" class="ig-hd-settings-input" type="number" min="0" max="600000" value="${custom.maxDelayMs}" placeholder="4500" />
-                      </div>
-                      <div class="ig-hd-settings-row">
-                        <label class="ig-hd-settings-label" for="ig-hd-cooldown-every">Cooldown every <i id="ig-hd-tip-cooldown-every" class="ig-hd-info-tip" data-tip="">?</i></label>
-                        <input id="ig-hd-cooldown-every" class="ig-hd-settings-input" type="number" min="0" max="5000" value="${custom.cooldownEvery}" placeholder="30" />
-                      </div>
-                      <div class="ig-hd-settings-row">
-                        <label class="ig-hd-settings-label" for="ig-hd-cooldown-ms">Cooldown length <i id="ig-hd-tip-cooldown-ms" class="ig-hd-info-tip" data-tip="">?</i></label>
-                        <input id="ig-hd-cooldown-ms" class="ig-hd-settings-input" type="number" min="0" max="3600000" value="${custom.cooldownMs}" placeholder="120000" />
-                      </div>
-                      <div class="ig-hd-settings-row">
-                        <label class="ig-hd-settings-label" for="ig-hd-retry-count">Retries <i id="ig-hd-tip-retry-count" class="ig-hd-info-tip" data-tip="">?</i></label>
-                        <input id="ig-hd-retry-count" class="ig-hd-settings-input" type="number" min="0" max="8" value="${custom.retryCount}" placeholder="2" />
-                      </div>
-                      <div class="ig-hd-settings-row">
-                        <label class="ig-hd-settings-label" for="ig-hd-retry-backoff">Retry backoff <i id="ig-hd-tip-retry-backoff" class="ig-hd-info-tip" data-tip="">?</i></label>
-                        <input id="ig-hd-retry-backoff" class="ig-hd-settings-input" type="number" min="0" max="600000" value="${custom.retryBackoffMs}" placeholder="3500" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
           <div class="ig-hd-settings-panel-actions">
             <div class="ig-hd-settings-checkbox">
