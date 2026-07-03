@@ -4560,25 +4560,40 @@ const APP_CORE = (() => {
       triggerImmediateAutosave();
     });
 
-    amstramgramSyncButton?.addEventListener("click", async () => {
+    async function runAmstramgramSync({ notify } = {}) {
       const baseUrl = sanitizeAmstramgramUrl(amstramgramUrlInput?.value ?? "");
       if (!baseUrl) {
-        showToast("Enter a valid Amstramgram URL first.", 4000);
+        if (notify) showToast("Enter a valid Amstramgram URL first.", 4000);
         return;
       }
-      amstramgramSyncButton.disabled = true;
-      amstramgramSyncButton.textContent = "Syncing…";
+      if (amstramgramSyncButton) {
+        amstramgramSyncButton.disabled = true;
+        amstramgramSyncButton.textContent = "Syncing…";
+      }
       try {
         const { added, total } = await syncAmstramgramShortcodes(baseUrl);
-        showToast(`Synced ${added} new shortcode${added !== 1 ? "s" : ""} from Amstramgram (${total} total in DB).`, 5000);
+        if (notify) {
+          showToast(`Synced ${added} new shortcode${added !== 1 ? "s" : ""} from Amstramgram (${total} total in DB).`, 5000);
+        }
         triggerImmediateAutosave();
+        updateSkipHistoryDisplay();
       } catch (err) {
-        showToast(`Amstramgram sync failed: ${err?.message || "Unknown error"}`, 6000);
+        if (notify) showToast(`Amstramgram sync failed: ${err?.message || "Unknown error"}`, 6000);
       } finally {
-        amstramgramSyncButton.disabled = false;
-        amstramgramSyncButton.textContent = "Sync now";
+        if (amstramgramSyncButton) {
+          amstramgramSyncButton.disabled = false;
+          amstramgramSyncButton.textContent = "Sync now";
+        }
       }
+    }
+
+    amstramgramSyncButton?.addEventListener("click", () => {
+      void runAmstramgramSync({ notify: true });
     });
+
+    // Refresh the already-downloaded skip list from the Amstramgram DB whenever
+    // the modal opens, so it stays up to date without a manual "Sync now" click.
+    void runAmstramgramSync({ notify: false });
 
     amstramgramUrlInput?.addEventListener("input", scheduleDebouncedAutosave);
 
