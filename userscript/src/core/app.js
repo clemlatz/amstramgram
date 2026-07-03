@@ -353,23 +353,9 @@ const APP_CORE = (() => {
   let outputDirectoryHandleCache = null;
   let outputDirectoryLoadPromise = null;
   let lastCustomFolderWarningAt = 0;
-  let riskAckAcknowledgedThisSession = false;
   const activeBatchJobs = new Map();
   const batchRunRecords = new Map();
   const MAX_BATCH_MANAGER_RUNS = 8;
-
-  function getRiskAckSessionAcknowledged() {
-    return !!riskAckAcknowledgedThisSession;
-  }
-
-  function setRiskAckSessionAcknowledged(acknowledged) {
-    riskAckAcknowledgedThisSession = !!acknowledged;
-  }
-
-  function syncRiskAckControls(riskAckInput, profileDownloadButton) {
-    if (!riskAckInput || !profileDownloadButton) return;
-    profileDownloadButton.disabled = !riskAckInput.checked;
-  }
 
   function supportsDirectoryPicker() {
     return typeof window.showDirectoryPicker === "function";
@@ -3570,8 +3556,6 @@ const APP_CORE = (() => {
     ICONS.reels = ico('<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M23.9291 7.056C23.8604 5.57236 23.5942 4.71927 23.3705 4.14327C23.0707 3.34097 22.5976 2.61464 21.9851 2.016C21.3864 1.40355 20.6601 0.930524 19.8578 0.630545C19.2796 0.405818 18.4276 0.139636 16.9429 0.0709092C15.636 0.013091 15.2465 0 12 0C8.75345 0 8.364 0.013091 7.056 0.0709092C5.57236 0.139636 4.71927 0.405818 4.14327 0.629455C3.30327 0.954545 2.64764 1.38218 2.016 2.01491C1.40397 2.61398 0.931004 3.34019 0.630545 4.14218C0.405818 4.72036 0.139636 5.57236 0.0709092 7.05709C0.013091 8.364 0 8.75345 0 12C0 15.2465 0.013091 15.636 0.0709092 16.944C0.139636 18.4276 0.405818 19.2807 0.629455 19.8567C0.953455 20.6967 1.38218 21.3535 2.01491 21.984C2.64764 22.6178 3.30327 23.0465 4.14218 23.3695C4.72036 23.5942 5.57236 23.8604 7.05709 23.9291C8.364 23.9869 8.75345 24 12 24C15.2465 24 15.636 23.9869 16.944 23.9291C18.4276 23.8604 19.2807 23.5942 19.8567 23.3705C20.6592 23.071 21.3856 22.598 21.984 21.9851C22.5961 21.3861 23.0691 20.6599 23.3695 19.8578C23.5942 19.2796 23.8604 18.4276 23.9291 16.9429C23.9869 15.636 24 15.2465 24 12C24 8.75345 23.9869 8.364 23.9291 7.056ZM21.7495 16.8436C21.6949 18.0109 21.5007 18.6458 21.3349 19.0691C21.12 19.6255 20.8615 20.0225 20.4404 20.4415C20.0562 20.8393 19.587 21.1451 19.068 21.336C18.6458 21.5007 18.0098 21.696 16.8447 21.7495C15.5771 21.8062 15.1975 21.8182 12 21.8182C8.80255 21.8182 8.42182 21.8073 7.15636 21.7495C5.98909 21.6949 5.35418 21.5007 4.93091 21.3349C4.41172 21.1443 3.94251 20.8384 3.55855 20.4404C3.16071 20.0562 2.8549 19.587 2.664 19.068C2.49927 18.6458 2.304 18.0098 2.25055 16.8447C2.19382 15.5782 2.18182 15.1975 2.18182 12C2.18182 8.80255 2.19273 8.42182 2.25055 7.15636C2.30509 5.98909 2.49927 5.35418 2.66509 4.93091C2.88 4.37455 3.13855 3.97636 3.55964 3.55636C3.94415 3.15921 4.41322 2.85383 4.932 2.66291C5.35418 2.49927 5.99018 2.304 7.15527 2.25055C8.42182 2.19382 8.80255 2.18182 12 2.18182C15.1975 2.18182 15.5782 2.19273 16.8436 2.25055C18.0109 2.30509 18.6458 2.49927 19.0691 2.66509C19.6255 2.88 20.0225 3.13745 20.4415 3.55964C20.8615 3.97636 21.12 4.37454 21.336 4.932C21.5007 5.35418 21.696 5.99018 21.7495 7.15527C21.8062 8.42182 21.8182 8.80255 21.8182 12C21.8182 15.1975 21.8073 15.5782 21.7495 16.8436ZM16.7487 9.39491L11.0215 6.12218C10.566 5.85885 10.0488 5.72112 9.52271 5.72303C8.99661 5.72495 8.48044 5.86645 8.02691 6.13309C7.57034 6.39436 7.19137 6.77223 6.92877 7.22804C6.66617 7.68385 6.52937 8.20124 6.53236 8.72727V15.2727C6.53236 16.3549 7.09091 17.3236 8.02691 17.868C8.49818 18.1407 9.01527 18.2782 9.53236 18.2782C10.0429 18.2782 10.5545 18.144 11.0215 17.8778L16.7487 14.6051C17.6956 14.064 18.2596 13.0898 18.2596 12C18.2596 10.9102 17.6956 9.936 16.7487 9.39491ZM15.6655 12.7113L9.93818 15.984C9.81414 16.056 9.67316 16.0936 9.52974 16.0931C9.38632 16.0925 9.24564 16.0537 9.12218 15.9807C8.99734 15.9097 8.8937 15.8066 8.82198 15.6822C8.75026 15.5577 8.71305 15.4164 8.71418 15.2727V8.72727C8.71285 8.58345 8.74998 8.44188 8.82171 8.31722C8.89344 8.19255 8.99717 8.08931 9.12218 8.01818C9.24563 7.94504 9.3864 7.90626 9.52988 7.90588C9.67337 7.90549 9.81435 7.94351 9.93818 8.016L15.6655 11.2887C16.0375 11.5025 16.0778 11.8571 16.0778 12C16.0778 12.1429 16.0375 12.4975 15.6655 12.7102V12.7113Z" fill="currentColor"/></svg>');
     ICONS.highlights = ico('<svg width="24" height="24" viewBox="0 0 1024 1024" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M987 512.5C987 778.782 773.671 993 512.5 993C251.329 993 38 778.782 38 512.5C38 246.218 251.329 32 512.5 32C773.671 32 987 246.218 987 512.5ZM512.5 112.756C732.364 112.756 908.989 292.637 908.989 512.5C908.989 732.363 732.364 912.244 512.5 912.244C292.636 912.244 116.011 732.363 116.011 512.5C116.011 292.637 292.636 112.756 512.5 112.756Z" fill="currentColor" stroke="currentColor" stroke-width="13"/><path d="M513.499 133L598.366 394.192H872.999L650.816 555.617L735.682 816.808L513.499 655.383L291.317 816.808L376.183 555.617L154 394.192H428.633L513.499 133Z" fill="currentColor"/></svg>');
 
-    const profileRiskAckTooltipText = `Bulk downloading can trigger Instagram's defenses: temporary rate limits, "Try again later" errors, checkpoint prompts, forced logouts, or action blocks on your account or IP.\nThe risk scales with volume, speed, retries, and repeated runs. Smaller batches and slower presets help, but no setting eliminates it entirely.`;
-
     const overlay = document.createElement("div");
     overlay.id = "ig-hd-settings-overlay";
 
@@ -3785,10 +3769,6 @@ const APP_CORE = (() => {
             <div class="ig-hd-settings-help">Re-download media already in your history, even if previously downloaded.</div>
           </div>
           <div class="ig-hd-settings-panel-actions">
-            <div class="ig-hd-settings-checkbox">
-              <input id="ig-hd-risk-ack" type="checkbox"${getRiskAckSessionAcknowledged() ? " checked" : ""} />
-              <span>I accept the rate-limit/account risk. <i id="ig-hd-tip-risk-ack" class="ig-hd-info-tip" data-tip="">?</i></span>
-            </div>
             <button id="ig-hd-profile-download" class="ig-hd-settings-btn primary ig-hd-download-btn" type="button">Start Download</button>
           </div>
         </div>
@@ -3851,7 +3831,6 @@ const APP_CORE = (() => {
     const includeTaggedToggle = modal.querySelector("#ig-hd-profile-include-tagged");
     const taggedIncludeCarouselWrap = modal.querySelector("#ig-hd-tagged-include-carousel-wrap");
     const taggedIncludeCarouselToggle = modal.querySelector("#ig-hd-tagged-include-carousel");
-    const riskAckInput = modal.querySelector("#ig-hd-risk-ack");
     const sourceSegToggle = modal.querySelector("#ig-hd-source-seg");
     const sourceSegThumb = modal.querySelector("#ig-hd-source-seg-thumb");
     const sourceProfileContent = modal.querySelector("#ig-hd-source-profile");
@@ -3870,7 +3849,6 @@ const APP_CORE = (() => {
       cooldownMs: modal.querySelector("#ig-hd-tip-cooldown-ms"),
       retryCount: modal.querySelector("#ig-hd-tip-retry-count"),
       retryBackoff: modal.querySelector("#ig-hd-tip-retry-backoff"),
-      riskAck: modal.querySelector("#ig-hd-tip-risk-ack"),
       forceRedownload: modal.querySelector("#ig-hd-tip-force-redownload"),
       taggedCarousel: modal.querySelector("#ig-hd-tip-tagged-carousel")
     };
@@ -3949,7 +3927,6 @@ const APP_CORE = (() => {
       retryBackoffInput
     ];
     const profileDownloadButton = modal.querySelector("#ig-hd-profile-download");
-    syncRiskAckControls(riskAckInput, profileDownloadButton);
 
     // === Skip history display ===
     const skipHistoryCountEl = modal.querySelector("#ig-hd-skip-history-count");
@@ -4349,11 +4326,6 @@ const APP_CORE = (() => {
       const retryWorstCasePerFile = policy.retryCount * policy.retryBackoffMs;
 
       setInfoTipText(
-        speedTipNodes.riskAck,
-        profileRiskAckTooltipText
-      );
-
-      setInfoTipText(
         speedTipNodes.taggedCarousel,
         `When someone is tagged in a carousel post (a post with multiple photos or videos), Instagram only marks which specific slide they appear in.\n\nOFF — download only the slide(s) the user is actually tagged in. This is the default and avoids pulling unrelated photos from the same post.\n\nON — download every slide in the carousel, even ones the user isn't tagged in. Useful if you want complete posts, but expect extra files that may have nothing to do with the tagged user.`
       );
@@ -4571,10 +4543,6 @@ const APP_CORE = (() => {
     forceRedownloadToggle?.addEventListener("change", () => {
       triggerImmediateAutosave();
     });
-    riskAckInput?.addEventListener("change", () => {
-      setRiskAckSessionAcknowledged(!!riskAckInput.checked);
-      syncRiskAckControls(riskAckInput, profileDownloadButton);
-    });
 
     amstramgramSyncButton?.addEventListener("click", async () => {
       const baseUrl = sanitizeAmstramgramUrl(amstramgramUrlInput?.value ?? "");
@@ -4670,13 +4638,6 @@ const APP_CORE = (() => {
       void closeSettingsModalWithAutosave();
     });
     profileDownloadButton.addEventListener("click", async () => {
-      const acknowledged = !!riskAckInput.checked;
-      if (!acknowledged) {
-        syncRiskAckControls(riskAckInput, profileDownloadButton);
-        showToast("Confirm the risk checkbox before starting.");
-        return;
-      }
-
       const profileSelectionForStart = getProfileDownloadSelectionForStart();
       const persisted = await modalAutosave.commitImmediately({
         profileSelection: profileSelectionForStart
