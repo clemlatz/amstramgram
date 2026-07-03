@@ -1577,6 +1577,9 @@ const STYLES_CORE = (() => {
       color: var(--ig-hd-text-primary);
       font-weight: 600;
     }
+    .gm-progress-posts {
+      opacity: 0.7;
+    }
     .gm-bar {
       position: relative;
       width: 100%;

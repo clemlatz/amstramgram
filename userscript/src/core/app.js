@@ -786,6 +786,7 @@ const APP_CORE = (() => {
       status: null,
       phase: "",
       total: 0,
+      postCount: 0,
       processed: 0,
       completed: 0,
       failed: 0,
@@ -836,6 +837,7 @@ const APP_CORE = (() => {
     record.mode = normalizeBatchMode(controller.mode);
     record.state = normalizeBatchManagerState(controller.state);
     record.total = Math.max(0, Number(controller.total) || 0);
+    record.postCount = Math.max(0, Number(controller.postCount) || 0);
     record.completed = Math.max(0, Number(controller.completed) || 0);
     record.failed = Math.max(0, Number(controller.failed) || 0);
     record.cancelled = Math.max(0, Number(controller.cancelled) || 0);
@@ -1057,7 +1059,7 @@ const APP_CORE = (() => {
 
     const retryController = controller.retryFailed();
     if (!retryController) {
-      showToast(`${record.label}: no retryable failed items found.`, 3800);
+      showToast(`${record.label}: no retryable failed files found.`, 3800);
       return;
     }
 
@@ -1084,7 +1086,7 @@ const APP_CORE = (() => {
 
     const allItems = Array.isArray(controller.items) ? controller.items : [];
     if (allItems.length === 0) {
-      showToast(`${record.label}: original items unavailable.`, 3800);
+      showToast(`${record.label}: original files unavailable.`, 3800);
       return;
     }
 
@@ -1104,10 +1106,10 @@ const APP_CORE = (() => {
     });
 
     if (skippedCount > 0) {
-      showToast(`Skipped ${skippedCount} previously downloaded item(s).`, 3800);
+      showToast(`Skipped ${skippedCount} previously downloaded file(s).`, 3800);
     }
     if (queuedItems.length === 0) {
-      showToast("All items were already downloaded.", 4000);
+      showToast("All files were already downloaded.", 4000);
       return;
     }
 
@@ -1365,7 +1367,7 @@ const APP_CORE = (() => {
     const rate = processed / elapsedSeconds;
     if (!Number.isFinite(rate) || rate <= 0) return "—";
     const fixed = rate >= 10 ? rate.toFixed(0) : rate.toFixed(rate >= 1 ? 1 : 2);
-    return `${fixed} items / sec`;
+    return `${fixed} files / sec`;
   }
 
   function buildBatchRunMeta(record, uiState, nowMs = Date.now()) {
@@ -1691,6 +1693,10 @@ const APP_CORE = (() => {
 
     ui.countsProcessed.textContent = String(safeProcessed);
     ui.countsTotal.textContent = String(safeTotal);
+    const safePostCount = Math.max(0, Number(selected.postCount) || 0);
+    ui.countsPosts.textContent = safePostCount > 0
+      ? ` · ${safePostCount} ${safePostCount === 1 ? "post" : "posts"}`
+      : "";
 
     ui.rate.textContent = resolveBatchRateText(selected, uiState);
     const showEta = cfg.showEta && !isIndeterminate;
@@ -1750,7 +1756,7 @@ const APP_CORE = (() => {
         row.className = "gm-failed-item";
         const name = document.createElement("div");
         name.className = "gm-failed-item-name";
-        name.textContent = String(item?.filename || item?.url || "(unnamed item)");
+        name.textContent = String(item?.filename || item?.url || "(unnamed file)");
         const reason = document.createElement("div");
         reason.className = "gm-failed-item-reason";
         reason.textContent = String(item?.error || item?.reason || "Unknown error");
@@ -1953,7 +1959,10 @@ const APP_CORE = (() => {
     countsProcessed.textContent = "0";
     const countsTotal = document.createElement("span");
     countsTotal.textContent = "0";
-    counts.append(countsProcessed, document.createTextNode(" of "), countsTotal, document.createTextNode(" items"));
+    const countsPosts = document.createElement("span");
+    countsPosts.className = "gm-progress-posts";
+    countsPosts.textContent = "";
+    counts.append(countsProcessed, document.createTextNode(" of "), countsTotal, document.createTextNode(" files"), countsPosts);
 
     const bar = document.createElement("div");
     bar.className = "gm-bar";
@@ -2233,6 +2242,7 @@ const APP_CORE = (() => {
       percent,
       countsProcessed,
       countsTotal,
+      countsPosts,
       barFill,
       rate,
       etaWrap,
@@ -2470,6 +2480,12 @@ const APP_CORE = (() => {
 
       // Counters
       this.total = this.items.length;
+      // Distinct source posts (carousel slides share one shortcode). Derived from
+      // the queue itself — no extra fetch. Story/highlight tasks lack a shortcode,
+      // so postCount is 0 for those batches and the label falls back to files only.
+      this.postCount = new Set(
+        this.items.map((task) => task && task.meta && task.meta.shortcode).filter(Boolean)
+      ).size;
       this.completed = 0;
       this.failed = 0;
       this.cancelled = 0;
@@ -2738,7 +2754,7 @@ const APP_CORE = (() => {
         indeterminate: false
       });
 
-      showBatchToast(`${label}: starting ${total} item(s)...`, 2500);
+      showBatchToast(`${label}: starting ${total} file(s)...`, 2500);
 
         for (let index = 0; index < total; index++) {
           // --- Pause/cancel boundary ---
@@ -2914,10 +2930,10 @@ const APP_CORE = (() => {
       return { total: 0, completed: 0, failed: 0, cancelled: 0, status: "completed", failedItems: [], timing: { startedAt: null, finishedAt: null, elapsedMs: 0 }, jobId: null };
     }
     if (skippedByHistory > 0) {
-      showToast(`Skipped ${skippedByHistory} previously downloaded item(s).`, 3800);
+      showToast(`Skipped ${skippedByHistory} previously downloaded file(s).`, 3800);
     }
     if (queued.length === 0) {
-      showToast("All queued items were already downloaded.", 4000);
+      showToast("All queued files were already downloaded.", 4000);
       return { total: 0, completed: 0, failed: 0, cancelled: 0, status: "completed", failedItems: [], timing: { startedAt: null, finishedAt: null, elapsedMs: 0 }, jobId: null };
     }
 
