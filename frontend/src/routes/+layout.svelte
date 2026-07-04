@@ -2,21 +2,37 @@
   import { onMount } from 'svelte';
   import { page, navigating } from '$app/stores';
   import { audio } from '$lib/audio.svelte.js';
-  import { offline } from '$lib/offline.svelte.js';
+  import { offline, connection } from '$lib/offline.svelte.js';
 
   let { children } = $props();
   let checkTimer = null;
 
+  const blocked = $derived(connection.state !== 'online');
+  const needsAuth = $derived(connection.state === 'unauthenticated');
+
   async function checkServer() {
     try {
       const res = await fetch('/api/stats', { signal: AbortSignal.timeout(3000) });
-      offline.value = !res.ok;
+      // The auth proxy now returns a clean same-origin 401 for expired sessions
+      // instead of a cross-origin redirect — distinguishable from a real outage.
+      if (res.status === 401 || res.status === 403) {
+        connection.state = 'unauthenticated';
+      } else {
+        connection.state = res.ok ? 'online' : 'offline';
+      }
     } catch {
-      offline.value = true;
+      connection.state = 'offline';
     }
 
     clearTimeout(checkTimer);
-    checkTimer = setTimeout(checkServer, offline.value ? 10_000 : 15_000);
+    checkTimer = setTimeout(checkServer, blocked ? 10_000 : 15_000);
+  }
+
+  function reLogin() {
+    // Full-document navigation so the auth proxy can run its login flow and set
+    // a fresh cookie, then redirect back. Navigations are NetworkFirst (SW), so
+    // this reaches the proxy rather than the cached shell.
+    window.location.href = `/start?rd=${encodeURIComponent(window.location.href)}`;
   }
 
   function handleVisibilityChange() {
@@ -59,7 +75,23 @@
   </div>
 {/if}
 
-{#if offline.value}
+{#if needsAuth}
+  <button class="offline-pill auth-pill" onclick={reLogin} aria-live="polite">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+    <span>Session expired — sign in</span>
+  </button>
+{:else if blocked}
   <div class="offline-pill" role="status" aria-live="polite">
     <svg
       viewBox="0 0 24 24"
@@ -83,30 +115,51 @@
 {/if}
 
 <div class="content">
-  {#if offline.value && $page.url.pathname !== '/' && $page.url.pathname !== '/random' && !$page.params.shortcode}
-    <div class="offline-page">
-      <svg
-        class="offline-page-icon"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.75"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <line x1="1" y1="1" x2="23" y2="23" />
-        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
-        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
-        <path d="M10.71 5.05A16 16 0 0 1 22.56 9" />
-        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
-        <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
-        <line x1="12" y1="20" x2="12.01" y2="20" />
-      </svg>
-      <p class="offline-page-title">Not available offline</p>
-      <p class="offline-page-sub">This page requires a connection.</p>
-      <button class="reload-btn" onclick={reloadApp}>Reload app</button>
-    </div>
+  {#if blocked && $page.url.pathname !== '/' && $page.url.pathname !== '/random' && !$page.params.shortcode}
+    {#if needsAuth}
+      <div class="offline-page">
+        <svg
+          class="offline-page-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+        <p class="offline-page-title">Session expired</p>
+        <p class="offline-page-sub">Sign in again to continue.</p>
+        <button class="reload-btn" onclick={reLogin}>Sign in</button>
+      </div>
+    {:else}
+      <div class="offline-page">
+        <svg
+          class="offline-page-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="1" y1="1" x2="23" y2="23" />
+          <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+          <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+          <path d="M10.71 5.05A16 16 0 0 1 22.56 9" />
+          <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+          <line x1="12" y1="20" x2="12.01" y2="20" />
+        </svg>
+        <p class="offline-page-title">Not available offline</p>
+        <p class="offline-page-sub">This page requires a connection.</p>
+        <button class="reload-btn" onclick={reloadApp}>Reload app</button>
+      </div>
+    {/if}
   {:else}
     {@render children()}
   {/if}
@@ -426,6 +479,18 @@
     width: 13px;
     height: 13px;
     flex-shrink: 0;
+  }
+
+  .auth-pill {
+    border: none;
+    font-family: inherit;
+    cursor: pointer;
+    pointer-events: auto;
+    background: var(--color-text);
+  }
+
+  .auth-pill:active {
+    opacity: 0.85;
   }
 
   .offline-page {
