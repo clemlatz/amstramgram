@@ -116,7 +116,7 @@
 {/if}
 
 <div class="content">
-  {#if blocked && $page.url.pathname !== '/' && $page.url.pathname !== '/random' && !$page.params.shortcode}
+  {#if blocked && $page.url.pathname !== '/' && $page.url.pathname !== '/feed' && !$page.params.shortcode}
     {#if needsAuth}
       <div class="offline-page">
         <svg
@@ -167,31 +167,8 @@
 </div>
 
 <nav class="tab-bar" aria-label="Main navigation">
-  <a href="/" class="tab" class:active={$page.url.pathname === '/'} aria-label="Feed">
+  <a href="/" class="tab" class:active={$page.url.pathname === '/'} aria-label="Pick">
     {#if $page.url.pathname === '/'}
-      <!-- House filled -->
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path
-          d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-5.5h-6V22H4a1 1 0 0 1-1-1V10.5z"
-          fill="currentColor"
-        />
-      </svg>
-    {:else}
-      <!-- House outline -->
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path
-          d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-5.5h-6V22H4a1 1 0 0 1-1-1V10.5z"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    {/if}
-  </a>
-
-  <a href="/random" class="tab" class:active={$page.url.pathname === '/random'} aria-label="Pick">
-    {#if $page.url.pathname === '/random'}
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="3" y="3" width="18" height="18" rx="5" fill="currentColor" />
         <circle cx="8.5" cy="8.5" r="1.5" style="fill: var(--color-bg)" />
@@ -208,6 +185,26 @@
         <circle cx="12" cy="12" r="1.5" fill="currentColor" />
         <circle cx="8.5" cy="15.5" r="1.5" fill="currentColor" />
         <circle cx="15.5" cy="15.5" r="1.5" fill="currentColor" />
+      </svg>
+    {/if}
+  </a>
+
+  <a href="/feed" class="tab" class:active={$page.url.pathname === '/feed'} aria-label="Feed">
+    {#if $page.url.pathname === '/feed'}
+      <!-- Grid feed filled -->
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor" />
+        <rect x="13" y="3" width="8" height="8" rx="2" fill="currentColor" />
+        <rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor" />
+        <rect x="13" y="13" width="8" height="8" rx="2" fill="currentColor" />
+      </svg>
+    {:else}
+      <!-- Grid feed outline -->
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="3" y="3" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2" />
+        <rect x="13" y="3" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2" />
+        <rect x="3" y="13" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2" />
+        <rect x="13" y="13" width="8" height="8" rx="2" stroke="currentColor" stroke-width="2" />
       </svg>
     {/if}
   </a>
