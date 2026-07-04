@@ -29,10 +29,11 @@
   }
 
   function reLogin() {
-    // Full-document navigation so the auth proxy can run its login flow and set
-    // a fresh cookie, then redirect back. Navigations are NetworkFirst (SW), so
-    // this reaches the proxy rather than the cached shell.
-    window.location.href = `/start?rd=${encodeURIComponent(window.location.href)}`;
+    // Reload the current page as a top-level document navigation. Navigations
+    // are NetworkFirst (SW) and the server is reachable, so the request hits the
+    // auth proxy, which redirects HTML navigations through its login flow and
+    // back to this exact URL — no need to hardcode the proxy's sign-in endpoint.
+    window.location.reload();
   }
 
   function handleVisibilityChange() {
