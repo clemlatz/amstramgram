@@ -120,7 +120,6 @@ const APP_CORE = (() => {
     sanitizeRiskPreset,
     sanitizeTheme,
     sanitizeProfileDownloadSelection,
-    getProfileDownloadSelectionLabel,
     sanitizeOutputFolderLabel,
     sanitizeAmstramgramUrl,
     sanitizeSavedDownloadSettings,
@@ -4682,15 +4681,6 @@ const APP_CORE = (() => {
           showToast("Select at least one saved collection.", 5500);
           return;
         }
-        const collectionNames = selectedCollections.map(c => c.name).join(", ");
-        const confirmed = window.confirm(
-          `Start saved collections download?\n\n` +
-          `Collections: ${collectionNames}\n` +
-          `Preset: ${USER_SETTINGS.riskPreset.toUpperCase()}\n` +
-          `This can trigger Instagram rate limits/checkpoints.`
-        );
-        if (!confirmed) return;
-
         profileDownloadButton.disabled = true;
         profileDownloadButton.textContent = "Starting...";
         removeSettingsModal();
@@ -4727,15 +4717,6 @@ const APP_CORE = (() => {
         showToast("Select at least one bulk target first.");
         return;
       }
-      const selectionLabel = getProfileDownloadSelectionLabel(selection);
-      const confirmed = window.confirm(
-        `Start profile bulk download for @${username}?\n\n` +
-        `Targets: ${selectionLabel}\n` +
-        `Preset: ${USER_SETTINGS.riskPreset.toUpperCase()}\n` +
-        `This can trigger Instagram rate limits/checkpoints.`
-      );
-      if (!confirmed) return;
-
       if (typeof startProfileBulkDownload !== "function") {
         showToast("Profile bulk downloader is unavailable in this build.");
         return;
