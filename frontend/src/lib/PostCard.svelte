@@ -438,6 +438,9 @@
   /* Video */
   .video-wrapper {
     position: relative;
+    max-height: 80dvh;
+    display: flex;
+    justify-content: center;
   }
   .play-overlay {
     position: absolute;
@@ -455,7 +458,10 @@
     pointer-events: none;
   }
   .post-video {
-    width: 100%;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: 80dvh;
     display: block;
     cursor: pointer;
   }
@@ -503,7 +509,11 @@
     display: block;
   }
   .swiper :global(.swiper-slide video) {
-    width: 100%;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: 80dvh;
+    margin: 0 auto;
     display: block;
     cursor: pointer;
   }

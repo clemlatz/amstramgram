@@ -505,10 +505,16 @@
 
   .video-wrapper {
     position: relative;
+    max-height: 80dvh;
+    display: flex;
+    justify-content: center;
   }
 
   .post-video {
-    width: 100%;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: 80dvh;
     display: block;
     cursor: pointer;
   }
@@ -559,7 +565,11 @@
   }
 
   .swiper :global(.swiper-slide video) {
-    width: 100%;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: 80dvh;
+    margin: 0 auto;
     display: block;
     cursor: pointer;
   }
