@@ -26,6 +26,20 @@
 
   const isCarousel = $derived(post?.media?.length > 1);
 
+  // The header sits in normal flow at the top. On load (and whenever a new
+  // post loads) we scroll it just out of view so it's hidden by default;
+  // scrolling up brings it back.
+  let headerEl = $state(null);
+
+  $effect(() => {
+    void post?.shortcode;
+    if (typeof window === 'undefined' || !headerEl) return;
+    requestAnimationFrame(() => {
+      if (!headerEl) return;
+      window.scrollTo(0, window.scrollY + headerEl.getBoundingClientRect().bottom);
+    });
+  });
+
   $effect(() => {
     void post?.shortcode;
     accountActive = post?.account_active ?? true;
@@ -287,7 +301,7 @@
 
 {#if post}
   <div class="page">
-    <div class="header">
+    <div class="header" bind:this={headerEl}>
       <h1 class="title">Pick</h1>
       {@render modeControl()}
     </div>
