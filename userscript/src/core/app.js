@@ -4780,6 +4780,55 @@ const APP_CORE = (() => {
     return { added, total: shortcodes.length };
   }
 
+  let _amstramgramImportTimer = null;
+
+  // Called after every successful download. Debounces ~5s so a whole batch coalesces
+  // into a single server import call, and the synced download folder has time to flush.
+  // No-op unless an amstramgram URL is configured.
+  function scheduleAmstramgramImport() {
+    const baseUrl = sanitizeAmstramgramUrl(USER_SETTINGS?.downloads?.amstramgramUrl ?? "");
+    if (!baseUrl) return;
+    if (_amstramgramImportTimer) clearTimeout(_amstramgramImportTimer);
+    _amstramgramImportTimer = setTimeout(() => {
+      _amstramgramImportTimer = null;
+      void runAmstramgramImport(baseUrl);
+    }, 5000);
+  }
+
+  async function runAmstramgramImport(baseUrl) {
+    let response;
+    try {
+      response = await GramPlatform.fetchUrl({
+        method: "POST",
+        url: `${baseUrl}/api/userscript/import-from-disk`,
+        withCredentials: false,
+        timeout: 20000
+      });
+    } catch (err) {
+      debugLog("[Amstragram] Amstramgram import request failed:", err?.message || err);
+      showToast("Amstramgram import failed: could not reach server.", 4000);
+      return;
+    }
+    if (response.status === 409) return; // an import is already running; ours folds into it
+    if (response.status !== 200) {
+      debugLog("[Amstragram] Amstramgram import returned status", response.status);
+      showToast(`Amstramgram import failed (server ${response.status}).`, 4000);
+      return;
+    }
+    let result;
+    try {
+      result = JSON.parse(response.responseText);
+    } catch {
+      return;
+    }
+    const imported = Number(result?.imported) || 0;
+    const duplicates = Number(result?.duplicates) || 0;
+    if (imported > 0) {
+      const dupPart = duplicates > 0 ? `, ${duplicates} duplicate${duplicates !== 1 ? "s" : ""}` : "";
+      showToast(`Amstramgram: imported ${imported} post${imported !== 1 ? "s" : ""}${dupPart}.`, 4000);
+    }
+  }
+
   function isEditableTarget(target) {
     return HOTKEY_CORE.isEditableTarget(target);
   }
@@ -4876,6 +4925,7 @@ const APP_CORE = (() => {
     resolveVideoDownloadFilename,
     saveBlobToCustomFolderWithResult,
     saveMetadataSidecarsToCustomFolder,
+    scheduleAmstramgramImport,
     syncAmstramgramShortcodes,
     syncSettingsLauncherButton,
     triggerMetadataSidecarBrowserDownloads,

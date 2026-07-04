@@ -45,6 +45,7 @@ const PAGE_HANDLERS_CORE = (() => {
   let resolveVideoDownloadFilename = () => "";
   let saveBlobToCustomFolderWithResult = async () => false;
   let saveMetadataSidecarsToCustomFolder = async () => {};
+  let scheduleAmstramgramImport = () => {};
   let syncAmstramgramShortcodes = () => {};
   let syncSettingsLauncherButton = () => {};
   let triggerMetadataSidecarBrowserDownloads = async () => {};
@@ -68,6 +69,7 @@ const PAGE_HANDLERS_CORE = (() => {
     if (ctx.resolveVideoDownloadFilename) resolveVideoDownloadFilename = ctx.resolveVideoDownloadFilename;
     if (ctx.saveBlobToCustomFolderWithResult) saveBlobToCustomFolderWithResult = ctx.saveBlobToCustomFolderWithResult;
     if (ctx.saveMetadataSidecarsToCustomFolder) saveMetadataSidecarsToCustomFolder = ctx.saveMetadataSidecarsToCustomFolder;
+    if (ctx.scheduleAmstramgramImport) scheduleAmstramgramImport = ctx.scheduleAmstramgramImport;
     if (ctx.syncAmstramgramShortcodes) syncAmstramgramShortcodes = ctx.syncAmstramgramShortcodes;
     if (ctx.syncSettingsLauncherButton) syncSettingsLauncherButton = ctx.syncSettingsLauncherButton;
     if (ctx.triggerMetadataSidecarBrowserDownloads) triggerMetadataSidecarBrowserDownloads = ctx.triggerMetadataSidecarBrowserDownloads;
@@ -256,6 +258,14 @@ const PAGE_HANDLERS_CORE = (() => {
   }
 
   async function downloadFile(url, filename, metaOrOptions = null, maybeOptions = null) {
+    const ok = await _downloadFileImpl(url, filename, metaOrOptions, maybeOptions);
+    // Any successful save lands a file in the amstramgram-synced folder; nudge the
+    // server to import it (debounced/no-op when no amstramgram URL is configured).
+    if (ok) scheduleAmstramgramImport();
+    return ok;
+  }
+
+  async function _downloadFileImpl(url, filename, metaOrOptions = null, maybeOptions = null) {
     let meta = metaOrOptions;
     let options = maybeOptions && typeof maybeOptions === "object" ? maybeOptions : {};
     if (

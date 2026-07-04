@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from ..config import DB_PATH, STORAGE_BASE
 from ..db import delete_setting, get_setting, set_setting
-from ..importer import count_pending_imports, run_import as run_import_media
+from ..importer import count_pending_imports, import_from_disk_lock, run_import as run_import_media
 from ..loader import get_loader, reload_session
 from ..logs import get_logs
 from ..saved import sync_saved_posts
@@ -18,7 +18,6 @@ router = APIRouter()
 
 _bg_tasks: set[asyncio.Task] = set()
 _import_saved_lock = asyncio.Lock()
-_import_from_disk_lock = asyncio.Lock()
 
 
 class _SessionBody(BaseModel):
@@ -114,9 +113,9 @@ async def import_saved_posts_endpoint():
 
 @router.post("/settings/import-from-disk")
 async def import_from_disk_endpoint():
-    if _import_from_disk_lock.locked():
+    if import_from_disk_lock.locked():
         return JSONResponse({"detail": "Import already in progress."}, status_code=409)
-    async with _import_from_disk_lock:
+    async with import_from_disk_lock:
         try:
             result = await asyncio.to_thread(run_import_media, DB_PATH, STORAGE_BASE)
         except Exception as exc:

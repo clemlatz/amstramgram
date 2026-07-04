@@ -1,9 +1,14 @@
+import asyncio
 import logging
 from pathlib import Path
 
 from .db import MEDIA_EXTS, import_gramoire_file
 
 logger = logging.getLogger(__name__)
+
+# Shared across the manual (settings) and automatic (userscript) import-from-disk
+# entry points so only one disk import runs at a time.
+import_from_disk_lock = asyncio.Lock()
 
 
 def count_pending_imports(storage_base: Path) -> int:

@@ -1,5 +1,5 @@
 import sqlite3 as _sqlite3
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -73,3 +73,25 @@ def test_get_shortcodes_returns_sorted_known_shortcodes(client):
     resp = tc.get("/api/userscript/shortcodes")
     assert resp.status_code == 200
     assert resp.json() == ["sc1", "sc2"]
+
+
+def test_import_from_disk_runs_and_returns_result(client):
+    tc, _ = client
+    fake = {"imported": 3, "duplicates": 1, "warnings": 0}
+    with patch("api.routes.userscript.run_import", return_value=fake) as run:
+        resp = tc.post("/api/userscript/import-from-disk")
+    assert resp.status_code == 200
+    assert resp.json() == fake
+    run.assert_called_once()
+
+
+def test_import_from_disk_returns_409_when_locked(client):
+    tc, _ = client
+    busy = MagicMock()
+    busy.locked.return_value = True
+    with patch("api.routes.userscript.import_from_disk_lock", busy), patch(
+        "api.routes.userscript.run_import"
+    ) as run:
+        resp = tc.post("/api/userscript/import-from-disk")
+    assert resp.status_code == 409
+    run.assert_not_called()
