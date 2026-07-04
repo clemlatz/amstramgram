@@ -99,14 +99,14 @@
     e.currentTarget.currentTime = 0.001;
   }
 
-  async function switchMode() {
-    if (offline.value) return;
+  async function setMode(newMode) {
+    if (offline.value || newMode === mode || loading) return;
 
     if (post && typeof sessionStorage !== 'undefined') {
       sessionStorage.setItem(cacheKey(mode), JSON.stringify(post));
     }
 
-    mode = MODES[(MODES.indexOf(mode) + 1) % MODES.length];
+    mode = newMode;
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(MODE_KEY, mode);
     }
@@ -270,8 +270,27 @@
   {/if}
 {/snippet}
 
+{#snippet modeControl()}
+  <div class="mode-control" role="group" aria-label="Source">
+    {#each MODES as m (m)}
+      <button
+        class="mode-btn"
+        class:active={mode === m}
+        disabled={offline.value}
+        onclick={() => setMode(m)}
+      >
+        {MODE_LABELS[m]}
+      </button>
+    {/each}
+  </div>
+{/snippet}
+
 {#if post}
   <div class="page">
+    <div class="header">
+      <h1 class="title">Pick</h1>
+      {@render modeControl()}
+    </div>
     <article class="card" class:fade={!visible}>
       <header class="post-header">
         <Avatar account={post.account} active={accountActive} ontoggle={toggleAccountActive} />
@@ -283,14 +302,6 @@
           </div>
           <div class="post-date">{formatDate(post.post_timestamp)}</div>
         </div>
-        <button
-          class="mode-chip"
-          class:favorites={mode === 'favorites'}
-          class:cached={mode === 'cached'}
-          disabled={offline.value}
-          onclick={switchMode}
-          aria-label="Switch mode">{MODE_LABELS[mode]}</button
-        >
       </header>
 
       {#key post.shortcode}
@@ -514,12 +525,7 @@
   </div>
 {:else if mode === 'cached'}
   <div class="empty">
-    <button
-      class="mode-chip cached"
-      disabled={offline.value}
-      onclick={switchMode}
-      aria-label="Switch mode">{MODE_LABELS[mode]}</button
-    >
+    {@render modeControl()}
     <svg class="empty-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.75" />
       <polyline
@@ -542,12 +548,7 @@
   </div>
 {:else if mode === 'favorites'}
   <div class="empty">
-    <button
-      class="mode-chip favorites"
-      disabled={offline.value}
-      onclick={switchMode}
-      aria-label="Switch mode">{MODE_LABELS[mode]}</button
-    >
+    {@render modeControl()}
     <svg class="empty-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
@@ -601,31 +602,58 @@
     }
   }
 
-  .mode-chip {
+  .header {
+    padding: 8px 16px 16px;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-text);
+    letter-spacing: -0.3px;
+    margin: 0;
+  }
+
+  .mode-control {
+    display: flex;
+    gap: 2px;
+    background: var(--color-border-subtle);
+    border-radius: 8px;
+    padding: 2px;
     flex-shrink: 0;
-    padding: 3px 9px;
-    border-radius: 20px;
-    border: 1px solid var(--color-border);
-    background: transparent;
+  }
+
+  .mode-btn {
+    padding: 5px 10px;
     font-size: 12px;
     font-weight: 500;
     font-family: inherit;
-    color: var(--color-text-muted);
+    border: none;
+    border-radius: 6px;
     cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
+    color: var(--color-text-muted);
+    background: transparent;
     transition:
-      color 0.15s,
-      border-color 0.15s;
+      background 0.15s,
+      color 0.15s;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
   }
 
-  .mode-chip.favorites {
-    color: var(--color-favorite);
-    border-color: var(--color-favorite);
+  .mode-btn.active {
+    background: var(--color-bg);
+    color: var(--color-text);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 
-  .mode-chip.cached {
-    color: var(--color-cached, #3b82f6);
-    border-color: var(--color-cached, #3b82f6);
+  .mode-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
 
   .next {
