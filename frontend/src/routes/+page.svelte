@@ -10,7 +10,7 @@
   const MODE_KEY = 'random-mode';
   const cacheKey = (m) => `random_post_${m}`;
   const MODES = ['all', 'favorites', 'cached'];
-  const MODE_LABELS = { all: 'All', favorites: 'Favorites', cached: 'Cached' };
+  const MODE_LABELS = { all: 'Unrated', favorites: 'Favorites', cached: 'Cached' };
 
   let { data } = $props();
 
@@ -568,7 +568,7 @@
         post = null;
         loading = true;
         await loadNext();
-      }}>Browse all posts</button
+      }}>Browse unrated posts</button
     >
   </div>
 {:else}
