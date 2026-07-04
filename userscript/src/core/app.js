@@ -1355,6 +1355,12 @@ const APP_CORE = (() => {
     return `${formatDurationShort(value)} left`;
   }
 
+  function capitalizeFirst(text) {
+    const value = typeof text === "string" ? text : "";
+    if (!value) return "";
+    return value.charAt(0).toUpperCase() + value.slice(1);
+  }
+
   function resolveBatchRateText(record, uiState) {
     if (uiState === "paused") return "Paused";
     if (uiState === "cooldown") return "Cooling down";
@@ -1656,10 +1662,18 @@ const APP_CORE = (() => {
 
     const cfg = BATCH_UI_STATE_CONFIG[uiState] || BATCH_UI_STATE_CONFIG.idle;
 
+    // A running run with no known total yet is still collecting/scanning the
+    // source (posts, reels, tagged…) — surface that live phase instead of the
+    // generic "Downloading files" subtitle, which is misleading at this stage.
+    const isCollecting = uiState === "running"
+      && Boolean(selected.indeterminate)
+      && selected.state !== "finished";
+    const collectPhase = isCollecting ? capitalizeFirst((selected.phase || "").trim()) : "";
+
     ui.title.textContent = selected.label || "Batch download";
-    ui.subtitle.textContent = typeof cfg.subtitle === "function"
+    ui.subtitle.textContent = collectPhase || (typeof cfg.subtitle === "function"
       ? cfg.subtitle(mode, selected)
-      : (cfg.subtitle || "");
+      : (cfg.subtitle || ""));
 
     const safeTotal = Math.max(0, Number(selected.total) || 0);
     const safeProcessedRaw = Math.max(0, Number(selected.processed) || 0);
@@ -1690,14 +1704,27 @@ const APP_CORE = (() => {
       ui.miniBar.style.width = `${percent}%`;
     }
 
-    ui.countsProcessed.textContent = String(safeProcessed);
-    ui.countsTotal.textContent = String(safeTotal);
+    if (isCollecting) {
+      // Total is unknown while collecting — "N of 0 files" reads as broken, so
+      // show the running tally of items found so far instead.
+      ui.countsProcessed.textContent = safeProcessed > 0 ? String(safeProcessed) : "";
+      ui.countsSep.textContent = "";
+      ui.countsTotal.textContent = "";
+      ui.countsUnit.textContent = safeProcessed > 0
+        ? ` file${safeProcessed === 1 ? "" : "s"} found so far`
+        : "Scanning source…";
+    } else {
+      ui.countsProcessed.textContent = String(safeProcessed);
+      ui.countsSep.textContent = " of ";
+      ui.countsTotal.textContent = String(safeTotal);
+      ui.countsUnit.textContent = " files";
+    }
     const safePostCount = Math.max(0, Number(selected.postCount) || 0);
     ui.countsPosts.textContent = safePostCount > 0
       ? ` · ${safePostCount} ${safePostCount === 1 ? "post" : "posts"}`
       : "";
 
-    ui.rate.textContent = resolveBatchRateText(selected, uiState);
+    ui.rate.textContent = isCollecting ? "Scanning…" : resolveBatchRateText(selected, uiState);
     const showEta = cfg.showEta && !isIndeterminate;
     if (showEta) {
       ui.etaWrap.style.display = "";
@@ -1956,12 +1983,16 @@ const APP_CORE = (() => {
     counts.className = "gm-progress-counts";
     const countsProcessed = document.createElement("strong");
     countsProcessed.textContent = "0";
+    const countsSep = document.createElement("span");
+    countsSep.textContent = " of ";
     const countsTotal = document.createElement("span");
     countsTotal.textContent = "0";
+    const countsUnit = document.createElement("span");
+    countsUnit.textContent = " files";
     const countsPosts = document.createElement("span");
     countsPosts.className = "gm-progress-posts";
     countsPosts.textContent = "";
-    counts.append(countsProcessed, document.createTextNode(" of "), countsTotal, document.createTextNode(" files"), countsPosts);
+    counts.append(countsProcessed, countsSep, countsTotal, countsUnit, countsPosts);
 
     const bar = document.createElement("div");
     bar.className = "gm-bar";
@@ -2240,7 +2271,9 @@ const APP_CORE = (() => {
       badge,
       percent,
       countsProcessed,
+      countsSep,
       countsTotal,
+      countsUnit,
       countsPosts,
       barFill,
       rate,
