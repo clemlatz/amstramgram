@@ -8,15 +8,6 @@
   let videos = $state(data.videos ?? 0);
   let unrated = $state(data.unrated ?? 0);
   let diskBytes = $state(data.diskBytes ?? 0);
-  let cacheBytes = $state(null);
-
-  $effect(() => {
-    if ('storage' in navigator) {
-      navigator.storage.estimate().then(({ usage }) => {
-        cacheBytes = usage ?? null;
-      });
-    }
-  });
 
   function formatBytes(bytes) {
     if (!bytes) return '–';
@@ -51,24 +42,27 @@
   let updateLoading = $state(false);
   let updateStatus = $state(null);
 
-  let favoritesDownloaded = $state(null);
-  let postsTotal = $state(null);
+  let downloadedCount = $state(null);
+  let downloadedBytes = $state(null);
 
   async function refreshDownloadedCount() {
     if (!('caches' in window)) return;
     try {
-      const [cache, res] = await Promise.all([
-        caches.open('media-cache'),
-        fetch('/api/favorites/posts'),
-      ]);
-      if (!res.ok) return;
-      const { posts } = await res.json();
-      postsTotal = posts.length;
+      const cache = await caches.open('media-cache');
       const keys = await cache.keys();
-      const downloadedPaths = new Set(keys.map((r) => new URL(r.url).pathname));
-      favoritesDownloaded = posts.filter((p) =>
-        p.media.every((m) => downloadedPaths.has(m.url))
-      ).length;
+      let bytes = 0;
+      for (const req of keys) {
+        const resp = await cache.match(req);
+        if (!resp) continue;
+        const len = resp.headers.get('content-length');
+        if (len) {
+          bytes += parseInt(len, 10);
+        } else {
+          bytes += (await resp.blob()).size;
+        }
+      }
+      downloadedCount = keys.length;
+      downloadedBytes = bytes;
     } catch {
       // silently ignore
     }
@@ -318,12 +312,6 @@
         <span class="stat-value">{formatBytes(diskBytes)}</span>
         <span class="stat-label">on server</span>
       </div>
-      <div class="stat">
-        <span class="stat-value"
-          >{cacheBytes !== null ? (cacheBytes > 0 ? formatBytes(cacheBytes) : '0 B') : '–'}</span
-        >
-        <span class="stat-label">in app</span>
-      </div>
     </div>
   </div>
 
@@ -479,7 +467,11 @@
   <div class="import-from-disk-section">
     <span class="field-label">Import from disk</span>
     <span class="label">
-      {pendingImports === 1 ? '1 file pending' : pendingImports > 1 ? `${pendingImports} files pending` : 'No files pending'}
+      {pendingImports === 1
+        ? '1 file pending'
+        : pendingImports > 1
+          ? `${pendingImports} files pending`
+          : 'No files pending'}
     </span>
     {#if importFromDiskError}
       <p class="error">{importFromDiskError}</p>
@@ -491,13 +483,24 @@
         {:else}
           {[
             importFromDiskResult.imported ? `${importFromDiskResult.imported} imported` : '',
-            importFromDiskResult.duplicates ? `${importFromDiskResult.duplicates} duplicate${importFromDiskResult.duplicates > 1 ? 's' : ''}` : '',
-            importFromDiskResult.warnings ? `${importFromDiskResult.warnings} warning${importFromDiskResult.warnings > 1 ? 's' : ''}` : '',
-          ].filter(Boolean).join(', ')}.
+            importFromDiskResult.duplicates
+              ? `${importFromDiskResult.duplicates} duplicate${importFromDiskResult.duplicates > 1 ? 's' : ''}`
+              : '',
+            importFromDiskResult.warnings
+              ? `${importFromDiskResult.warnings} warning${importFromDiskResult.warnings > 1 ? 's' : ''}`
+              : '',
+          ]
+            .filter(Boolean)
+            .join(', ')}.
         {/if}
       </p>
     {/if}
-    <button class="btn" type="button" disabled={importFromDiskLoading || pendingImports === 0} onclick={importFromDisk}>
+    <button
+      class="btn"
+      type="button"
+      disabled={importFromDiskLoading || pendingImports === 0}
+      onclick={importFromDisk}
+    >
       {importFromDiskLoading ? 'Importing…' : 'Import from disk'}
     </button>
   </div>
@@ -517,12 +520,12 @@
   <div class="divider"></div>
 
   <div class="offline-section">
-    <span class="field-label">Offline favorites</span>
+    <span class="field-label">Offline</span>
     <span class="label">
       {#if downloading && downloadTotal !== null}
         {downloadDone} / {downloadTotal} posts
-      {:else if favoritesDownloaded !== null && postsTotal !== null}
-        {favoritesDownloaded} / {postsTotal} posts
+      {:else if downloadedCount !== null && downloadedBytes !== null}
+        {downloadedCount} posts · {formatBytes(downloadedBytes)}
       {/if}
     </span>
     {#if downloadError}
@@ -532,7 +535,7 @@
       <progress class="download-progress" value={downloadDone} max={downloadTotal ?? 1}></progress>
     {/if}
     <button class="btn" type="button" disabled={downloading} onclick={downloadAllFavorites}>
-      {downloading ? 'Downloading…' : 'Download all'}
+      {downloading ? 'Downloading…' : 'Download favorites'}
     </button>
   </div>
 
