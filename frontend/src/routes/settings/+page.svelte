@@ -526,6 +526,8 @@
         {downloadDone} / {downloadTotal} posts
       {:else if downloadedCount !== null && downloadedBytes !== null}
         {downloadedCount} posts · {formatBytes(downloadedBytes)}
+      {:else}
+        Calculating…
       {/if}
     </span>
     {#if downloadError}
