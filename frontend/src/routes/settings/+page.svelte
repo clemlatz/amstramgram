@@ -45,13 +45,33 @@
   let downloadedCount = $state(null);
   let downloadedBytes = $state(null);
 
+  // Group cached media back into posts. The media URL is
+  // /api/media/{base64url(filepath)}; carousel slides of one post share the
+  // filename stem and differ only by a trailing "_N" (mirrors _parse_stem
+  // server-side), so stripping the extension and that suffix yields a per-post
+  // key.
+  function postKeyFromUrl(url) {
+    const enc = new URL(url).pathname.replace(/^.*\/api\/media\//, '');
+    let b64 = enc.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    let path;
+    try {
+      path = atob(b64);
+    } catch {
+      return url; // undecodable: count it as its own post
+    }
+    return path.replace(/\.[^./]+$/, '').replace(/_\d+$/, '');
+  }
+
   async function refreshDownloadedCount() {
     if (!('caches' in window)) return;
     try {
       const cache = await caches.open('media-cache');
       const keys = await cache.keys();
+      const posts = {};
       let bytes = 0;
       for (const req of keys) {
+        posts[postKeyFromUrl(req.url)] = true;
         const resp = await cache.match(req);
         if (!resp) continue;
         const len = resp.headers.get('content-length');
@@ -61,7 +81,7 @@
           bytes += (await resp.blob()).size;
         }
       }
-      downloadedCount = keys.length;
+      downloadedCount = Object.keys(posts).length;
       downloadedBytes = bytes;
     } catch {
       // silently ignore
