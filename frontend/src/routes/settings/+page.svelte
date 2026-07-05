@@ -51,10 +51,10 @@
   let updateLoading = $state(false);
   let updateStatus = $state(null);
 
-  let favoritesCached = $state(null);
+  let favoritesDownloaded = $state(null);
   let postsTotal = $state(null);
 
-  async function refreshCachedCount() {
+  async function refreshDownloadedCount() {
     if (!('caches' in window)) return;
     try {
       const [cache, res] = await Promise.all([
@@ -65,21 +65,23 @@
       const { posts } = await res.json();
       postsTotal = posts.length;
       const keys = await cache.keys();
-      const cachedPaths = new Set(keys.map((r) => new URL(r.url).pathname));
-      favoritesCached = posts.filter((p) => p.media.every((m) => cachedPaths.has(m.url))).length;
+      const downloadedPaths = new Set(keys.map((r) => new URL(r.url).pathname));
+      favoritesDownloaded = posts.filter((p) =>
+        p.media.every((m) => downloadedPaths.has(m.url))
+      ).length;
     } catch {
       // silently ignore
     }
   }
 
   $effect(() => {
-    refreshCachedCount();
+    refreshDownloadedCount();
   });
 
-  let caching = $state(false);
-  let cacheTotal = $state(null);
-  let cacheDone = $state(0);
-  let cacheError = $state(null);
+  let downloading = $state(false);
+  let downloadTotal = $state(null);
+  let downloadDone = $state(0);
+  let downloadError = $state(null);
 
   async function checkForUpdates() {
     updateLoading = true;
@@ -98,11 +100,11 @@
     }
   }
 
-  async function cacheAllFavorites() {
-    caching = true;
-    cacheTotal = null;
-    cacheDone = 0;
-    cacheError = null;
+  async function downloadAllFavorites() {
+    downloading = true;
+    downloadTotal = null;
+    downloadDone = 0;
+    downloadError = null;
 
     let posts;
     try {
@@ -110,15 +112,15 @@
       if (!res.ok) throw new Error();
       const { posts: p } = await res.json();
       posts = p;
-      cacheTotal = posts.length;
+      downloadTotal = posts.length;
     } catch {
-      cacheError = 'Could not load favorites list.';
-      caching = false;
+      downloadError = 'Could not load favorites list.';
+      downloading = false;
       return;
     }
 
     if (posts.length === 0) {
-      caching = false;
+      downloading = false;
       return;
     }
 
@@ -137,11 +139,11 @@
           })
         );
       }
-      cacheDone++;
+      downloadDone++;
     }
 
-    caching = false;
-    await refreshCachedCount();
+    downloading = false;
+    await refreshDownloadedCount();
   }
 
   let logs = $state([]);
@@ -517,20 +519,20 @@
   <div class="offline-section">
     <span class="field-label">Offline favorites</span>
     <span class="label">
-      {#if caching && cacheTotal !== null}
-        {cacheDone} / {cacheTotal} posts
-      {:else if favoritesCached !== null && postsTotal !== null}
-        {favoritesCached} / {postsTotal} posts
+      {#if downloading && downloadTotal !== null}
+        {downloadDone} / {downloadTotal} posts
+      {:else if favoritesDownloaded !== null && postsTotal !== null}
+        {favoritesDownloaded} / {postsTotal} posts
       {/if}
     </span>
-    {#if cacheError}
-      <p class="error">{cacheError}</p>
+    {#if downloadError}
+      <p class="error">{downloadError}</p>
     {/if}
-    {#if caching}
-      <progress class="cache-progress" value={cacheDone} max={cacheTotal ?? 1}></progress>
+    {#if downloading}
+      <progress class="download-progress" value={downloadDone} max={downloadTotal ?? 1}></progress>
     {/if}
-    <button class="btn" type="button" disabled={caching} onclick={cacheAllFavorites}>
-      {caching ? 'Caching…' : 'Cache all'}
+    <button class="btn" type="button" disabled={downloading} onclick={downloadAllFavorites}>
+      {downloading ? 'Downloading…' : 'Download all'}
     </button>
   </div>
 
@@ -880,7 +882,7 @@
     gap: 8px;
   }
 
-  .cache-progress {
+  .download-progress {
     width: 100%;
     height: 4px;
     border-radius: 2px;
@@ -890,18 +892,18 @@
     overflow: hidden;
   }
 
-  .cache-progress::-webkit-progress-bar {
+  .download-progress::-webkit-progress-bar {
     background: var(--color-border);
     border-radius: 2px;
   }
 
-  .cache-progress::-webkit-progress-value {
+  .download-progress::-webkit-progress-value {
     background: var(--color-text);
     border-radius: 2px;
     transition: width 0.2s ease;
   }
 
-  .cache-progress::-moz-progress-bar {
+  .download-progress::-moz-progress-bar {
     background: var(--color-text);
     border-radius: 2px;
   }

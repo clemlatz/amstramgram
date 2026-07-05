@@ -9,8 +9,8 @@
 
   const MODE_KEY = 'random-mode';
   const cacheKey = (m) => `random_post_${m}`;
-  const MODES = ['all', 'favorites', 'cached'];
-  const MODE_LABELS = { all: 'Unrated', favorites: 'Favorites', cached: 'Cached' };
+  const MODES = ['all', 'favorites', 'downloaded'];
+  const MODE_LABELS = { all: 'Unrated', favorites: 'Favorites', downloaded: 'Downloaded' };
 
   let { data } = $props();
 
@@ -48,20 +48,21 @@
   $effect(() => {
     if (!offline.value) return;
     untrack(() => {
-      if (mode === 'cached') return;
+      if (mode === 'downloaded') return;
       if (post && typeof sessionStorage !== 'undefined') {
         sessionStorage.setItem(cacheKey(mode), JSON.stringify(post));
       }
-      mode = 'cached';
-      if (typeof localStorage !== 'undefined') localStorage.setItem(MODE_KEY, 'cached');
+      mode = 'downloaded';
+      if (typeof localStorage !== 'undefined') localStorage.setItem(MODE_KEY, 'downloaded');
       const cached =
-        typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(cacheKey('cached')) : null;
+        typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(cacheKey('downloaded')) : null;
       if (cached) {
         try {
           post = JSON.parse(cached);
           fetchError = false;
         } catch {
-          if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(cacheKey('cached'));
+          if (typeof sessionStorage !== 'undefined')
+            sessionStorage.removeItem(cacheKey('downloaded'));
         }
       } else {
         loadNext();
@@ -177,7 +178,7 @@
   }
 
   async function loadNext() {
-    if (mode === 'cached') {
+    if (mode === 'downloaded') {
       try {
         const stored =
           typeof localStorage !== 'undefined'
@@ -189,14 +190,14 @@
           if ('caches' in window) {
             const cache = await caches.open('media-cache');
             const keys = await cache.keys();
-            const cachedPaths = new Set(keys.map((r) => new URL(r.url).pathname));
-            available = posts.filter((p) => p.media.every((m) => cachedPaths.has(m.url)));
+            const downloadedPaths = new Set(keys.map((r) => new URL(r.url).pathname));
+            available = posts.filter((p) => p.media.every((m) => downloadedPaths.has(m.url)));
           }
           if (available.length > 0) {
             const next = available[Math.floor(Math.random() * available.length)];
             post = next;
             if (typeof sessionStorage !== 'undefined') {
-              sessionStorage.setItem(cacheKey('cached'), JSON.stringify(next));
+              sessionStorage.setItem(cacheKey('downloaded'), JSON.stringify(next));
             }
             fetchError = false;
             visible = true;
@@ -428,7 +429,7 @@
     </article>
 
     <div class="actions">
-      {#if mode === 'cached'}
+      {#if mode === 'downloaded'}
         <button class="btn next" disabled={loading} onclick={skip}>
           <svg
             viewBox="0 0 24 24"
@@ -530,14 +531,14 @@
     </svg>
     {#if offline.value}
       <p class="empty-title">You're offline</p>
-      <p class="empty-sub">No cached posts available.</p>
+      <p class="empty-sub">No downloaded posts available.</p>
     {:else}
       <p class="empty-title">Connection error</p>
       <p class="empty-sub">Couldn't load the next post.</p>
       <button class="retry-btn" onclick={retryFetch}>Try again</button>
     {/if}
   </div>
-{:else if mode === 'cached'}
+{:else if mode === 'downloaded'}
   <div class="empty">
     {@render modeControl()}
     <svg class="empty-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -553,10 +554,10 @@
     </svg>
     {#if offline.value}
       <p class="empty-title">You're offline</p>
-      <p class="empty-sub">No cached posts available.</p>
+      <p class="empty-sub">No downloaded posts available.</p>
     {:else}
-      <p class="empty-title">No cached posts</p>
-      <p class="empty-sub">Cache your favorites in Settings to browse offline.</p>
+      <p class="empty-title">No downloaded posts</p>
+      <p class="empty-sub">Download your favorites in Settings to browse offline.</p>
       <a class="retry-btn" href="/settings">Go to Settings</a>
     {/if}
   </div>

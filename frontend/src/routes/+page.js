@@ -1,6 +1,6 @@
 const MODE_KEY = 'random-mode';
 
-async function pickCachedPost() {
+async function pickDownloadedPost() {
   const stored =
     typeof localStorage !== 'undefined' ? localStorage.getItem('offline-favorites-posts') : null;
   if (!stored) return null;
@@ -15,8 +15,8 @@ async function pickCachedPost() {
   if ('caches' in window) {
     const cache = await caches.open('media-cache');
     const keys = await cache.keys();
-    const cachedPaths = new Set(keys.map((r) => new URL(r.url).pathname));
-    available = posts.filter((p) => p.media.every((m) => cachedPaths.has(m.url)));
+    const downloadedPaths = new Set(keys.map((r) => new URL(r.url).pathname));
+    available = posts.filter((p) => p.media.every((m) => downloadedPaths.has(m.url)));
   }
   if (!available.length) return null;
   return available[Math.floor(Math.random() * available.length)];
@@ -37,9 +37,9 @@ export async function load({ fetch }) {
     }
   }
 
-  if (mode === 'cached') {
+  if (mode === 'downloaded') {
     try {
-      const post = await pickCachedPost();
+      const post = await pickDownloadedPost();
       if (post && typeof sessionStorage !== 'undefined') {
         sessionStorage.setItem(storageKey, JSON.stringify(post));
       }
