@@ -96,6 +96,22 @@
   let downloadTotal = $state(null);
   let downloadDone = $state(0);
   let downloadError = $state(null);
+  let clearing = $state(false);
+
+  async function clearDownloaded() {
+    if (!('caches' in window)) return;
+    clearing = true;
+    try {
+      await caches.delete('media-cache');
+      localStorage.removeItem('offline-favorites-posts');
+      downloadedCount = 0;
+      downloadedBytes = 0;
+    } catch {
+      // silently ignore
+    } finally {
+      clearing = false;
+    }
+  }
 
   async function checkForUpdates() {
     updateLoading = true;
@@ -556,9 +572,24 @@
     {#if downloading}
       <progress class="download-progress" value={downloadDone} max={downloadTotal ?? 1}></progress>
     {/if}
-    <button class="btn" type="button" disabled={downloading} onclick={downloadAllFavorites}>
-      {downloading ? 'Downloading…' : 'Download favorites'}
-    </button>
+    <div class="btn-row">
+      <button
+        class="btn"
+        type="button"
+        disabled={downloading || clearing}
+        onclick={downloadAllFavorites}
+      >
+        {downloading ? 'Downloading…' : 'Download favorites'}
+      </button>
+      <button
+        class="btn btn-ghost"
+        type="button"
+        disabled={downloading || clearing || !downloadedCount}
+        onclick={clearDownloaded}
+      >
+        {clearing ? 'Deleting…' : 'Delete downloaded'}
+      </button>
+    </div>
   </div>
 
   <div class="divider"></div>
