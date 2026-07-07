@@ -67,19 +67,18 @@
     if (!('caches' in window)) return;
     try {
       const cache = await caches.open('media-cache');
-      const keys = await cache.keys();
+      // Two cache transactions total (keys + matchAll) — never one per entry.
+      // iOS Safari serializes CacheStorage access, so a per-entry match() loop
+      // stalls concurrent writes (e.g. an in-flight download).
+      const [keys, responses] = await Promise.all([cache.keys(), cache.matchAll()]);
       const posts = {};
-      let bytes = 0;
       for (const req of keys) {
         posts[postKeyFromUrl(req.url)] = true;
-        const resp = await cache.match(req);
-        if (!resp) continue;
+      }
+      let bytes = 0;
+      for (const resp of responses) {
         const len = resp.headers.get('content-length');
-        if (len) {
-          bytes += parseInt(len, 10);
-        } else {
-          bytes += (await resp.blob()).size;
-        }
+        if (len) bytes += parseInt(len, 10);
       }
       downloadedCount = Object.keys(posts).length;
       downloadedBytes = bytes;
