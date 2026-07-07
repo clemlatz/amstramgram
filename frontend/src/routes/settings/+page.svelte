@@ -558,6 +558,14 @@
 
   <div class="divider"></div>
 
+  <div class="vr-section">
+    <span class="field-label">VR headset</span>
+    <span class="label">Rate hands-free in a phone VR headset with a game controller</span>
+    <a class="btn" href="/vr">Enter VR mode</a>
+  </div>
+
+  <div class="divider"></div>
+
   <div class="offline-section">
     <span class="field-label">Offline</span>
     <span class="label">
@@ -847,10 +855,18 @@
   .stats-section,
   .scheduler-section,
   .import-saved-section,
-  .app-section {
+  .app-section,
+  .vr-section {
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+
+  a.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
   }
 
   .scheduler-row {

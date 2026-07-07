@@ -9,6 +9,8 @@
 
   const blocked = $derived(connection.state !== 'online');
   const needsAuth = $derived(connection.state === 'unauthenticated');
+  // The VR viewer is a full-screen, chrome-free surface — no tab bar, no pills.
+  const isVR = $derived($page.url.pathname === '/vr');
 
   async function checkServer() {
     try {
@@ -76,7 +78,9 @@
   </div>
 {/if}
 
-{#if needsAuth}
+{#if isVR}
+  <!-- VR viewer manages its own connection UI -->
+{:else if needsAuth}
   <button class="offline-pill auth-pill" onclick={reLogin} aria-live="polite">
     <svg
       viewBox="0 0 24 24"
@@ -115,8 +119,8 @@
   </div>
 {/if}
 
-<div class="content">
-  {#if blocked && $page.url.pathname !== '/' && $page.url.pathname !== '/feed' && !$page.params.shortcode}
+<div class="content" class:vr={isVR}>
+  {#if blocked && !isVR && $page.url.pathname !== '/' && $page.url.pathname !== '/feed' && !$page.params.shortcode}
     {#if needsAuth}
       <div class="offline-page">
         <svg
@@ -166,7 +170,7 @@
   {/if}
 </div>
 
-<nav class="tab-bar" aria-label="Main navigation">
+<nav class="tab-bar" aria-label="Main navigation" class:hidden={isVR}>
   <a href="/" class="tab" class:active={$page.url.pathname === '/'} aria-label="Pick">
     {#if $page.url.pathname === '/'}
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -337,6 +341,14 @@
 
   .content {
     padding-bottom: calc(49px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .content.vr {
+    padding: 0;
+  }
+
+  .tab-bar.hidden {
+    display: none;
   }
 
   .tab-bar {
