@@ -135,44 +135,48 @@
     downloadDone = 0;
     downloadError = null;
 
-    let posts;
     try {
-      const res = await fetch('/api/favorites/posts');
-      if (!res.ok) throw new Error();
-      const { posts: p } = await res.json();
-      posts = p;
-      downloadTotal = posts.length;
-    } catch {
-      downloadError = 'Could not load favorites list.';
-      downloading = false;
-      return;
-    }
-
-    if (posts.length === 0) {
-      downloading = false;
-      return;
-    }
-
-    localStorage.setItem('offline-favorites-posts', JSON.stringify(posts));
-
-    const cache = 'caches' in window ? await caches.open('media-cache') : null;
-    const BATCH = 3;
-    for (const post of posts) {
-      const mediaUrls = post.media.map((m) => m.url);
-      for (let i = 0; i < mediaUrls.length; i += BATCH) {
-        await Promise.allSettled(
-          mediaUrls.slice(i, i + BATCH).map(async (url) => {
-            if (cache && (await cache.match(url))) return;
-            const response = await fetch(url);
-            if (cache && response.ok) await cache.put(url, response);
-          })
-        );
+      let posts;
+      try {
+        const res = await fetch('/api/favorites/posts');
+        if (!res.ok) throw new Error();
+        ({ posts } = await res.json());
+        downloadTotal = posts.length;
+      } catch {
+        downloadError = 'Could not load favorites list.';
+        return;
       }
-      downloadDone++;
-    }
 
-    downloading = false;
-    await refreshDownloadedCount();
+      if (posts.length === 0) return;
+
+      // Best-effort: persist the list for the offline home page. iOS caps
+      // localStorage at ~5 MB and throws QuotaExceededError past it, which must
+      // not abort the download of a large favorites set.
+      try {
+        localStorage.setItem('offline-favorites-posts', JSON.stringify(posts));
+      } catch {
+        // list too large to persist; the download itself still proceeds
+      }
+
+      const cache = 'caches' in window ? await caches.open('media-cache') : null;
+      const BATCH = 3;
+      for (const post of posts) {
+        const mediaUrls = post.media.map((m) => m.url);
+        for (let i = 0; i < mediaUrls.length; i += BATCH) {
+          await Promise.allSettled(
+            mediaUrls.slice(i, i + BATCH).map(async (url) => {
+              if (cache && (await cache.match(url))) return;
+              const response = await fetch(url);
+              if (cache && response.ok) await cache.put(url, response);
+            })
+          );
+        }
+        downloadDone++;
+      }
+      await refreshDownloadedCount();
+    } finally {
+      downloading = false;
+    }
   }
 
   let logs = $state([]);
