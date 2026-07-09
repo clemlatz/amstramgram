@@ -1,11 +1,8 @@
 <script>
   import { onMount } from 'svelte';
   import { createStereoRenderer } from '$lib/stereoRenderer.js';
+  import { PAD, createGamepadWatcher } from '$lib/gamepad.js';
 
-  // ── Standard-mapping gamepad button indices (W3C) ──
-  // On a Switch Pro Controller: face-bottom = physical B, face-right = physical A.
-  // Right-hand-only scheme: A/ZR favorite, B archive, Y mute, R next carousel slide.
-  const BTN = { ARCHIVE: 0, FAVORITE: 1, MUTE: 2, R: 5, ZR: 7 };
   const CAL_KEY = 'vrbench';
 
   let canvasEl = $state(null);
@@ -23,8 +20,6 @@
 
   let renderer = null;
   let busy = false;
-  let inputRaf = 0;
-  const prevBtn = [];
   let toastTimer = null;
 
   // ── data ──
@@ -71,13 +66,29 @@
     await loadNext();
   }
 
-  // Advance to the next slide of a carousel (wraps around); no-op for single media.
+  // Advance within a carousel, wrapping back to the first slide at the end.
   function nextSlide() {
     if (busy || status !== 'ready' || !post) return;
     const n = post.media?.length ?? 0;
     if (n < 2) return;
     slide = (slide + 1) % n;
     flash(`${slide + 1}/${n}`);
+  }
+
+  // Step back within a carousel, stopping at the first slide.
+  function prevSlide() {
+    if (busy || status !== 'ready' || !post) return;
+    const n = post.media?.length ?? 0;
+    if (n < 2 || slide === 0) return;
+    slide -= 1;
+    flash(`${slide + 1}/${n}`);
+  }
+
+  function togglePlay() {
+    if (!videoEl) return;
+    if (videoEl.paused) videoEl.play().catch(() => {});
+    else videoEl.pause();
+    flash(videoEl.paused ? '❚❚' : '▶');
   }
 
   function flash(text) {
@@ -144,38 +155,13 @@
     }
   });
 
-  // ── gamepad polling ──
-  function pollInput() {
-    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-    let pad = null;
-    for (const p of pads) {
-      if (p) {
-        pad = p;
-        break;
-      }
-    }
-    if (pad) {
-      gamepadOn = true;
-      const edge = (i) => {
-        const now = !!(pad.buttons[i] && pad.buttons[i].pressed);
-        const was = prevBtn[i];
-        prevBtn[i] = now;
-        return now && !was;
-      };
-      const eFav = edge(BTN.FAVORITE);
-      const eZr = edge(BTN.ZR);
-      const eArch = edge(BTN.ARCHIVE);
-      const eMute = edge(BTN.MUTE);
-      const eSlide = edge(BTN.R);
-
-      if (eFav || eZr) rate('favorite');
-      else if (eArch) rate('archive');
-      else if (eSlide) nextSlide();
-      if (eMute) toggleMute();
-    } else {
-      gamepadOn = false;
-    }
-    inputRaf = requestAnimationFrame(pollInput);
+  // ── gamepad input ──
+  function onPress(i) {
+    if (i === PAD.FAVORITE) rate('favorite');
+    else if (i === PAD.ARCHIVE) rate('archive');
+    else if (i === PAD.ZR) post?.media?.[slide]?.type === 'video' ? togglePlay() : nextSlide();
+    else if (i === PAD.R) prevSlide();
+    if (i === PAD.MUTE) toggleMute();
   }
 
   function onResize() {
@@ -195,12 +181,17 @@
     renderer.start();
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', () => setTimeout(onResize, 200));
-    pollInput();
+
+    const watcher = createGamepadWatcher({
+      onPress,
+      onConnection: (c) => (gamepadOn = c)
+    });
+    watcher.start();
     loadFirst();
 
     return () => {
       window.removeEventListener('resize', onResize);
-      cancelAnimationFrame(inputRaf);
+      watcher.stop();
       clearTimeout(toastTimer);
       renderer?.destroy();
     };
@@ -247,7 +238,7 @@
     <a class="pill" href="/" aria-label="Exit VR">✕</a>
     <div class="hint">
       {#if gamepadOn}
-        A/ZR favorite · B archive · Y mute · R next slide
+        A favorite · B archive · X mute · ZR play/next · R prev
       {:else}
         Connect a controller · tap to hide this UI
       {/if}

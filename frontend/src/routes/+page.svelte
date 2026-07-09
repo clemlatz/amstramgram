@@ -1,11 +1,12 @@
 <script>
   import 'swiper/css';
   import 'swiper/css/pagination';
-  import { untrack } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import Avatar from '$lib/Avatar.svelte';
   import { formatDate } from '$lib/media.js';
   import { audio } from '$lib/audio.svelte.js';
   import { offline } from '$lib/offline.svelte.js';
+  import { PAD, createGamepadWatcher } from '$lib/gamepad.js';
 
   const MODE_KEY = 'random-mode';
   const cacheKey = (m) => `random_post_${m}`;
@@ -18,6 +19,7 @@
   let loading = $state(false);
   let visible = $state(true);
   let swiperEl = $state(null);
+  let swiper = $state(null);
   let fetchError = $state(data.loadError ?? false);
   let accountActive = $state(data.post?.account_active ?? true);
   let mode = $state(
@@ -89,6 +91,7 @@
             prevEl: swiperEl.querySelector('.nav-prev'),
           },
         });
+        swiper = instance;
       } catch {
         // carousel falls back to static image display
       }
@@ -96,6 +99,7 @@
 
     return () => {
       destroyed = true;
+      swiper = null;
       instance?.destroy();
     };
   });
@@ -254,6 +258,44 @@
       accountActive = !next;
     }
   }
+
+  // The currently visible <video>, if the active media is a video.
+  function activeVideo() {
+    if (!post) return null;
+    if (isCarousel && swiper) {
+      return swiper.slides?.[swiper.activeIndex]?.querySelector('video') ?? null;
+    }
+    return post.media[0]?.type === 'video' ? document.querySelector('.post-video') : null;
+  }
+
+  // Pro Controller support (same right-hand scheme as the VR viewer): A favorite,
+  // B archive, X mute, ZR play/pause a video else next carousel slide (loops),
+  // R previous slide.
+  onMount(() => {
+    const watcher = createGamepadWatcher({
+      onPress(i) {
+        if (i === PAD.MUTE) {
+          audio.muted = !audio.muted;
+          return;
+        }
+        if (i === PAD.ZR) {
+          const v = activeVideo();
+          if (v) v.paused ? v.play().catch(() => {}) : v.pause();
+          else if (swiper) swiper.isEnd ? swiper.slideTo(0) : swiper.slideNext();
+          return;
+        }
+        if (i === PAD.R) {
+          swiper?.slidePrev();
+          return;
+        }
+        if (offline.value || loading) return;
+        if (i === PAD.FAVORITE && mode === 'all') rate('favorite');
+        else if (i === PAD.ARCHIVE && mode !== 'downloaded') rate('archive');
+      },
+    });
+    watcher.start();
+    return () => watcher.stop();
+  });
 </script>
 
 {#snippet muteIcon()}
