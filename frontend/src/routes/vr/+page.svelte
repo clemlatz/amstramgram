@@ -4,13 +4,15 @@
 
   // ── Standard-mapping gamepad button indices (W3C) ──
   // On a Switch Pro Controller: face-bottom = physical B, face-right = physical A.
-  const BTN = { ARCHIVE: 0, FAVORITE: 1, MUTE: 2, L: 4, R: 5, ZR: 7, PLUS: 9, DLEFT: 14, DRIGHT: 15 };
+  // Right-hand-only scheme: A/ZR favorite, B archive, Y mute, R next carousel slide.
+  const BTN = { ARCHIVE: 0, FAVORITE: 1, MUTE: 2, R: 5, ZR: 7 };
   const CAL_KEY = 'vrbench';
 
   let canvasEl = $state(null);
   let videoEl = $state(null);
 
   let post = $state(null);
+  let slide = $state(0); // active media index within the current post (carousels)
   let status = $state('loading'); // loading | ready | empty | error
   let toast = $state('');
   let muted = $state(true);
@@ -20,12 +22,9 @@
   let cal = $state({ sep: 0, zoom: 1, k1: 0.15, k2: 0 });
 
   let renderer = null;
-  let history = [];
   let busy = false;
   let inputRaf = 0;
   const prevBtn = [];
-  let prevAxRight = false;
-  let prevAxLeft = false;
   let toastTimer = null;
 
   // ── data ──
@@ -39,6 +38,7 @@
   async function loadFirst() {
     try {
       post = await fetchRandom();
+      slide = 0;
       status = post ? 'ready' : 'empty';
     } catch {
       status = 'error';
@@ -49,21 +49,14 @@
     if (busy) return;
     busy = true;
     try {
-      if (post) history.push(post);
       const next = await fetchRandom();
       post = next;
+      slide = 0;
       status = next ? 'ready' : 'empty';
     } catch {
       status = 'error';
     }
     busy = false;
-  }
-
-  function previous() {
-    if (busy || !history.length) return;
-    post = history.pop();
-    status = 'ready';
-    flash('← Back');
   }
 
   async function rate(action) {
@@ -78,10 +71,13 @@
     await loadNext();
   }
 
-  async function skip() {
-    if (busy || status !== 'ready') return;
-    flash('→ Skip');
-    await loadNext();
+  // Advance to the next slide of a carousel (wraps around); no-op for single media.
+  function nextSlide() {
+    if (busy || status !== 'ready' || !post) return;
+    const n = post.media?.length ?? 0;
+    if (n < 2) return;
+    slide = (slide + 1) % n;
+    flash(`${slide + 1}/${n}`);
   }
 
   function flash(text) {
@@ -126,8 +122,9 @@
   // ── swap the source whenever the post changes ──
   $effect(() => {
     const p = post;
+    const idx = slide;
     if (!renderer || !videoEl) return;
-    const media = p?.media?.[0];
+    const media = p?.media?.[idx];
     if (!media) {
       renderer.clearMedia();
       videoEl.pause();
@@ -169,26 +166,12 @@
       const eZr = edge(BTN.ZR);
       const eArch = edge(BTN.ARCHIVE);
       const eMute = edge(BTN.MUTE);
-      const ePlus = edge(BTN.PLUS);
-      const eNext = edge(BTN.R) || edge(BTN.DRIGHT);
-      const ePrev = edge(BTN.L) || edge(BTN.DLEFT);
-
-      // Either analog stick's horizontal axis navigates (axis 0 = left, 2 = right).
-      const axL = pad.axes[0] || 0;
-      const axR = pad.axes[2] || 0;
-      const navRight = axL > 0.6 || axR > 0.6;
-      const navLeft = axL < -0.6 || axR < -0.6;
-      const eAxRight = navRight && !prevAxRight;
-      const eAxLeft = navLeft && !prevAxLeft;
-      prevAxRight = navRight;
-      prevAxLeft = navLeft;
+      const eSlide = edge(BTN.R);
 
       if (eFav || eZr) rate('favorite');
       else if (eArch) rate('archive');
-      else if (eNext || eAxRight) skip();
-      else if (ePrev || eAxLeft) previous();
+      else if (eSlide) nextSlide();
       if (eMute) toggleMute();
-      if (ePlus) showCal = !showCal;
     } else {
       gamepadOn = false;
     }
@@ -241,7 +224,9 @@
       <div class="toast">{toast}</div>
     {/if}
     {#if status === 'ready' && post}
-      <div class="acct">{post.account}</div>
+      <div class="acct">
+        {post.account}{#if post.media?.length > 1}&nbsp;·&nbsp;{slide + 1}/{post.media.length}{/if}
+      </div>
     {/if}
   </div>
 {/snippet}
@@ -262,7 +247,7 @@
     <a class="pill" href="/" aria-label="Exit VR">✕</a>
     <div class="hint">
       {#if gamepadOn}
-        A/ZR favorite · B archive · sticks/R/L navigate · + calibrate
+        A/ZR favorite · B archive · Y mute · R next slide
       {:else}
         Connect a controller · tap to hide this UI
       {/if}
