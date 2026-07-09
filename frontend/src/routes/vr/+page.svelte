@@ -4,7 +4,7 @@
 
   // ── Standard-mapping gamepad button indices (W3C) ──
   // On a Switch Pro Controller: face-bottom = physical B, face-right = physical A.
-  const BTN = { ARCHIVE: 0, FAVORITE: 1, MUTE: 2, L: 4, R: 5, PLUS: 9, DLEFT: 14, DRIGHT: 15 };
+  const BTN = { ARCHIVE: 0, FAVORITE: 1, MUTE: 2, L: 4, R: 5, ZR: 7, PLUS: 9, DLEFT: 14, DRIGHT: 15 };
   const CAL_KEY = 'vrbench';
 
   let canvasEl = $state(null);
@@ -166,21 +166,24 @@
         return now && !was;
       };
       const eFav = edge(BTN.FAVORITE);
+      const eZr = edge(BTN.ZR);
       const eArch = edge(BTN.ARCHIVE);
       const eMute = edge(BTN.MUTE);
       const ePlus = edge(BTN.PLUS);
       const eNext = edge(BTN.R) || edge(BTN.DRIGHT);
       const ePrev = edge(BTN.L) || edge(BTN.DLEFT);
 
-      const ax = pad.axes[0] || 0;
-      const axRight = ax > 0.6;
-      const axLeft = ax < -0.6;
-      const eAxRight = axRight && !prevAxRight;
-      const eAxLeft = axLeft && !prevAxLeft;
-      prevAxRight = axRight;
-      prevAxLeft = axLeft;
+      // Either analog stick's horizontal axis navigates (axis 0 = left, 2 = right).
+      const axL = pad.axes[0] || 0;
+      const axR = pad.axes[2] || 0;
+      const navRight = axL > 0.6 || axR > 0.6;
+      const navLeft = axL < -0.6 || axR < -0.6;
+      const eAxRight = navRight && !prevAxRight;
+      const eAxLeft = navLeft && !prevAxLeft;
+      prevAxRight = navRight;
+      prevAxLeft = navLeft;
 
-      if (eFav) rate('favorite');
+      if (eFav || eZr) rate('favorite');
       else if (eArch) rate('archive');
       else if (eNext || eAxRight) skip();
       else if (ePrev || eAxLeft) previous();
@@ -259,7 +262,7 @@
     <a class="pill" href="/" aria-label="Exit VR">✕</a>
     <div class="hint">
       {#if gamepadOn}
-        A favorite · B archive · →/R next · ←/L back · + calibrate
+        A/ZR favorite · B archive · sticks/R/L navigate · + calibrate
       {:else}
         Connect a controller · tap to hide this UI
       {/if}
