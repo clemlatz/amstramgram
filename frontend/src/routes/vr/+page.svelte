@@ -207,8 +207,8 @@
   <title>VR · Amstramgram</title>
 </svelte:head>
 
-{#snippet eye()}
-  <div class="eye">
+{#snippet eye(eyeSign)}
+  <div class="eye" style="--eye-sign: {eyeSign}; --sep: {cal.sep}">
     {#if status === 'loading'}
       <p class="msg">Loading…</p>
     {:else if status === 'empty'}
@@ -234,8 +234,8 @@
 
   <!-- per-eye overlay: both halves show the same centred content -->
   <div class="stereo">
-    {@render eye()}
-    {@render eye()}
+    {@render eye(-1)}
+    {@render eye(1)}
   </div>
 
   <!-- flat setup chrome (phone in hand, before the headset goes on) -->
@@ -344,6 +344,7 @@
   .toast {
     position: absolute;
     top: 12%;
+    transform: translateX(calc(var(--eye-sign, 0) * var(--sep, 0) * -50%));
     padding: 8px 18px;
     border-radius: 999px;
     background: rgba(0, 0, 0, 0.55);
@@ -358,6 +359,7 @@
   .acct {
     position: absolute;
     bottom: 8%;
+    transform: translateX(calc(var(--eye-sign, 0) * var(--sep, 0) * -50%));
     color: rgba(245, 245, 245, 0.5);
     font-size: 12px;
     letter-spacing: 0.04em;
