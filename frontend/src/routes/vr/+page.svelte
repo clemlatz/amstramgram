@@ -17,6 +17,16 @@
   let showCal = $state(false);
   let cal = $state({ sep: 0, zoom: 1, k1: 0.15, k2: 0 });
 
+  // D-pad-driven calibration: up/down cycles the selected param, left/right
+  // nudges it. Range/step mirror each param's slider in the calibration panel.
+  const CAL_PARAMS = [
+    { key: 'sep', label: 'sep', step: 0.01, min: -0.3, max: 0.3 },
+    { key: 'zoom', label: 'zoom', step: 0.02, min: 0.5, max: 2.5 },
+    { key: 'k1', label: 'k1', step: 0.01, min: -0.5, max: 0.5 },
+    { key: 'k2', label: 'k2', step: 0.01, min: -0.4, max: 0.4 }
+  ];
+  let calParamIdx = $state(0);
+
   let renderer = null;
   let busy = false;
   let toastTimer = null;
@@ -90,11 +100,20 @@
     flash(videoEl.paused ? '❚❚' : '▶');
   }
 
-  // Nudge the eye separation (D-pad), clamped to the slider's range.
-  function adjustSep(delta) {
-    cal.sep = Math.max(-0.3, Math.min(0.3, +(cal.sep + delta).toFixed(3)));
+  // Nudge the currently selected calibration param (D-pad left/right).
+  function adjustParam(dir) {
+    const p = CAL_PARAMS[calParamIdx];
+    const delta = dir * p.step;
+    cal[p.key] = Math.max(p.min, Math.min(p.max, +(cal[p.key] + delta).toFixed(3)));
     applyCal();
-    flash(`sep ${cal.sep.toFixed(3)}`);
+    flash(`${p.label} ${cal[p.key].toFixed(3)}`);
+  }
+
+  // Cycle which calibration param D-pad left/right controls (D-pad up/down).
+  function cycleParam(dir) {
+    calParamIdx = (calParamIdx + dir + CAL_PARAMS.length) % CAL_PARAMS.length;
+    const p = CAL_PARAMS[calParamIdx];
+    flash(`${p.label} ${cal[p.key].toFixed(3)}`);
   }
 
   function flash(text) {
@@ -167,8 +186,10 @@
     else if (i === PAD.ARCHIVE) rate('archive');
     else if (i === PAD.ZR) post?.media?.[slide]?.type === 'video' ? togglePlay() : nextSlide();
     else if (i === PAD.R) prevSlide();
-    else if (i === PAD.DLEFT) adjustSep(-0.01);
-    else if (i === PAD.DRIGHT) adjustSep(0.01);
+    else if (i === PAD.DLEFT) adjustParam(-1);
+    else if (i === PAD.DRIGHT) adjustParam(1);
+    else if (i === PAD.DUP) cycleParam(-1);
+    else if (i === PAD.DDOWN) cycleParam(1);
     if (i === PAD.MUTE) toggleMute();
   }
 

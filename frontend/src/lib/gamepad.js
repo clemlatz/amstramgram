@@ -1,10 +1,21 @@
 // Shared right-hand-only Pro Controller scheme (W3C standard mapping):
 // A favorite, B archive, X mute, ZR play/pause a video else next carousel slide
-// (loops), R previous slide. D-pad left/right is VR-only (adjusts separation).
-// Indices are empirical for a Switch Pro Controller in Safari: the physical A
-// button reports as index 0 and B as index 1 (Nintendo's A/B are mirrored
-// versus the W3C standard layout), while X reports as index 3.
-export const PAD = { FAVORITE: 0, ARCHIVE: 1, MUTE: 3, R: 5, ZR: 7, DLEFT: 14, DRIGHT: 15 };
+// (loops), R previous slide. D-pad is VR-only: left/right adjusts the selected
+// calibration parameter, up/down selects which one. Indices are empirical for
+// a Switch Pro Controller in Safari: the physical A button reports as index 0
+// and B as index 1 (Nintendo's A/B are mirrored versus the W3C standard
+// layout), while X reports as index 3.
+export const PAD = {
+  FAVORITE: 0,
+  ARCHIVE: 1,
+  MUTE: 3,
+  R: 5,
+  ZR: 7,
+  DUP: 12,
+  DDOWN: 13,
+  DLEFT: 14,
+  DRIGHT: 15
+};
 
 // Poll the first connected gamepad and emit a press-edge (button index) each
 // time a button transitions from released to pressed. onConnection fires when
