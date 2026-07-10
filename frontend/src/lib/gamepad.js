@@ -1,10 +1,10 @@
 // Shared right-hand-only Pro Controller scheme (W3C standard mapping):
 // A favorite, B archive, X mute, ZR play/pause a video else next carousel slide
-// (loops), R previous slide.
+// (loops), R previous slide. D-pad left/right is VR-only (adjusts separation).
 // Indices are for the standard gamepad layout; on a Switch Pro Controller the
 // face buttons map by position (face-bottom = physical B, face-right = A,
 // face-top = X).
-export const PAD = { ARCHIVE: 0, FAVORITE: 1, MUTE: 3, R: 5, ZR: 7 };
+export const PAD = { ARCHIVE: 0, FAVORITE: 1, MUTE: 3, R: 5, ZR: 7, DLEFT: 14, DRIGHT: 15 };
 
 // Poll the first connected gamepad and emit a press-edge (button index) each
 // time a button transitions from released to pressed. onConnection fires when

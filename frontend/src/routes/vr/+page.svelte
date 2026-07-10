@@ -91,6 +91,13 @@
     flash(videoEl.paused ? '❚❚' : '▶');
   }
 
+  // Nudge the eye separation (D-pad), clamped to the slider's range.
+  function adjustSep(delta) {
+    cal.sep = Math.max(-0.3, Math.min(0.3, +(cal.sep + delta).toFixed(3)));
+    applyCal();
+    flash(`sep ${cal.sep.toFixed(3)}`);
+  }
+
   function flash(text) {
     toast = text;
     clearTimeout(toastTimer);
@@ -161,6 +168,8 @@
     else if (i === PAD.ARCHIVE) rate('archive');
     else if (i === PAD.ZR) post?.media?.[slide]?.type === 'video' ? togglePlay() : nextSlide();
     else if (i === PAD.R) prevSlide();
+    else if (i === PAD.DLEFT) adjustSep(-0.01);
+    else if (i === PAD.DRIGHT) adjustSep(0.01);
     if (i === PAD.MUTE) toggleMute();
   }
 
@@ -238,7 +247,7 @@
     <a class="pill" href="/" aria-label="Exit VR">✕</a>
     <div class="hint">
       {#if gamepadOn}
-        A favorite · B archive · X mute · ZR play/next · R prev
+        A favorite · B archive · X mute · ZR play/next · R prev · ←→ separation
       {:else}
         Connect a controller · tap to hide this UI
       {/if}
