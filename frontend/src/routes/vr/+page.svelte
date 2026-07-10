@@ -294,6 +294,7 @@
   <div class="orient">
     <strong>Rotate to landscape</strong>
     <p>Turn the phone sideways before sliding it into the headset.</p>
+    <a class="orient-exit" href="/">Exit VR</a>
   </div>
 </div>
 
@@ -560,6 +561,18 @@
     font-size: 14px;
     max-width: 30ch;
     line-height: 1.5;
+  }
+  .orient-exit {
+    margin-top: 8px;
+    padding: 10px 20px;
+    border-radius: 999px;
+    border: 1px solid var(--edge);
+    background: var(--panel);
+    color: #cdd8dc;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
   }
   @media (orientation: portrait) {
     .orient {
