@@ -15,7 +15,6 @@
   let muted = $state(true);
   let hudOff = $state(false);
   let showCal = $state(false);
-  let gamepadOn = $state(false);
   let cal = $state({ sep: 0, zoom: 1, k1: 0.15, k2: 0 });
 
   let renderer = null;
@@ -191,10 +190,7 @@
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', () => setTimeout(onResize, 200));
 
-    const watcher = createGamepadWatcher({
-      onPress,
-      onConnection: (c) => (gamepadOn = c)
-    });
+    const watcher = createGamepadWatcher({ onPress });
     watcher.start();
     loadFirst();
 
@@ -245,13 +241,7 @@
   <!-- flat setup chrome (phone in hand, before the headset goes on) -->
   <div class="chrome">
     <a class="pill" href="/" aria-label="Exit VR">✕</a>
-    <div class="hint">
-      {#if gamepadOn}
-        A favorite · B archive · X mute · ZR play/next · R prev · ←→ separation
-      {:else}
-        Connect a controller · tap to hide this UI
-      {/if}
-    </div>
+    <div class="spacer"></div>
     <button class="pill" onclick={() => (showCal = !showCal)} aria-label="Calibrate">⚙</button>
   </div>
 
@@ -392,13 +382,8 @@
     padding: 0 max(12px, env(safe-area-inset-left)) 0 max(12px, env(safe-area-inset-right));
     transition: opacity 0.2s;
   }
-  .hint {
+  .spacer {
     flex: 1;
-    text-align: center;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.06em;
-    color: var(--dim);
   }
   .pill {
     display: flex;
