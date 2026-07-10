@@ -344,7 +344,7 @@
   .toast {
     position: absolute;
     top: 12%;
-    transform: translateX(calc(var(--eye-sign, 0) * var(--sep, 0) * -50%));
+    transform: translateX(calc(var(--eye-sign, 0) * var(--sep, 0) * -25vw));
     padding: 8px 18px;
     border-radius: 999px;
     background: rgba(0, 0, 0, 0.55);
@@ -359,7 +359,7 @@
   .acct {
     position: absolute;
     bottom: 8%;
-    transform: translateX(calc(var(--eye-sign, 0) * var(--sep, 0) * -50%));
+    transform: translateX(calc(var(--eye-sign, 0) * var(--sep, 0) * -25vw));
     color: rgba(245, 245, 245, 0.5);
     font-size: 12px;
     letter-spacing: 0.04em;
