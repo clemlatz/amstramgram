@@ -56,3 +56,13 @@ def test_cache_control_header_present(client, storage):
     (storage / "img.jpg").write_bytes(b"\xff\xd8\xff\xe0")
     res = client.get(f"/api/media/{_encode('img.jpg')}")
     assert "max-age=86400" in res.headers.get("cache-control", "")
+
+
+def test_range_request_returns_partial_content(client, storage):
+    (storage / "reel.mp4").write_bytes(bytes(range(256)) * 40)  # 10240 bytes
+    res = client.get(f"/api/media/{_encode('reel.mp4')}", headers={"Range": "bytes=0-9"})
+    assert res.status_code == 206
+    assert res.content == bytes(range(10))
+    assert res.headers["content-range"] == "bytes 0-9/10240"
+    assert res.headers["content-length"] == "10"
+    assert res.headers["accept-ranges"] == "bytes"
