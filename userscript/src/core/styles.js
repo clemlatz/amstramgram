@@ -1660,6 +1660,61 @@ const STYLES_CORE = (() => {
       color: var(--ig-hd-warning-text-strong);
       font-weight: 700;
     }
+    .gm-steps-card {
+      border: 1px solid var(--ig-hd-card-border);
+      border-radius: 16px;
+      padding: 6px 14px;
+    }
+    .gm-steps-card[hidden] { display: none; }
+    .gm-steps-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .gm-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 0;
+      font-size: 13px;
+      color: var(--ig-hd-text-secondary);
+      border-bottom: 1px solid var(--ig-hd-card-border);
+    }
+    .gm-step:last-child { border-bottom: none; }
+    .gm-step-icon {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      line-height: 1;
+      border: 1.5px solid var(--ig-hd-card-border);
+    }
+    .gm-step-pending .gm-step-icon {
+      border-color: var(--ig-hd-card-border);
+    }
+    .gm-step-active .gm-step-icon {
+      border-color: var(--ig-hd-accent);
+      border-top-color: transparent;
+      animation: gm-spin 0.9s linear infinite;
+    }
+    .gm-step-active .gm-step-label {
+      color: var(--ig-hd-text-primary);
+      font-weight: 600;
+    }
+    .gm-step-done .gm-step-icon {
+      border-color: var(--ig-hd-success-text);
+      background: var(--ig-hd-success-text);
+      color: #fff;
+    }
+    .gm-step-done .gm-step-label {
+      color: var(--ig-hd-text-secondary);
+      text-decoration: line-through;
+      text-decoration-color: var(--ig-hd-card-border);
+    }
     .gm-details-card {
       border: 1px solid var(--ig-hd-card-border);
       border-radius: 16px;

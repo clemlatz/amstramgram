@@ -1670,6 +1670,29 @@ const APP_CORE = (() => {
       && selected.state !== "finished";
     const collectPhase = isCollecting ? capitalizeFirst((selected.phase || "").trim()) : "";
 
+    const steps = Array.isArray(selected.steps) ? selected.steps : [];
+    if (isCollecting && steps.length > 0) {
+      ui.stepsCard.hidden = false;
+      ui.stepsList.textContent = "";
+      for (const step of steps) {
+        const status = step?.status === "done" || step?.status === "active" ? step.status : "pending";
+        const item = document.createElement("li");
+        item.className = `gm-step gm-step-${status}`;
+        const icon = document.createElement("span");
+        icon.className = "gm-step-icon";
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = status === "done" ? "✓" : "";
+        const label = document.createElement("span");
+        label.className = "gm-step-label";
+        label.textContent = step?.label || "";
+        item.append(icon, label);
+        ui.stepsList.appendChild(item);
+      }
+    } else {
+      ui.stepsCard.hidden = true;
+      ui.stepsList.textContent = "";
+    }
+
     ui.title.textContent = selected.label || "Batch download";
     ui.subtitle.textContent = collectPhase || (typeof cfg.subtitle === "function"
       ? cfg.subtitle(mode, selected)
@@ -2015,6 +2038,14 @@ const APP_CORE = (() => {
 
     progressCard.append(progressTop, counts, bar, progressBottom);
 
+    // Steps card (collection checklist: posts, reels, highlights, tagged…)
+    const stepsCard = document.createElement("div");
+    stepsCard.className = "gm-steps-card";
+    stepsCard.hidden = true;
+    const stepsList = document.createElement("ul");
+    stepsList.className = "gm-steps-list";
+    stepsCard.appendChild(stepsList);
+
     // Cooldown card
     const cooldownCard = document.createElement("div");
     cooldownCard.className = "gm-cooldown-card";
@@ -2252,7 +2283,7 @@ const APP_CORE = (() => {
 
     runs.append(runsHeading, runsList);
 
-    body.append(progressCard, cooldownCard, detailsCard, actions, runs);
+    body.append(progressCard, stepsCard, cooldownCard, detailsCard, actions, runs);
     root.append(header, miniBar, body);
     document.body.appendChild(root);
     applyBatchManagerPosition(root);
@@ -2279,6 +2310,8 @@ const APP_CORE = (() => {
       rate,
       etaWrap,
       etaText,
+      stepsCard,
+      stepsList,
       cooldownCard,
       cooldownTime,
       valueCompleted: completedRow.rowValue,

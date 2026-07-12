@@ -1156,6 +1156,25 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
     let profileBulkSetupVisible = false;
     let profileBulkSetupLastUiUpdateAt = 0;
 
+    const progressSteps = [];
+    if (includeProfilePicture) progressSteps.push({ key: "profile_picture", label: "Profile picture" });
+    if (includePosts) progressSteps.push({ key: "posts", label: "Posts" });
+    if (includeReels) progressSteps.push({ key: "reels", label: "Reels" });
+    if (includeHighlights) progressSteps.push({ key: "highlights", label: "Highlights" });
+    if (includeTagged) progressSteps.push({ key: "tagged", label: "Tagged posts" });
+    const stepStatusByKey = new Map(progressSteps.map((step) => [step.key, "pending"]));
+    function setStepStatus(key, status) {
+      if (!stepStatusByKey.has(key)) return;
+      stepStatusByKey.set(key, status);
+    }
+    function stepsSnapshot() {
+      return progressSteps.map((step) => ({
+        key: step.key,
+        label: step.label,
+        status: stepStatusByKey.get(step.key) || "pending"
+      }));
+    }
+
     function updateProfileBulkSetupProgress(progress = {}, force = false) {
       const now = Date.now();
       if (!force && now - profileBulkSetupLastUiUpdateAt < 150) return;
@@ -1188,6 +1207,7 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
         mode: _getSettings()?.downloads?.bulkAsZip ? "zip" : "download",
         state: "running",
         phase: phase,
+        steps: stepsSnapshot(),
         total: 0,
         processed: collectedCount,
         completed: 0,
@@ -1209,6 +1229,7 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
         state: "finished",
         status: status,
         phase: phase || "batch preparation finished",
+        steps: [],
         total: 0,
         processed: 0,
         completed: 0,
@@ -1222,8 +1243,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
       profileBulkSetupVisible = false;
     }
 
-    showToast(`Profile @${normalizedUsername}: collecting ${selectionLabel.toLowerCase()}...`, 3200);
-
     try {
       updateProfileBulkSetupProgress({
         stage: "prepare",
@@ -1234,6 +1253,7 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
       let profilePicTask = null;
       let profilePicFailed = false;
       if (includeProfilePicture) {
+        setStepStatus("profile_picture", "active");
         updateProfileBulkSetupProgress({
           stage: "resolve-profile",
           phase: "resolving profile info",
@@ -1255,6 +1275,7 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
         } else {
           profilePicFailed = true;
         }
+        setStepStatus("profile_picture", "done");
       }
 
       const needsFeedCollections = includePosts || includeReels || includeHighlights || includeTagged;
@@ -1296,6 +1317,7 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
       };
 
       if (includePosts) {
+        setStepStatus("posts", "active");
         const remainingLimit = maxItems > 0 ? Math.max(0, maxItems - scopedTasks.length) : 0;
         if (maxItems === 0 || remainingLimit > 0) {
           updateProfileBulkSetupProgress({
@@ -1303,7 +1325,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
             phase: "collecting posts",
             collected: scopedTasks.length
           }, true);
-          showToast(`Profile @${normalizedUsername}: collecting posts...`, 2600);
           const postResult = await collectProfileDownloadTasks(
             normalizedUsername,
             userId,
@@ -1323,9 +1344,11 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
           addUniqueScopedTasks(postResult.tasks);
           mergeDeltaSyncCounters(postResult);
         }
+        setStepStatus("posts", "done");
       }
 
       if (includeReels && (maxItems === 0 || scopedTasks.length < maxItems)) {
+        setStepStatus("reels", "active");
         const remainingLimit = maxItems > 0 ? Math.max(0, maxItems - scopedTasks.length) : 0;
         if (maxItems === 0 || remainingLimit > 0) {
           updateProfileBulkSetupProgress({
@@ -1333,7 +1356,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
             phase: "collecting reels",
             collected: scopedTasks.length
           }, true);
-          showToast(`Profile @${normalizedUsername}: collecting reels...`, 2600);
           const reelResult = await collectProfileReelDownloadTasks(
             normalizedUsername,
             userId,
@@ -1343,9 +1365,13 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
           );
           addUniqueScopedTasks(reelResult.tasks);
         }
+        setStepStatus("reels", "done");
+      } else if (includeReels) {
+        setStepStatus("reels", "done");
       }
 
       if (includeHighlights && (maxItems === 0 || scopedTasks.length < maxItems)) {
+        setStepStatus("highlights", "active");
         const remainingLimit = maxItems > 0 ? Math.max(0, maxItems - scopedTasks.length) : 0;
         if (maxItems === 0 || remainingLimit > 0) {
           updateProfileBulkSetupProgress({
@@ -1353,7 +1379,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
             phase: "collecting highlights",
             collected: scopedTasks.length
           }, true);
-          showToast(`Profile @${normalizedUsername}: collecting highlights...`, 2600);
           const highlightResult = await collectProfileHighlightDownloadTasks(
             normalizedUsername,
             userId,
@@ -1363,9 +1388,13 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
           );
           addUniqueScopedTasks(highlightResult.tasks);
         }
+        setStepStatus("highlights", "done");
+      } else if (includeHighlights) {
+        setStepStatus("highlights", "done");
       }
 
       if (includeTagged && (maxItems === 0 || scopedTasks.length < maxItems)) {
+        setStepStatus("tagged", "active");
         const remainingLimit = maxItems > 0 ? Math.max(0, maxItems - scopedTasks.length) : 0;
         if (maxItems === 0 || remainingLimit > 0) {
           updateProfileBulkSetupProgress({
@@ -1373,7 +1402,6 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
             phase: "collecting tagged posts",
             collected: scopedTasks.length
           }, true);
-          showToast(`Profile @${normalizedUsername}: collecting tagged posts...`, 2600);
           updateProfileBulkSetupProgress({
             stage: "start",
             source: "tagged",
@@ -1399,6 +1427,9 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
           );
           addUniqueScopedTasks(taggedResult.tasks);
         }
+        setStepStatus("tagged", "done");
+      } else if (includeTagged) {
+        setStepStatus("tagged", "done");
       }
 
       if (combinedDeltaSyncSkippedCount > 0) {
@@ -1430,6 +1461,7 @@ const PROFILE_BULK_DOWNLOAD_CORE = (() => {
           mode: _getSettings()?.downloads?.bulkAsZip ? "zip" : "download",
           state: "running",
           phase: "queued, starting downloads",
+          steps: [],
           total: Math.max(1, scopedTasks.length),
           processed: 0,
           completed: 0,
