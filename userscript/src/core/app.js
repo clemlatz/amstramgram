@@ -791,6 +791,7 @@ const APP_CORE = (() => {
       failed: 0,
       cancelled: 0,
       skipped: 0,
+      steps: [],
       indeterminate: false,
       forceVisible: false,
       elapsedMs: 0,
@@ -910,6 +911,9 @@ const APP_CORE = (() => {
     }
     if (status?.skipped !== undefined) {
       record.skipped = Math.max(0, Number(status.skipped) || 0);
+    }
+    if (Array.isArray(status?.steps)) {
+      record.steps = status.steps.map((step) => ({ ...step }));
     }
     if (Array.isArray(status?.failedItems)) {
       record.failedItems = status.failedItems.map((item) => ({ ...item }));
