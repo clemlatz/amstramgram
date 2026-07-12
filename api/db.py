@@ -66,6 +66,10 @@ def init_db(db_path: Path) -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_media_account_shortcode
                 ON media (account_id, shortcode);
+            CREATE INDEX IF NOT EXISTS idx_media_post_timestamp
+                ON media (post_timestamp DESC);
+            CREATE INDEX IF NOT EXISTS idx_media_imported_at
+                ON media (imported_at DESC);
             CREATE TABLE IF NOT EXISTS ratings (
                 shortcode    TEXT PRIMARY KEY,
                 archived_at  TEXT,
@@ -768,6 +772,9 @@ def get_recent_posts(db_path: Path, sort: str = "post_timestamp") -> list[dict]:
     order_col = "m.imported_at" if sort == "imported_at" else "m.post_timestamp"
     conn = _conn(db_path, read_only=True)
     try:
+        # Overfetch past the 100-post target since carousel posts span several rows;
+        # the ORDER BY + LIMIT lets SQLite use idx_media_post_timestamp/idx_media_imported_at
+        # to stop early instead of sorting the entire media table.
         rows = conn.execute(f"""
             SELECT m.filepath, m.extension, m.post_timestamp, m.imported_at, m.caption, m.shortcode,
                    m.width, m.height, r.archived_at, r.favorited_at, a.username AS account, a.active AS account_active
@@ -777,6 +784,7 @@ def get_recent_posts(db_path: Path, sort: str = "post_timestamp") -> list[dict]:
             WHERE m.extension IN ('jpg', 'jpeg', 'webp', 'png', 'mp4')
               AND a.hidden = 0
             ORDER BY {order_col} DESC, m.carousel_index ASC
+            LIMIT 1000
         """).fetchall()
     finally:
         conn.close()
