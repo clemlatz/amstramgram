@@ -41,7 +41,7 @@ amstramgram/
 
 | Route | Description |
 |---|---|
-| `GET /api/feed` | Last 100 photos |
+| `GET /api/feed` | Last 9 photos |
 | `GET /api/random` | Random unrated photo |
 | `POST /api/rate` | Rate a photo (`archive` / `favorite` / `clear`) |
 | `GET /api/media/{encoded}` | Serve an image or video file (base64url-encoded path) |
@@ -78,7 +78,7 @@ SvelteKit with `adapter-static` (SPA mode: `ssr = false`, `prerender = false`). 
 
 | Path | Page |
 |---|---|
-| `/` | Feed — last 100 photos |
+| `/` | Feed — last 9 photos |
 | `/random` | Pick — rate a random unrated photo |
 | `/following` | Following list (all accounts) |
 | `/accounts/[username]` | Account detail + post grid |

@@ -387,6 +387,24 @@ def test_get_recent_posts_groups_mixed_carousel(tmp_path):
     assert ("111/c_2.mp4", "mp4", None, None) in media
 
 
+def test_get_recent_posts_caps_at_nine(tmp_path):
+    from api.db import get_recent_posts
+
+    db = tmp_path / "test.db"
+    init_db(db)
+    acc = _insert_account(db, "alice", "111")
+    for i in range(12):
+        _insert_media(
+            db,
+            acc,
+            f"111/p{i}.jpg",
+            "jpg",
+            shortcode=f"P{i:03d}",
+            post_timestamp=f"2026-01-01T10:{i:02d}:00Z",
+        )
+    assert len(get_recent_posts(db)) == 9
+
+
 def test_get_random_neutral_post_includes_mp4(tmp_path):
     from api.db import get_random_neutral_post
 
