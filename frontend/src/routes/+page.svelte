@@ -296,6 +296,40 @@
     watcher.start();
     return () => watcher.stop();
   });
+
+  // Keyboard shortcuts: Left/Right navigate carousel slides, Up remembers,
+  // Down forgets (or skips in downloaded mode, which has no rating), M mutes.
+  onMount(() => {
+    function onKeydown(e) {
+      if (!post) return;
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          swiper?.slidePrev();
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          swiper?.slideNext();
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          if (!offline.value && !loading && mode === 'all') rate('favorite');
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          if (offline.value || loading) break;
+          if (mode === 'downloaded') skip();
+          else if (mode === 'all' || mode === 'favorites') rate('archive');
+          break;
+        case 'm':
+        case 'M':
+          audio.muted = !audio.muted;
+          break;
+      }
+    }
+    window.addEventListener('keydown', onKeydown);
+    return () => window.removeEventListener('keydown', onKeydown);
+  });
 </script>
 
 {#snippet muteIcon()}
