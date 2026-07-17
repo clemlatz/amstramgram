@@ -27,6 +27,7 @@ def _conn(db_path: Path, read_only: bool = False) -> sqlite3.Connection:
     else:
         conn = sqlite3.connect(str(db_path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA busy_timeout=5000")
     return conn
 
 
@@ -34,6 +35,8 @@ def init_db(db_path: Path) -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = _conn(db_path)
     try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS accounts (
                 id                INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -995,7 +998,7 @@ def get_account_posts(username: str, db_path: Path) -> list[dict]:
 
     posts: dict[str, dict] = {}
     for row in rows:
-        key = (
+        key = row["shortcode"] or (
             f"{row['account']}/{row['post_timestamp']}"
             if row["post_timestamp"]
             else row["filepath"]
