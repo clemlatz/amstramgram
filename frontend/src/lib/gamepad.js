@@ -1,7 +1,8 @@
 // Shared right-hand-only control scheme, exposed as device-agnostic actions:
 // A favorite, B archive, X mute, ZR play/pause a video else next carousel slide
-// (loops), R previous slide. D-pad is VR-only: left/right adjusts the selected
-// calibration parameter, up/down selects which one.
+// (loops), R previous slide, + shows the bindings overlay. D-pad is VR-only:
+// left/right adjusts the selected calibration parameter, up/down selects
+// which one.
 export const PAD = {
   FAVORITE: 'favorite',
   ARCHIVE: 'archive',
@@ -11,7 +12,8 @@ export const PAD = {
   DUP: 'dup',
   DDOWN: 'ddown',
   DLEFT: 'dleft',
-  DRIGHT: 'dright'
+  DRIGHT: 'dright',
+  HELP: 'help'
 };
 
 // Raw button index -> action, per controller. Indices are empirical (tested
@@ -26,10 +28,24 @@ const PRO_CONTROLLER_MAP = {
   3: PAD.MUTE,
   5: PAD.R,
   7: PAD.ZR,
+  9: PAD.HELP,
   12: PAD.DUP,
   13: PAD.DDOWN,
   14: PAD.DLEFT,
   15: PAD.DRIGHT
+};
+
+const PRO_CONTROLLER_LABELS = {
+  [PAD.FAVORITE]: 'A',
+  [PAD.ARCHIVE]: 'B',
+  [PAD.MUTE]: 'X',
+  [PAD.R]: 'R',
+  [PAD.ZR]: 'ZR',
+  [PAD.HELP]: '+',
+  [PAD.DUP]: 'D-pad ↑',
+  [PAD.DDOWN]: 'D-pad ↓',
+  [PAD.DLEFT]: 'D-pad ←',
+  [PAD.DRIGHT]: 'D-pad →'
 };
 
 // A lone Joy-Con (R) has no R/ZR triggers reachable from the browser — macOS
@@ -44,19 +60,43 @@ const JOYCON_R_MAP = {
   2: PAD.MUTE, // X
   4: PAD.R, // SL
   5: PAD.ZR, // SR
+  9: PAD.HELP, // +
   15: PAD.DUP,
   13: PAD.DRIGHT,
   14: PAD.DDOWN,
   12: PAD.DLEFT
 };
 
-function mapForPad(pad) {
-  return pad.id.includes('Joy-Con') ? JOYCON_R_MAP : PRO_CONTROLLER_MAP;
+const JOYCON_R_LABELS = {
+  [PAD.FAVORITE]: 'A',
+  [PAD.ARCHIVE]: 'B',
+  [PAD.MUTE]: 'X',
+  [PAD.R]: 'SL',
+  [PAD.ZR]: 'SR',
+  [PAD.HELP]: '+',
+  [PAD.DUP]: 'stick ↑',
+  [PAD.DDOWN]: 'stick ↓',
+  [PAD.DLEFT]: 'stick ←',
+  [PAD.DRIGHT]: 'stick →'
+};
+
+function schemeForId(id) {
+  return id?.includes('Joy-Con')
+    ? { map: JOYCON_R_MAP, labels: JOYCON_R_LABELS }
+    : { map: PRO_CONTROLLER_MAP, labels: PRO_CONTROLLER_LABELS };
+}
+
+// Button-name labels (e.g. "SL", "D-pad ↑") for the controller identified by
+// a Gamepad.id string, keyed by PAD action. Falls back to the Pro Controller
+// scheme when id is unknown (e.g. no gamepad connected yet).
+export function labelsForId(id) {
+  return schemeForId(id).labels;
 }
 
 // Poll the first connected gamepad and emit a press-edge (PAD action) each
 // time a mapped button transitions from released to pressed. onConnection
-// fires when the connected/disconnected state changes. Returns { start, stop }.
+// fires with (connected, pad) when the connected/disconnected state changes.
+// Returns { start, stop }.
 export function createGamepadWatcher({ onPress, onConnection } = {}) {
   let raf = 0;
   let connected = false;
@@ -73,10 +113,10 @@ export function createGamepadWatcher({ onPress, onConnection } = {}) {
     }
     if (!!pad !== connected) {
       connected = !!pad;
-      onConnection?.(connected);
+      onConnection?.(connected, pad);
     }
     if (pad) {
-      const map = mapForPad(pad);
+      const { map } = schemeForId(pad.id);
       for (let i = 0; i < pad.buttons.length; i++) {
         const now = !!(pad.buttons[i] && pad.buttons[i].pressed);
         if (now && !prev[i] && map[i]) onPress?.(map[i]);

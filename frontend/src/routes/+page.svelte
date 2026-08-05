@@ -6,7 +6,7 @@
   import { formatDate } from '$lib/media.js';
   import { audio } from '$lib/audio.svelte.js';
   import { offline } from '$lib/offline.svelte.js';
-  import { PAD, createGamepadWatcher } from '$lib/gamepad.js';
+  import { PAD, createGamepadWatcher, labelsForId } from '$lib/gamepad.js';
 
   const MODE_KEY = 'random-mode';
   const cacheKey = (m) => `random_post_${m}`;
@@ -25,6 +25,8 @@
   let mode = $state(
     (typeof localStorage !== 'undefined' && localStorage.getItem(MODE_KEY)) || 'all'
   );
+  let showHelp = $state(false);
+  let padLabels = $state(labelsForId(null));
 
   const isCarousel = $derived(post?.media?.length > 1);
 
@@ -288,9 +290,16 @@
           swiper?.slidePrev();
           return;
         }
+        if (i === PAD.HELP) {
+          showHelp = !showHelp;
+          return;
+        }
         if (offline.value || loading) return;
         if (i === PAD.FAVORITE && mode === 'all') rate('favorite');
         else if (i === PAD.ARCHIVE && mode !== 'downloaded') rate('archive');
+      },
+      onConnection(connected, pad) {
+        padLabels = labelsForId(connected ? pad?.id : null);
       },
     });
     watcher.start();
@@ -677,6 +686,38 @@
   </div>
 {/if}
 
+{#if showHelp}
+  <div class="help-backdrop" role="presentation" onclick={() => (showHelp = false)}>
+    <section class="help" aria-label="Controller bindings" onclick={(e) => e.stopPropagation()}>
+      <div class="help-row">
+        <span class="help-key">{padLabels[PAD.FAVORITE]}</span>
+        <span>Favorite</span>
+      </div>
+      <div class="help-row">
+        <span class="help-key">{padLabels[PAD.ARCHIVE]}</span>
+        <span>Archive</span>
+      </div>
+      <div class="help-row">
+        <span class="help-key">{padLabels[PAD.MUTE]}</span>
+        <span>Mute / unmute</span>
+      </div>
+      <div class="help-row">
+        <span class="help-key">{padLabels[PAD.ZR]}</span>
+        <span>Play/pause · next slide</span>
+      </div>
+      <div class="help-row">
+        <span class="help-key">{padLabels[PAD.R]}</span>
+        <span>Previous slide</span>
+      </div>
+      <div class="help-row">
+        <span class="help-key">{padLabels[PAD.HELP]}</span>
+        <span>Toggle this help</span>
+      </div>
+      <button class="help-done" onclick={() => (showHelp = false)}>Done</button>
+    </section>
+  </div>
+{/if}
+
 <style>
   .page {
     display: flex;
@@ -1043,6 +1084,58 @@
     border-radius: 8px;
     cursor: pointer;
     transition: opacity 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .help-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: color-mix(in srgb, black 55%, transparent);
+  }
+
+  .help {
+    width: min(360px, 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 18px 20px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+  }
+
+  .help-row {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    color: var(--color-text);
+  }
+
+  .help-key {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+  }
+
+  .help-done {
+    margin-top: 8px;
+    padding: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    color: var(--color-bg);
+    background: var(--color-text);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
 

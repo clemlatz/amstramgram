@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { createStereoRenderer } from '$lib/stereoRenderer.js';
-  import { PAD, createGamepadWatcher } from '$lib/gamepad.js';
+  import { PAD, createGamepadWatcher, labelsForId } from '$lib/gamepad.js';
 
   const CAL_KEY = 'vrbench';
 
@@ -15,6 +15,8 @@
   let muted = $state(true);
   let hudOff = $state(false);
   let showCal = $state(false);
+  let showHelp = $state(false);
+  let padLabels = $state(labelsForId(null));
   let cal = $state({ sep: 0, zoom: 1, k1: 0.15, k2: 0 });
 
   // D-pad-driven calibration: up/down cycles the selected param, left/right
@@ -190,7 +192,12 @@
     else if (i === PAD.DRIGHT) adjustParam(1);
     else if (i === PAD.DUP) cycleParam(-1);
     else if (i === PAD.DDOWN) cycleParam(1);
+    else if (i === PAD.HELP) showHelp = !showHelp;
     if (i === PAD.MUTE) toggleMute();
+  }
+
+  function onPadConnection(connected, pad) {
+    padLabels = labelsForId(connected ? pad?.id : null);
   }
 
   function onResize() {
@@ -211,7 +218,7 @@
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', () => setTimeout(onResize, 200));
 
-    const watcher = createGamepadWatcher({ onPress });
+    const watcher = createGamepadWatcher({ onPress, onConnection: onPadConnection });
     watcher.start();
     loadFirst();
 
@@ -298,6 +305,46 @@
       <div class="cal-actions">
         <button onclick={resetCal}>Reset</button>
         <button class="done" onclick={() => (showCal = false)}>Done</button>
+      </div>
+    </section>
+  {/if}
+
+  {#if showHelp}
+    <section class="cal help" aria-label="Controller bindings">
+      <div class="cal-row help-row">
+        <label>{padLabels[PAD.FAVORITE]}</label>
+        <span>Favorite</span>
+      </div>
+      <div class="cal-row help-row">
+        <label>{padLabels[PAD.ARCHIVE]}</label>
+        <span>Archive</span>
+      </div>
+      <div class="cal-row help-row">
+        <label>{padLabels[PAD.MUTE]}</label>
+        <span>Mute / unmute</span>
+      </div>
+      <div class="cal-row help-row">
+        <label>{padLabels[PAD.ZR]}</label>
+        <span>Play/pause · next slide</span>
+      </div>
+      <div class="cal-row help-row">
+        <label>{padLabels[PAD.R]}</label>
+        <span>Previous slide</span>
+      </div>
+      <div class="cal-row help-row">
+        <label>{padLabels[PAD.DUP]} / {padLabels[PAD.DDOWN]}</label>
+        <span>Select calibration param</span>
+      </div>
+      <div class="cal-row help-row">
+        <label>{padLabels[PAD.DLEFT]} / {padLabels[PAD.DRIGHT]}</label>
+        <span>Adjust calibration param</span>
+      </div>
+      <div class="cal-row help-row">
+        <label>{padLabels[PAD.HELP]}</label>
+        <span>Toggle this help</span>
+      </div>
+      <div class="cal-actions">
+        <button class="done" onclick={() => (showHelp = false)}>Done</button>
       </div>
     </section>
   {/if}
@@ -493,6 +540,19 @@
     text-align: right;
     color: var(--accent);
     font-variant-numeric: tabular-nums;
+  }
+  .help-row {
+    grid-template-columns: 84px 1fr;
+  }
+  .help-row label {
+    font-family: var(--font-mono);
+    color: var(--accent);
+    text-transform: none;
+    letter-spacing: normal;
+  }
+  .help-row span {
+    font-size: 13px;
+    color: #cdd8dc;
   }
   .cal-row input[type='range'] {
     -webkit-appearance: none;
