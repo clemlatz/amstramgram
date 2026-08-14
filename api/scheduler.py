@@ -518,7 +518,7 @@ async def _scheduler_loop() -> None:
             account_counts = await asyncio.to_thread(_run_cycle)
             total = sum(account_counts.values())
             if total:
-                lines = [f"✅ Import complete — {total} post{'s' if total > 1 else ''} downloaded"]
+                lines = [f"✅ Import complete — {total} post{'s' if total > 1 else ''} imported"]
                 for username, count in sorted(account_counts.items(), key=lambda x: -x[1]):
                     lines.append(f"  @{username}: {count}")
                 msg = "\n".join(lines)
