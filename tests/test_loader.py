@@ -16,21 +16,12 @@ def reset_loader():
 
 
 def _make_mock_L():
-    cookie = MagicMock()
-    cookie.name = "sessionid"
-    cookie.value = "val"
-    cookie.domain = ".instagram.com"
-    cookie.path = "/"
-
-    cookies = MagicMock()
-    cookies.__iter__ = MagicMock(return_value=iter([cookie]))
-
     context = MagicMock()
-    context._session.cookies = cookies
     context.username = None
 
     L = MagicMock()
     L.context = context
+    L.save_session.return_value = {"sessionid": "val", "csrftoken": "tok"}
     return L
 
 
@@ -53,11 +44,9 @@ def test_get_loader_restores_cookies_without_test_login(tmp_path):
     init_db(db)
     from api.db import set_setting
 
-    cookies_data = json.dumps(
-        [{"name": "sessionid", "value": "sid", "domain": ".instagram.com", "path": "/"}]
-    )
+    session_data = json.dumps({"sessionid": "sid", "csrftoken": "tok"})
     set_setting("session_id", "sid123", db)
-    set_setting("cookies", cookies_data, db)
+    set_setting("cookies", session_data, db)
     set_setting("username", "alice", db)
 
     mock_L = _make_mock_L()
@@ -71,8 +60,8 @@ def test_get_loader_restores_cookies_without_test_login(tmp_path):
         result = api.loader.get_loader()
 
     mock_L.test_login.assert_not_called()
+    mock_L.load_session.assert_called_once_with("alice", {"sessionid": "sid", "csrftoken": "tok"})
     assert result is mock_L
-    assert mock_L.context.username == "alice"
 
 
 def test_reload_session_calls_test_login_and_saves_to_db(tmp_path):
@@ -123,10 +112,9 @@ def test_persist_session_cookies_saves_cookies_to_db(tmp_path):
         api.loader._loader = mock_L
         api.loader.persist_session_cookies()
 
-    cookies_json = get_setting("cookies", db)
-    assert cookies_json is not None
-    cookies = json.loads(cookies_json)
-    assert any(c["name"] == "sessionid" for c in cookies)
+    session_json = get_setting("cookies", db)
+    assert session_json is not None
+    assert json.loads(session_json) == {"sessionid": "val", "csrftoken": "tok"}
 
 
 def test_persist_session_cookies_does_nothing_when_no_loader(tmp_path):

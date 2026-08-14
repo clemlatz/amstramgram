@@ -51,23 +51,16 @@ def _build_loader() -> instaloader.Instaloader | None:
         return None
 
     L = _make_instaloader()
-    cookies_json = get_setting("cookies", DB_PATH)
+    session_json = get_setting("cookies", DB_PATH)
 
-    if cookies_json:
-        for c in json.loads(cookies_json):
-            L.context._session.cookies.set(
-                c["name"],
-                c["value"],
-                domain=c.get("domain", ".instagram.com"),
-                path=c.get("path", "/"),
-            )
+    if session_json:
         username = get_setting("username", DB_PATH)
         if not username:
             logger.error(
-                "Cookies exist but username missing in DB — treating as unconfigured"
+                "Session exists but username missing in DB — treating as unconfigured"
             )
             return None
-        L.context.username = username
+        L.load_session(username, json.loads(session_json))
         logger.info("Loaded persisted session for %s (no network call)", username)
         return L
     else:
@@ -107,22 +100,14 @@ def reload_session(new_session_id: str) -> str:
 def persist_session_cookies() -> None:
     if _loader is None:
         return
-    cookies_list = [
-        {"name": c.name, "value": c.value, "domain": c.domain, "path": c.path}
-        for c in _loader.context._session.cookies
-    ]
-    set_setting("cookies", json.dumps(cookies_list), DB_PATH)
+    set_setting("cookies", json.dumps(_loader.save_session()), DB_PATH)
 
 
 def _save_all_to_db(L: instaloader.Instaloader, session_id: str) -> None:
-    cookies_list = [
-        {"name": c.name, "value": c.value, "domain": c.domain, "path": c.path}
-        for c in L.context._session.cookies
-    ]
     entries = [
         ("session_id", session_id),
         ("username", L.context.username),
-        ("cookies", json.dumps(cookies_list)),
+        ("cookies", json.dumps(L.save_session())),
     ]
     conn = _conn(DB_PATH)
     try:
