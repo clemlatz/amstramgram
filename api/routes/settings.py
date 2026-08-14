@@ -17,6 +17,7 @@ from ..scheduler import (
     get_scheduler_status,
     run_manual_cycle,
     start_scheduler,
+    stop_current_cycle,
     stop_scheduler,
 )
 
@@ -106,6 +107,13 @@ async def import_now_endpoint():
         return JSONResponse({"detail": "Import failed. Please try again."}, status_code=500)
     total = sum(account_counts.values())
     return JSONResponse({"imported": total, "accounts": account_counts})
+
+
+@router.post("/settings/cycle/stop")
+async def stop_cycle_endpoint():
+    if not stop_current_cycle():
+        return JSONResponse({"detail": "No import cycle is running."}, status_code=409)
+    return JSONResponse({"stopping": True})
 
 
 @router.get("/logs")

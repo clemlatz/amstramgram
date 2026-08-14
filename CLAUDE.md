@@ -60,6 +60,7 @@ amstramgram/
 | `POST /api/settings/scheduler/start` | Start the background scheduler |
 | `POST /api/settings/scheduler/stop` | Stop the background scheduler |
 | `POST /api/settings/import-now` | Run one import cycle immediately, independent of the scheduler's timing |
+| `POST /api/settings/cycle/stop` | Abort whichever import cycle is currently running (scheduled or manual) |
 | `POST /api/settings/import-saved` | Import saved posts from Instagram |
 | `POST /api/settings/import-from-disk` | Trigger manual Gramoire import from disk |
 | `GET /api/logs` | Recent application log entries (last 100) |

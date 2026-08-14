@@ -500,6 +500,21 @@ async def run_manual_cycle() -> dict[str, int]:
         raise
     finally:
         _cycle_running = False
+        _stop_event.clear()
+
+
+def stop_current_cycle() -> bool:
+    """Signal the currently running cycle (scheduled or manual) to abort ASAP.
+
+    Returns True if a cycle was running and the stop signal was sent, False if
+    there was nothing to stop. The signal is consumed by the running cycle's
+    own finally block, which clears it once the cycle exits — it does not
+    affect the scheduler's future runs.
+    """
+    if not _cycle_running:
+        return False
+    _stop_event.set()
+    return True
 
 
 def _load_next_delay() -> int:
@@ -643,6 +658,7 @@ async def _scheduler_loop() -> None:
             )
         finally:
             _cycle_running = False
+            _stop_event.clear()
 
 
 async def start_scheduler() -> None:

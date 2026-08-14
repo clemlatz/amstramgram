@@ -207,6 +207,25 @@
     return () => clearInterval(interval);
   });
 
+  async function fetchSchedulerStatus() {
+    try {
+      const res = await fetch('/api/settings');
+      if (res.ok) {
+        const json = await res.json();
+        schedulerRunning = json.scheduler_running;
+        cycleRunning = json.cycle_running;
+        nextRunAt = json.next_run_at;
+      }
+    } catch {
+      // silently ignore
+    }
+  }
+
+  $effect(() => {
+    const interval = setInterval(fetchSchedulerStatus, 5000);
+    return () => clearInterval(interval);
+  });
+
   const UA_PLACEHOLDER =
     'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram/274.0.0.0';
 
@@ -330,6 +349,20 @@
     } finally {
       cycleRunning = false;
       importNowLoading = false;
+    }
+  }
+
+  let stopCycleLoading = $state(false);
+
+  async function stopCycle() {
+    stopCycleLoading = true;
+    try {
+      await fetch('/api/settings/cycle/stop', { method: 'POST' });
+      await fetchSchedulerStatus();
+    } catch {
+      // silently ignore
+    } finally {
+      stopCycleLoading = false;
     }
   }
 
@@ -520,14 +553,26 @@
           : `${importNowResult.imported} post${importNowResult.imported === 1 ? '' : 's'} imported.`}
       </p>
     {/if}
-    <button
-      class="btn"
-      type="button"
-      disabled={importNowLoading || cycleRunning}
-      onclick={importNow}
-    >
-      {importNowLoading || cycleRunning ? 'Importing…' : 'Run now'}
-    </button>
+    <div class="btn-row">
+      <button
+        class="btn"
+        type="button"
+        disabled={importNowLoading || cycleRunning}
+        onclick={importNow}
+      >
+        {importNowLoading ? 'Starting…' : cycleRunning ? 'Running…' : 'Run now'}
+      </button>
+      {#if cycleRunning}
+        <button
+          class="btn btn-ghost"
+          type="button"
+          disabled={stopCycleLoading}
+          onclick={stopCycle}
+        >
+          {stopCycleLoading ? 'Stopping…' : 'Stop'}
+        </button>
+      {/if}
+    </div>
   </div>
 
   <div class="divider"></div>

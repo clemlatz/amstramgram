@@ -338,6 +338,44 @@ async def test_run_manual_cycle_disables_scheduler_on_session_invalidated():
     assert sched._cycle_running is False
 
 
+@pytest.mark.asyncio
+async def test_run_manual_cycle_clears_stop_event_after_finishing():
+    from api import scheduler as sched
+    from api.scheduler import run_manual_cycle
+
+    sched._stop_event.set()
+    with patch("api.scheduler._run_cycle", return_value={}):
+        await run_manual_cycle()
+
+    assert sched._stop_event.is_set() is False
+
+
+def test_stop_current_cycle_returns_false_when_nothing_running():
+    from api import scheduler as sched
+    from api.scheduler import stop_current_cycle
+
+    sched._cycle_running = False
+    sched._stop_event.clear()
+    try:
+        assert stop_current_cycle() is False
+        assert sched._stop_event.is_set() is False
+    finally:
+        sched._stop_event.clear()
+
+
+def test_stop_current_cycle_sets_stop_event_when_running():
+    from api import scheduler as sched
+    from api.scheduler import stop_current_cycle
+
+    sched._cycle_running = True
+    try:
+        assert stop_current_cycle() is True
+        assert sched._stop_event.is_set() is True
+    finally:
+        sched._cycle_running = False
+        sched._stop_event.clear()
+
+
 def test_post_has_video_pure_video_post():
     from api.scheduler import _post_has_video
 

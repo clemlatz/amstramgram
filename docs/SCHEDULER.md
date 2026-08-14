@@ -12,6 +12,8 @@ The scheduler state is **persisted in the database** (`scheduler_enabled` settin
 
 Session invalidation during a manual cycle disables the scheduler and sends the same Telegram alert as the scheduled loop would (`401` returned to the caller). A rate-limit error returns `429` but does not affect the scheduled loop's own consecutive-error counter.
 
+`POST /api/settings/cycle/stop` aborts whichever cycle is currently running — scheduled or manual (`409` if none is). It sets the same `_stop_event` used internally for shutdown, which the running cycle's loops (`_fetch_new_posts`, `_fetch_old_posts`, `_import_account`) check between accounts/posts and exit early on. The event is cleared again once the cycle's `finally` block runs, so it's a one-shot signal for the current cycle only — it does not disable the scheduler or affect future runs. A cycle stopped this way still reports whatever was imported before the stop and the scheduled loop still schedules its next run normally (unlike stopping the scheduler entirely, which cancels the loop task outright).
+
 ## Active time window
 
 Every cycle begins with a check: if the current time is outside **07:00–23:00**, the scheduler sleeps until 07:00 the next morning, plus a random **morning jitter** of 5 min – 2 h (`IMPORT_MORNING_JITTER_MIN`/`MAX`) to avoid predictable daily patterns.
