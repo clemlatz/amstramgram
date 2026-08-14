@@ -30,6 +30,10 @@
   let schedulerLoading = $state(false);
   let schedulerError = $state(false);
 
+  let importNowLoading = $state(false);
+  let importNowResult = $state(null);
+  let importNowError = $state(null);
+
   let importSavedLoading = $state(false);
   let importSavedResult = $state(null);
   let importSavedError = $state(null);
@@ -302,6 +306,33 @@
     }
   }
 
+  async function importNow() {
+    importNowLoading = true;
+    importNowResult = null;
+    importNowError = null;
+    cycleRunning = true;
+    try {
+      const res = await fetch('/api/settings/import-now', { method: 'POST' });
+      if (res.ok) {
+        const json = await res.json();
+        importNowResult = json;
+      } else if (res.status === 409) {
+        importNowError = 'An import cycle is already running.';
+      } else if (res.status === 429) {
+        importNowError = 'Rate limited by Instagram. Please wait a few minutes.';
+      } else if (res.status === 401) {
+        importNowError = 'Session invalidated. Update the session ID above.';
+      } else {
+        importNowError = 'Import failed. Please try again.';
+      }
+    } catch {
+      importNowError = 'Network error. Please try again.';
+    } finally {
+      cycleRunning = false;
+      importNowLoading = false;
+    }
+  }
+
   async function toggleScheduler() {
     schedulerLoading = true;
     schedulerError = false;
@@ -479,6 +510,24 @@
       </div>
       <Toggle checked={schedulerRunning} disabled={schedulerLoading} onchange={toggleScheduler} />
     </div>
+    {#if importNowError}
+      <p class="error">{importNowError}</p>
+    {/if}
+    {#if importNowResult !== null}
+      <p class="saved">
+        {importNowResult.imported === 0
+          ? 'Nothing new.'
+          : `${importNowResult.imported} post${importNowResult.imported === 1 ? '' : 's'} imported.`}
+      </p>
+    {/if}
+    <button
+      class="btn"
+      type="button"
+      disabled={importNowLoading || cycleRunning}
+      onclick={importNow}
+    >
+      {importNowLoading || cycleRunning ? 'Importing…' : 'Run now'}
+    </button>
   </div>
 
   <div class="divider"></div>

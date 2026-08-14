@@ -432,7 +432,7 @@ def _fetch_old_posts(L: instaloader.Instaloader, db_path: Path) -> dict[str, int
     return account_counts
 
 
-_SESSION_INVALIDATED_EXCEPTIONS = (
+SESSION_INVALIDATED_EXCEPTIONS = (
     instaloader.LoginRequiredException,
     instaloader.AbortDownloadException,
     instaloader.BadCredentialsException,
@@ -472,6 +472,34 @@ def _run_cycle() -> dict[str, int]:
     persist_session_cookies()
     logger.info("Import cycle complete")
     return account_counts
+
+
+async def run_manual_cycle() -> dict[str, int]:
+    """Run a single import cycle immediately, independent of the scheduled loop.
+
+    Shares `_cycle_running` with the scheduled loop so the two never overlap.
+    On session invalidation, disables the scheduler and alerts, same as the
+    scheduled loop — the next scheduled cycle would hit the same failure.
+    """
+    global _cycle_running
+    if _cycle_running:
+        raise RuntimeError("An import cycle is already running")
+    _cycle_running = True
+    try:
+        return await asyncio.to_thread(_run_cycle)
+    except SESSION_INVALIDATED_EXCEPTIONS as exc:
+        logger.critical(
+            "Manual cycle — session invalidated. Update session ID at /settings. (%s)",
+            exc,
+        )
+        set_setting("scheduler_enabled", "false", DB_PATH)
+        await asyncio.to_thread(
+            send_telegram_alert,
+            f"⚠️ Scheduler stopped: session invalidated ({type(exc).__name__}).",
+        )
+        raise
+    finally:
+        _cycle_running = False
 
 
 def _load_next_delay() -> int:
@@ -564,7 +592,7 @@ async def _scheduler_loop() -> None:
                 _fmt_delay(next_delay),
                 retry_at.strftime("%H:%M"),
             )
-        except _SESSION_INVALIDATED_EXCEPTIONS as exc:
+        except SESSION_INVALIDATED_EXCEPTIONS as exc:
             logger.critical(
                 "Session invalidated — scheduler stopped. Update session ID at /settings. (%s)",
                 exc,

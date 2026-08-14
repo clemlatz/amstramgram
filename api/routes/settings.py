@@ -11,7 +11,14 @@ from ..importer import count_pending_imports, import_from_disk_lock, run_import 
 from ..loader import get_loader, reload_session
 from ..logs import get_logs
 from ..saved import sync_saved_posts
-from ..scheduler import RateLimitException, get_scheduler_status, start_scheduler, stop_scheduler
+from ..scheduler import (
+    RateLimitException,
+    SESSION_INVALIDATED_EXCEPTIONS,
+    get_scheduler_status,
+    run_manual_cycle,
+    start_scheduler,
+    stop_scheduler,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -75,6 +82,30 @@ async def start_scheduler_endpoint():
 async def stop_scheduler_endpoint():
     await stop_scheduler()
     return JSONResponse({"running": False})
+
+
+@router.post("/settings/import-now")
+async def import_now_endpoint():
+    try:
+        account_counts = await run_manual_cycle()
+    except RuntimeError as exc:
+        return JSONResponse({"detail": str(exc)}, status_code=409)
+    except RateLimitException as exc:
+        logger.warning("manual import cycle rate limited: %s", exc)
+        return JSONResponse(
+            {"detail": "Rate limited by Instagram. Please wait a few minutes."},
+            status_code=429,
+        )
+    except SESSION_INVALIDATED_EXCEPTIONS:
+        return JSONResponse(
+            {"detail": "Session invalidated. Update the session ID above."},
+            status_code=401,
+        )
+    except Exception as exc:
+        logger.exception("manual import cycle failed: %s", exc)
+        return JSONResponse({"detail": "Import failed. Please try again."}, status_code=500)
+    total = sum(account_counts.values())
+    return JSONResponse({"imported": total, "accounts": account_counts})
 
 
 @router.get("/logs")

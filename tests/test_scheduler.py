@@ -297,6 +297,47 @@ def test_get_scheduler_status_returns_next_run_at():
         sched._scheduler_task = original_task
 
 
+@pytest.mark.asyncio
+async def test_run_manual_cycle_runs_cycle_and_releases_flag():
+    from api import scheduler as sched
+    from api.scheduler import run_manual_cycle
+
+    with patch("api.scheduler._run_cycle", return_value={"alice": 2}):
+        result = await run_manual_cycle()
+
+    assert result == {"alice": 2}
+    assert sched._cycle_running is False
+
+
+@pytest.mark.asyncio
+async def test_run_manual_cycle_rejects_when_already_running():
+    from api import scheduler as sched
+    from api.scheduler import run_manual_cycle
+
+    sched._cycle_running = True
+    try:
+        with pytest.raises(RuntimeError):
+            await run_manual_cycle()
+    finally:
+        sched._cycle_running = False
+
+
+@pytest.mark.asyncio
+async def test_run_manual_cycle_disables_scheduler_on_session_invalidated():
+    from api import scheduler as sched
+    from api.scheduler import SessionExpiredException, run_manual_cycle
+
+    with patch("api.scheduler._run_cycle", side_effect=SessionExpiredException("logged out")):
+        with patch("api.scheduler.set_setting") as mock_set:
+            with patch("api.scheduler.send_telegram_alert") as mock_alert:
+                with pytest.raises(SessionExpiredException):
+                    await run_manual_cycle()
+
+    mock_set.assert_called_once_with("scheduler_enabled", "false", sched.DB_PATH)
+    mock_alert.assert_called_once()
+    assert sched._cycle_running is False
+
+
 def test_post_has_video_pure_video_post():
     from api.scheduler import _post_has_video
 

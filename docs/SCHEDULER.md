@@ -6,6 +6,12 @@
 
 The scheduler state is **persisted in the database** (`scheduler_enabled` setting). On startup, the app reads this value and automatically restarts the scheduler if it was running before the process stopped. The state is toggled via `POST /api/settings/scheduler/start` and `POST /api/settings/scheduler/stop`.
 
+## Manual trigger
+
+`POST /api/settings/import-now` runs one cycle (`_run_cycle`) immediately, independent of the scheduled loop's timing — the 07:00–23:00 window and the `IMPORT_CYCLE_DELAY_MIN/MAX` inter-cycle wait are scheduler-loop concerns only and don't apply here. It shares the `_cycle_running` flag with the scheduled loop, so the two can never run concurrently — a manual trigger while a cycle (scheduled or manual) is already running returns `409`. It does not touch `next_run_at`, so it never reschedules or delays the next automatic cycle.
+
+Session invalidation during a manual cycle disables the scheduler and sends the same Telegram alert as the scheduled loop would (`401` returned to the caller). A rate-limit error returns `429` but does not affect the scheduled loop's own consecutive-error counter.
+
 ## Active time window
 
 Every cycle begins with a check: if the current time is outside **07:00–23:00**, the scheduler sleeps until 07:00 the next morning, plus a random **morning jitter** of 5 min – 2 h (`IMPORT_MORNING_JITTER_MIN`/`MAX`) to avoid predictable daily patterns.
